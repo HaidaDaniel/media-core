@@ -11,7 +11,10 @@ MediaWork 1---* Edition 1---* ProgressRecord
     |              |
     *---* MediaRelation (explicit)
                    |
-                   *---* ReleaseRecord (imported from Release Watcher)
+                   *---* ReleaseRecord (linked)
+                              ^
+                              |
+                        ImportRecord (staging, edition nullable)
 ```
 
 ### MediaWork
@@ -81,9 +84,13 @@ A user-owned state: `planned`, `in_progress`, `paused`, `completed`, `dropped`, 
 
 An explicit, directed or symmetric relation between MediaWorks or Editions: `same_story`, `translation_of`, `adaptation_of`, `side_story`, `prequel`, `sequel`, `related`, `alternative`. It has provenance (`manual`, `agent`) and confidence/unknown. Relations are created deliberately and never inferred from title similarity alone.
 
+### ImportRecord (staging)
+
+An immutable imported Release Watcher event before it is linked to an edition: event id, event type, publication id, external work reference, raw payload, schema version, detection time, and a nullable `edition_id`. Unknown additive fields are preserved. An event with no explicit edition link stays `pending`; it is never auto-attached by title. Linking is an explicit user/agent action.
+
 ### ReleaseRecord (imported)
 
-A release imported from Release Watcher: event id, type, edition/publication reference, external release ids, numbers, titles, URLs, source times, detection time, schema version, raw payload. It is immutable after import; corrections are new records or explicit annotations.
+A release projection created after an ImportRecord is linked to an edition: event id, type, edition/publication reference, external release ids, numbers, titles, URLs, source times, detection time, schema version. It is immutable after creation; corrections are new events or explicit annotations. The original ImportRecord remains the provenance source.
 
 ## Content delivery concepts (future, concept only)
 
@@ -118,7 +125,7 @@ Media Core may record that an external harness produced a translated asset. It d
 1. One Edition belongs to one MediaWork; a MediaWork may have several Editions.
 2. No automatic merging by title, cover or fuzzy string.
 3. Progress, status, rating and notes are user-owned and edition-scoped.
-4. Release Watcher events are deduplicated by `event_id`; importing twice is a no-op.
+4. Release Watcher events are deduplicated by `event_id`; importing twice is a no-op. Pending ImportRecords may have no edition; a ReleaseRecord requires one.
 5. A publication line's release counts are never summed with another edition's counts.
 6. Facts, computed values and unknowns are stored distinctly; unknown stays NULL/unknown.
 7. Content assets and delivery are future concepts; library truth does not depend on them.

@@ -28,7 +28,7 @@ Architecture and dependency decisions for Media Core. Add a new entry for every 
 
 - Date: 2026-11-04
 - Status: Accepted
-- Decision: WN, LN, book, manga, film, series, anime and translations are separate Editions under an optional MediaWork. Relations (`same_story`, `translation_of`, `adaptation_of`, etc.) are explicit and provenance-bearing. Titles, covers or fuzzy similarity never merge editions automatically.
+- Decision: WN, LN, book, manga, film, series, anime and translations are separate Editions under a MediaWork. An Edition always has one owning MediaWork; grouping several editions is the purpose of that Work, not automatic title matching. Relations (`same_story`, `translation_of`, `adaptation_of`, etc.) are explicit and provenance-bearing. Titles, covers or fuzzy similarity never merge editions automatically.
 - Consequences: Counts and progress are edition-scoped. Users/agents can link editions deliberately. Release Watcher publication lines map cleanly to editions.
 
 ## ADR-0005 — Immutable event import deduplicated by event_id

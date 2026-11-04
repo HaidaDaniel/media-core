@@ -23,7 +23,7 @@ Media Core import rules for every event:
 1. Require `schema_version` major `1`. An unsupported major stops the import with a clear error; it is not guessed.
 2. Deduplicate by `event_id` before applying anything. A repeated event is a no-op.
 3. Store the raw payload plus the typed fields needed for queries: event type, publication id, external work reference, release ids/numbers/titles/URLs, counts, source/detection times, work/edition hints.
-4. Attach to an Edition explicitly. Import does not create a new Edition by fuzzy title match. If no edition is linked, keep the event in a pending import queue; the user/agent selects the edition.
+4. Attach to an Edition explicitly. Import does not create a new Edition by fuzzy title match. If no edition is linked, keep the event as a pending `ImportRecord` with a nullable `edition_id`; the user/agent selects the edition. A `ReleaseRecord` is projected only after linking.
 5. Never sum release counts across editions. `release.added` count-only events keep `current_count`/`count_delta` and no invented numbers.
 6. An event is not updated in place. Corrections arrive as new events or user annotations.
 7. Deleting/pausing a Release Watcher watch never deletes Media Core history.
@@ -71,6 +71,7 @@ Field names and error codes are English; human text may be RU/EN. Exit codes: 0 
 
 ## Versioning
 
+- Consumers must ignore unknown additive fields. Unknown event types are stored as pending ImportRecords but not projected into release/progress state; the importer reports them.
 - Additive fields are allowed within a major event/CLI version.
 - Removing/renaming a field or changing its meaning requires a new major version.
 - Media Core records the original payload and schema version so a later migration can re-project events without asking Release Watcher to resend them.
