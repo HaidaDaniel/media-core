@@ -1,6 +1,6 @@
 # Task 0001 - Start Project
 
-State: todo
+State: canceled
 Owner: none
 Mode: mvp
 Lane: planning
@@ -50,3 +50,4 @@ Define the first useful implementation task.
 ## Notes
 
 - Keep the first task small.
+- cancel: Superseded by the Media Core documentation task 0002; no separate starter planning task is needed.
