@@ -1,3 +1,60 @@
 # Decisions
 
-Record architecture and dependency decisions here.
+Architecture and dependency decisions for Media Core. Add a new entry for every material decision.
+
+## ADR-0001 — Separate repository, database and event contract from Release Watcher
+
+- Date: 2026-11-04
+- Status: Accepted
+- Context: Release Watcher detects publications and owns watch state. Media Core owns personal history, progress and opinions. Sharing a database would couple deployments, schemas and failure modes.
+- Decision: Media Core and Release Watcher are separate Go binaries with separate SQLite files. Integration is through the versioned JSON event contract. Media Core never opens Release Watcher's database.
+- Consequences: Either project works alone. Import can lag or be replayed. Cross-project changes require contract versioning, not a shared migration.
+
+## ADR-0002 — Go + pure-Go SQLite, one binary, on demand
+
+- Date: 2026-11-04
+- Status: Accepted
+- Decision: Use Go and a pure-Go SQLite driver with `CGO_ENABLED=0`, one CLI binary, WAL and short transactions. State lives outside the source tree. No daemon, server, Docker, PostgreSQL, Redis or broker is required.
+- Consequences: Linux x86-64/ARM64 builds are simple and idle resource use is zero. A future feature that needs a resident process requires a new explicit decision.
+
+## ADR-0003 — CLI first, MCP later over the same use cases
+
+- Date: 2026-11-04
+- Status: Accepted
+- Decision: The CLI with stable JSON is the first and primary interface. MCP stdio is added only after the CLI is proven, and it calls the same application use cases. It does not duplicate business logic.
+- Consequences: Any agent can drive Media Core locally without a server. MCP is optional and cannot become a second source of rules.
+
+## ADR-0004 — Editions are explicit; no automatic title merge
+
+- Date: 2026-11-04
+- Status: Accepted
+- Decision: WN, LN, book, manga, film, series, anime and translations are separate Editions under an optional MediaWork. Relations (`same_story`, `translation_of`, `adaptation_of`, etc.) are explicit and provenance-bearing. Titles, covers or fuzzy similarity never merge editions automatically.
+- Consequences: Counts and progress are edition-scoped. Users/agents can link editions deliberately. Release Watcher publication lines map cleanly to editions.
+
+## ADR-0005 — Immutable event import deduplicated by event_id
+
+- Date: 2026-11-04
+- Status: Accepted
+- Decision: Release Watcher events are stored as immutable imported records with the original payload and schema version. Import is idempotent by `event_id`. Re-import is a no-op. Corrections are new events or explicit user annotations.
+- Consequences: At-least-once delivery is safe. Historical projections can be rebuilt without asking Release Watcher to resend. Unsupported major schema versions fail closed.
+
+## ADR-0006 — Content delivery is a future module, not an MVP dependency
+
+- Date: 2026-11-04
+- Status: Accepted concept
+- Decision: Document `ContentReference`, `ContentAsset`, `ContentProvider` and `DeliveryTarget` so the schema can accommodate them later. Do not implement downloading, streaming, DRM handling, provider crawling or delivery in the MVP.
+- Consequences: Library truth stays small and local. Future delivery requires separate tasks, explicit provider contracts and rights/provenance handling.
+
+## ADR-0007 — Translations are linked assets with external harness provenance
+
+- Date: 2026-11-04
+- Status: Accepted concept
+- Decision: An original and its translation are linked as separate assets/editions with language and translator/harness provenance. Media Core does not embed an LLM or execute translation in the MVP. Missing translations fall back to the original; none are invented.
+- Consequences: Translation is optional and auditable. The translation harness remains an external integration.
+
+## ADR-0008 — Local-first without mandatory cloud or LLM
+
+- Date: 2026-11-04
+- Status: Accepted
+- Decision: All core library operations, backup and restore work offline. External metadata, covers, translation and delivery are optional explicit integrations that may fail without blocking local data. No telemetry or mandatory hosted account.
+- Consequences: The product remains usable on a home device and independent of any model/provider.
