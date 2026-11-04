@@ -1,0 +1,9 @@
+{
+  "projectName": "Media Core",
+  "defaultMode": "mvp",
+  "documentationProfile": "minimal",
+  "agentStyle": "normal",
+  "taskDirectory": ".tasks",
+  "docsDirectory": "docs",
+  "schemaVersion": 2
+}
