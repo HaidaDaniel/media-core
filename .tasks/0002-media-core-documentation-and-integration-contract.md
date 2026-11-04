@@ -1,7 +1,7 @@
 # Task 0002 - Media Core documentation and integration contract
 
-State: todo
-Owner: none
+State: done
+Owner: opencode-primary
 Mode: mvp
 Lane: planning
 Scope: docs,product,architecture,integration
