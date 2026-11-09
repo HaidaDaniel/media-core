@@ -22,3 +22,4 @@ node_modules/
 .agentic/runs.jsonl
 docs/audit-report.md
 docs/project-map.md
+/tmp/apk/
