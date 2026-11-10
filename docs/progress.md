@@ -12,9 +12,13 @@ Product/domain/architecture revised for personal history, distinct state dimensi
 
 M1 persistent CLI/SQLite/backup; M2 usable responsive Web UI; M3 equivalent basic MCP; M4 practical sources/relations/opinions/intentions; M5 imports, parity, complete restore and embedded packaging. See [roadmap](roadmap.md). First implementation task: 0005, only after 0004's review/gate/done.
 
+## Implementation phase (2026-11-10)
+
+Task 0005 done, owner opencode-media-20261110. Bootstrap Go module `github.com/HaidaDaniel/media-core`: `version` prints truthful dev-default identity with ldflags injection; `serve`/`mcp` are reserved and fail clearly; unknown commands return usage. No state directory, database or server is created. Unit tests in `internal/buildinfo`, `internal/cli`, `internal/runtime`.
+
 ## Implemented
 
-Documentation and task contracts only. APK 0.5.2 remains the sole pinned tooling dependency. No Go runtime, schema, HTTP/API, React application, MCP tools or deployment is implemented.
+Go bootstrap executable (task 0005) plus documentation and task contracts. APK 0.5.2 remains the sole pinned tooling dependency. No database, schema, HTTP/API, React application, MCP tools or deployment is implemented.
 
 ## Verification
 
