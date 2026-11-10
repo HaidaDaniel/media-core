@@ -1,6 +1,6 @@
 # Task 0005 - Bootstrap Go executable and build identity
 
-State: doing
+State: done
 Owner: opencode-media-20261110
 Mode: mvp
 Lane: foundation

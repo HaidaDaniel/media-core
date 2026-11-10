@@ -14,7 +14,7 @@ M1 persistent CLI/SQLite/backup; M2 usable responsive Web UI; M3 equivalent basi
 
 ## Implementation phase (2026-11-10)
 
-Task 0005 is in review, owner opencode-media-20261110. Bootstrap Go module `github.com/HaidaDaniel/media-core`: `version` prints truthful dev-default identity with ldflags injection; `serve`/`mcp` are reserved and fail clearly; unknown commands return usage. No state directory, database or server is created. Unit tests in `internal/buildinfo`, `internal/cli`, `internal/runtime`.
+Task 0005 is done, owner opencode-media-20261110. Bootstrap Go module `github.com/HaidaDaniel/media-core`: `version` prints truthful dev-default identity with ldflags injection; `serve`/`mcp` are reserved and fail clearly; unknown commands return usage. No state directory, database or server is created. Unit tests in `internal/buildinfo`, `internal/cli`, `internal/runtime`. Independent review (opencode-media-review-20261110) requested one documentation correction (premature done claim), re-reviewed and passed with no findings; gate passed at commit 68ac331. Contract amendment added `*_test.go` for cli/runtime to the allowed files because the acceptance criteria require tests in those packages.
 
 ## Implemented
 
