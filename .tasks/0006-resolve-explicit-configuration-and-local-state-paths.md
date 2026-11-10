@@ -1,6 +1,6 @@
 # Task 0006 - Resolve explicit configuration and local state paths
 
-State: doing
+State: done
 Owner: opencode-media-20261110
 Mode: mvp
 Lane: foundation
