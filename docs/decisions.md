@@ -96,3 +96,11 @@ Architecture and dependency decisions for Media Core. Add a new entry for every 
 - Status: Accepted target refinement of ADR-0002.
 - Decision: Local-disk WAL, per-connection foreign keys/busy timeout, short immediate write transactions; shared lifetime maintenance lock for open handles and exclusive init/migrate/restore. Explicit migrations rather than hot schema changes. Snapshot backup includes manifest/hash; restore validates before replacement and requires stopped processes.
 - Consequences: A persistent serve/MCP process blocks restore until stopped. No copying an uncheckpointed live DB alone, no NFS database, no cross-host SQLite mount. Pure-Go driver must prove snapshot/concurrency behavior in focused tests. Dependencies are selected/pinned in implementation tasks with additional decision entries; none are added by planning.
+
+## ADR-0014 — Pin modernc.org/sqlite v1.62.0 as the pure-Go driver
+
+- Date: 2026-11-10
+- Status: Accepted
+- Context: ADR-0013 defers driver selection to implementation. Task 0008 needs a supported pure-Go SQLite driver (ADR-0002, `CGO_ENABLED=0`). modernc.org/sqlite v1.62.0 is the newest release at selection time; it requires Go >= 1.26 (the pinned toolchain is newer) and pulls modernc.org/libc, modernc.org/memory, modernc.org/mathutil and golang.org/x/sys, which the store package also uses directly for `flock`-based maintenance locking.
+- Decision: Pin modernc.org/sqlite v1.62.0. WAL, foreign keys, synchronous FULL and the 5000 ms busy timeout are applied per connection through driver pragma parameters and verified on the live connection after open.
+- Consequences: No C toolchain for builds; Linux x86-64/ARM64 remain simple. Snapshot (`VACUUM INTO`) and multi-process behavior are proven by the focused tests of tasks 0008/0022/0044, not assumed. Upgrades to a new major/minor driver line require a new decision entry.

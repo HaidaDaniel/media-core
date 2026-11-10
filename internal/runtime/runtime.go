@@ -7,6 +7,7 @@ import (
 
 	"github.com/HaidaDaniel/media-core/internal/buildinfo"
 	"github.com/HaidaDaniel/media-core/internal/config"
+	"github.com/HaidaDaniel/media-core/internal/store"
 )
 
 // ResolveConfig resolves process configuration for a mode. It is pure: no
@@ -14,6 +15,18 @@ import (
 // serve and mcp lifecycles will use it when implemented.
 func ResolveConfig(opts config.Options) (*config.Config, error) {
 	return config.Resolve(opts)
+}
+
+// OpenDatabase opens the process database for a resolved configuration
+// under the shared lifetime maintenance lock.
+func OpenDatabase(cfg *config.Config) (*store.Database, error) {
+	return store.Open(cfg.StateDir)
+}
+
+// OpenDatabaseForMaintenance opens the database under the exclusive
+// maintenance lock for init, migration and restore.
+func OpenDatabaseForMaintenance(cfg *config.Config) (*store.Database, error) {
+	return store.OpenForMaintenance(cfg.StateDir)
 }
 
 // ErrMissingCommand is returned when no command is supplied.
