@@ -1,6 +1,6 @@
 # Task 0007 - Freeze typed application DTOs errors and contract fixtures
 
-State: doing
+State: done
 Owner: opencode-media-20261110
 Mode: mvp
 Lane: foundation
