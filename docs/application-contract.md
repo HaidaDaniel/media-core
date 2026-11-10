@@ -1,6 +1,6 @@
 # Shared application and adapter contracts
 
-Target v1. DTO names below freeze behavior for parallel implementation; Go/TypeScript types and fixtures will be created by task 0007, not claimed to exist now. Domain invariants are authoritative in [domain-model.md](domain-model.md).
+Target v1. DTO names below freeze behavior for parallel implementation. Task 0007 freezes the Go types and fixtures: `internal/app/contracts.go`, `internal/domain/values.go` and byte-canonical files in `tests/contracts/fixtures/`; the two envelope examples below are pinned to those fixtures byte for byte, and the stable code-to-HTTP-status/CLI-exit mapping is frozen in `internal/app/contracts.go`. Domain invariants are authoritative in [domain-model.md](domain-model.md).
 
 ## Common DTOs and errors
 
