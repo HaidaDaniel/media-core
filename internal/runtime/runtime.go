@@ -6,7 +6,15 @@ import (
 	"io"
 
 	"github.com/HaidaDaniel/media-core/internal/buildinfo"
+	"github.com/HaidaDaniel/media-core/internal/config"
 )
+
+// ResolveConfig resolves process configuration for a mode. It is pure: no
+// state directory is created and no secret value is rendered. The reserved
+// serve and mcp lifecycles will use it when implemented.
+func ResolveConfig(opts config.Options) (*config.Config, error) {
+	return config.Resolve(opts)
+}
 
 // ErrMissingCommand is returned when no command is supplied.
 var ErrMissingCommand = fmt.Errorf("media-core: missing command")

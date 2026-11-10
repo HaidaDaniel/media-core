@@ -16,6 +16,8 @@ M1 persistent CLI/SQLite/backup; M2 usable responsive Web UI; M3 equivalent basi
 
 Task 0005 is done, owner opencode-media-20261110. Bootstrap Go module `github.com/HaidaDaniel/media-core`: `version` prints truthful dev-default identity with ldflags injection; `serve`/`mcp` are reserved and fail clearly; unknown commands return usage. No state directory, database or server is created. Unit tests in `internal/buildinfo`, `internal/cli`, `internal/runtime`. Independent review (opencode-media-review-20261110) requested one documentation correction (premature done claim), re-reviewed and passed with no findings; gate passed at commit 68ac331. Contract amendment added `*_test.go` for cli/runtime to the allowed files because the acceptance criteria require tests in those packages.
 
+Task 0006 implementation committed, owner opencode-media-20261110. `internal/config` resolves state directory (flag > `MEDIA_CORE_STATE_DIR` > `XDG_DATA_HOME/media-core` > `$HOME/.local/share/media-core`), listener (default `127.0.0.1:8787`, no wildcard fallback), public origin and TLS settings. Absolute-path validation rejects relative and symlinked state dirs; a non-loopback listener requires the explicit allow-remote + https origin + TLS trio; secrets render only as `redacted`. Resolution is pure: no state is created for version/doctor. Documented in docs/engineering/configuration.md.
+
 ## Implemented
 
 Go bootstrap executable (task 0005) plus documentation and task contracts. APK 0.5.2 remains the sole pinned tooling dependency. No database, schema, HTTP/API, React application, MCP tools or deployment is implemented.

@@ -1,7 +1,7 @@
 # Task 0006 - Resolve explicit configuration and local state paths
 
-State: todo
-Owner: none
+State: doing
+Owner: opencode-media-20261110
 Mode: mvp
 Lane: foundation
 Scope: foundation
@@ -22,11 +22,11 @@ Implement deterministic flag/environment/default resolution and secure state pat
 - docs/task-system.md
 
 ## Files allowed to edit
+
 - internal/config/**
 - internal/runtime/runtime.go
 - docs/engineering/configuration.md
 - docs/progress.md
-
 - .tasks/0006-resolve-explicit-configuration-and-local-state-paths.md
 
 ## Files forbidden to edit
@@ -65,6 +65,7 @@ Implement deterministic flag/environment/default resolution and secure state pat
 - `{"id":"focused","type":"automated","required":true,"environment":"local","profile":"report","command":"go test ./internal/config"}`
 
 ## Documentation updates
+
 - Update docs/progress.md on lifecycle changes.
 
 ## Notes
