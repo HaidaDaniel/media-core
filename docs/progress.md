@@ -4,7 +4,7 @@ Status vocabulary: planned, implemented, tested, deployed, blocked. Documentatio
 
 ## Current planning phase (2026-11-10)
 
-Task 0004 is in review/fix, owner codex-media-plan-20261110. Initial worktree was clean on main at 7acb2f0458bdfff33bd48c4312b2eb2be944b56d. Existing 0001 canceled / 0002 done / 0003 todo are preserved.
+Task 0004 is done, owner codex-media-plan-20261110. Initial worktree was clean on main at 7acb2f0458bdfff33bd48c4312b2eb2be944b56d. Existing 0001 canceled / 0002 done / 0003 todo are preserved.
 
 Product/domain/architecture revised for personal history, distinct state dimensions, explicit sources/editions and equal Web + Hermes/MCP scope. ADR-0009–0013 amend earlier target decisions without deleting their history. 45 future implementation tasks 0005–0049 are unclaimed todo; [inventory/coverage/dependencies](implementation-plan.md).
 
@@ -18,7 +18,9 @@ Documentation and task contracts only. APK 0.5.2 remains the sole pinned tooling
 
 ## Verification
 
-Initial APK doctor/lint/sync passed; doctor warned about no application stack, no quality capabilities, missing license and missing .env.example. These are observed planning-repository limitations. Canonical planning verification passed on candidate 6074777 (run verify-1794344816207-qpb85j). Independent review requested two planning corrections: permit parent/API wiring paths in 0043 and place 0044 after the final migration in 0043. This revision addresses both and adds focused static regressions; fresh candidate verification/review is pending. No application tests have been run or claimed.
+Initial APK doctor/lint/sync passed; doctor warned about no application stack, no quality capabilities, missing license and missing .env.example. These are observed planning-repository limitations. Final committed candidate: 25d0faa0c8ac63cd516b833b9b038862f8c2f032. Canonical verification run verify-1794345139970-vpmrr5 passed all five checks: planning script, APK lint, doctor, sync-check and full baseline-to-candidate git diff --check. Static checks cover 49 unique task IDs, 45 unclaimed todo tasks, valid acyclic dependencies, 18 requirements/scenarios A–G, existing context paths and documentation links. Scope attribution passed with no unrelated files.
+
+Independent reviewer codex-media-review-20261110 inspected the complete candidate and all 45 contracts. The first review requested two corrections (0043 parent/API wiring scope; 0044 final-schema prerequisite); both were fixed with static regressions. Fresh review work-1794345141460-habp9l passed with no findings, evidence evidence-1794345200809-ilxpnc. APK gate passed and 0004 was marked done by its registered owner. Detailed machine evidence/provenance is local under .agentic/evidence.jsonl and .agentic/sessions/work/0004/; these operational files are intentionally ignored by Git. This final progress/task-state update is separate lifecycle bookkeeping; it does not alter the reviewed design or future task graph. No application tests have been run or claimed.
 
 ## Deployed / blocked
 
