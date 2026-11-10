@@ -23,15 +23,12 @@ Adapt relation/origin lifecycle and existing activity projection for Web navigat
 - docs/application-contract.md
 
 ## Files allowed to edit
-
 - internal/httpapi/relations.go
 - internal/httpapi/activity.go
 - internal/httpapi/relations_test.go
 - internal/httpapi/activity_test.go
 - internal/httpapi/routes.go
 - docs/progress.md
-
-- .tasks/0029-expose-relation-origin-and-recent-activity-http-reads-and-writes.md
 
 - .tasks/0029-expose-relation-origin-and-recent-activity-http-reads-and-writes.md
 
@@ -71,10 +68,7 @@ Adapt relation/origin lifecycle and existing activity projection for Web navigat
 - `{"id":"focused","type":"automated","required":true,"environment":"local","profile":"report","command":"go test ./internal/httpapi -run \"TestHTTP(Relation|Origin|Activity)\""}`
 
 ## Documentation updates
-
 - Update docs/progress.md on lifecycle changes.
-- Update docs/progress.md on lifecycle changes.
-
 
 ## Notes
 

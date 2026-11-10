@@ -23,12 +23,9 @@ Automate scenarios B/D with restart, correction and retained opinions via Web an
 - docs/product/requirements.md
 
 ## Files allowed to edit
-
 - web/e2e/history.spec.ts
 - tests/acceptance/history_test.go
 - docs/progress.md
-
-- .tasks/0046-verify-progress-and-negative-impression-history-through-both-interfaces.md
 
 - .tasks/0046-verify-progress-and-negative-impression-history-through-both-interfaces.md
 
@@ -68,10 +65,7 @@ Automate scenarios B/D with restart, correction and retained opinions via Web an
 - `{"id":"focused","type":"automated","required":true,"environment":"local","profile":"report","command":"go test ./tests/acceptance -run \"Test(ScenarioB|ScenarioD)\" && pnpm --dir web exec playwright test e2e/history.spec.ts"}`
 
 ## Documentation updates
-
 - Update docs/progress.md on lifecycle changes.
-- Update docs/progress.md on lifecycle changes.
-
 
 ## Notes
 

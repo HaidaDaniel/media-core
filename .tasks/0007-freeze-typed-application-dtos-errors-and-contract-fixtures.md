@@ -24,15 +24,12 @@ Encode the documented v1 records, requests, errors and canonical examples before
 - docs/application-contract.md
 
 ## Files allowed to edit
-
 - internal/app/contracts.go
 - internal/app/contracts_test.go
 - internal/domain/values.go
 - tests/contracts/fixtures/**
 - docs/application-contract.md
 - docs/progress.md
-
-- .tasks/0007-freeze-typed-application-dtos-errors-and-contract-fixtures.md
 
 - .tasks/0007-freeze-typed-application-dtos-errors-and-contract-fixtures.md
 
@@ -72,10 +69,7 @@ Encode the documented v1 records, requests, errors and canonical examples before
 - `{"id":"focused","type":"automated","required":true,"environment":"local","profile":"report","command":"go test ./internal/app ./internal/domain"}`
 
 ## Documentation updates
-
 - Update docs/progress.md on lifecycle changes.
-- Update docs/progress.md on lifecycle changes.
-
 
 ## Notes
 

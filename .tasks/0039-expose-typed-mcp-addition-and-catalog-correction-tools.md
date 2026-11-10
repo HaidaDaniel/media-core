@@ -24,13 +24,10 @@ Expose resolve_addition/create_entry/update_catalog without bypassing identity d
 - docs/application-contract.md
 
 ## Files allowed to edit
-
 - internal/mcp/catalog_writes.go
 - internal/mcp/catalog_writes_test.go
 - internal/mcp/server.go
 - docs/progress.md
-
-- .tasks/0039-expose-typed-mcp-addition-and-catalog-correction-tools.md
 
 - .tasks/0039-expose-typed-mcp-addition-and-catalog-correction-tools.md
 
@@ -70,10 +67,7 @@ Expose resolve_addition/create_entry/update_catalog without bypassing identity d
 - `{"id":"focused","type":"automated","required":true,"environment":"local","profile":"report","command":"go test ./internal/mcp -run \"TestMCPCatalogWrite\""}`
 
 ## Documentation updates
-
 - Update docs/progress.md on lifecycle changes.
-- Update docs/progress.md on lifecycle changes.
-
 
 ## Notes
 

@@ -23,7 +23,6 @@ Publish a consistent database archive with integrity metadata while normal write
 - docs/product/requirements.md
 
 ## Files allowed to edit
-
 - internal/backup/archive.go
 - internal/backup/archive_test.go
 - internal/app/backup.go
@@ -32,8 +31,6 @@ Publish a consistent database archive with integrity metadata while normal write
 - internal/runtime/runtime.go
 - docs/engineering/backup-restore.md
 - docs/progress.md
-
-- .tasks/0022-create-consistent-sqlite-snapshot-backups-with-manifests.md
 
 - .tasks/0022-create-consistent-sqlite-snapshot-backups-with-manifests.md
 
@@ -73,10 +70,7 @@ Publish a consistent database archive with integrity metadata while normal write
 - `{"id":"focused","type":"automated","required":true,"environment":"local","profile":"report","command":"go test ./internal/backup ./internal/app ./internal/cli -run \"TestBackup\""}`
 
 ## Documentation updates
-
 - Update docs/progress.md on lifecycle changes.
-- Update docs/progress.md on lifecycle changes.
-
 
 ## Notes
 

@@ -22,15 +22,12 @@ Create the smallest compiling executable with version and mode dispatch seams, w
 - docs/task-system.md
 
 ## Files allowed to edit
-
 - go.mod
 - cmd/media-core/main.go
 - internal/runtime/runtime.go
 - internal/cli/cli.go
 - internal/buildinfo/**
 - docs/progress.md
-
-- .tasks/0005-bootstrap-go-executable-and-build-identity.md
 
 - .tasks/0005-bootstrap-go-executable-and-build-identity.md
 
@@ -70,10 +67,7 @@ Create the smallest compiling executable with version and mode dispatch seams, w
 - `{"id":"focused","type":"automated","required":true,"environment":"local","profile":"report","command":"go test ./internal/buildinfo ./internal/cli ./internal/runtime"}`
 
 ## Documentation updates
-
 - Update docs/progress.md on lifecycle changes.
-- Update docs/progress.md on lifecycle changes.
-
 
 ## Notes
 

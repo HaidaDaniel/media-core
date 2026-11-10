@@ -88,6 +88,7 @@ def main():
         for value in bullets(section(text, 'Context files')):
             require(safe_path(value) and (ROOT / value).is_file(), f'{task_id}: absent/unsafe context {value}')
         allowed = bullets(section(text, 'Files allowed to edit'))
+        require(len(allowed) == len(set(allowed)), f'{task_id}: duplicate allowed paths')
         for value in allowed:
             require(safe_path(value), f'{task_id}: unsafe allowed path {value}')
         require('docs/progress.md' in allowed, f'{task_id}: lifecycle progress path absent')
@@ -102,6 +103,20 @@ def main():
                 f'{task_id}: no required future command')
         require('none is claimed to pass today' in text, f'{task_id}: missing future-test disclaimer')
         require(len(text.encode()) < 12000, f'{task_id}: unusually large task; review decomposition')
+    # Review regressions: final-schema verification must follow the final migration,
+    # and the import slice must be permitted to mount its new UI components.
+    require('0043' in tasks['0044']['deps'], '0044 must follow final migration task 0043')
+    wiring = set(bullets(section(tasks['0043']['text'], 'Files allowed to edit')))
+    for value in ('web/src/activity/ActivityPage.tsx', 'web/src/work/WorkPage.tsx',
+                  'web/src/api/releases.ts', 'web/src/activity/ActivityPage.test.tsx',
+                  'web/src/work/WorkPage.test.tsx'):
+        require(value in wiring, f'0043 missing integration path {value}')
+    for task_id, value in (('0030', 'web/src/api/client.ts'),
+                           ('0033', 'web/src/work/WorkPage.tsx'),
+                           ('0034', 'web/src/edition/EditionPage.tsx'),
+                           ('0036', 'web/src/activity/ActivityPage.tsx')):
+        require(value in section(tasks[task_id]['text'], 'Steps'),
+                f'{task_id} must create the named future integration anchor {value}')
     plan = (ROOT / 'docs/implementation-plan.md').read_text()
     inventory = {}
     coverage = {}

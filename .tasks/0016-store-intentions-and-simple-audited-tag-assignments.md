@@ -24,7 +24,6 @@ Add saved/planned/interested intentions and simple work/edition tags with query 
 - docs/application-contract.md
 
 ## Files allowed to edit
-
 - internal/app/intention.go
 - internal/app/tags.go
 - internal/app/intention_test.go
@@ -37,8 +36,6 @@ Add saved/planned/interested intentions and simple work/edition tags with query 
 - internal/cli/tags.go
 - internal/runtime/runtime.go
 - docs/progress.md
-
-- .tasks/0016-store-intentions-and-simple-audited-tag-assignments.md
 
 - .tasks/0016-store-intentions-and-simple-audited-tag-assignments.md
 
@@ -78,10 +75,7 @@ Add saved/planned/interested intentions and simple work/edition tags with query 
 - `{"id":"focused","type":"automated","required":true,"environment":"local","profile":"report","command":"go test ./internal/app ./internal/store ./internal/cli -run \"Test(Intention|Tag)\""}`
 
 ## Documentation updates
-
 - Update docs/progress.md on lifecycle changes.
-- Update docs/progress.md on lifecycle changes.
-
 
 ## Notes
 

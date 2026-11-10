@@ -24,7 +24,6 @@ Add maintained Go MCP SDK and clean stdio mode without HTTP dependency.
 - docs/application-contract.md
 
 ## Files allowed to edit
-
 - go.mod
 - go.sum
 - internal/mcp/server.go
@@ -34,8 +33,6 @@ Add maintained Go MCP SDK and clean stdio mode without HTTP dependency.
 - internal/runtime/runtime.go
 - docs/decisions.md
 - docs/progress.md
-
-- .tasks/0037-bootstrap-mcp-stdio-and-shared-service-adapter-boundary.md
 
 - .tasks/0037-bootstrap-mcp-stdio-and-shared-service-adapter-boundary.md
 
@@ -75,10 +72,7 @@ Add maintained Go MCP SDK and clean stdio mode without HTTP dependency.
 - `{"id":"focused","type":"automated","required":true,"environment":"local","profile":"report","command":"go test ./internal/mcp -run \"TestMCP(Server|Error|Lifecycle)\""}`
 
 ## Documentation updates
-
 - Update docs/progress.md on lifecycle changes.
-- Update docs/progress.md on lifecycle changes.
-
 
 ## Notes
 

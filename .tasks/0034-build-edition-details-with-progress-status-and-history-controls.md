@@ -24,12 +24,9 @@ Provide the minimal usable edition page for daily progress/status updates and hi
 - docs/application-contract.md
 
 ## Files allowed to edit
-
 - web/src/edition/**
 - web/src/App.tsx
 - docs/progress.md
-
-- .tasks/0034-build-edition-details-with-progress-status-and-history-controls.md
 
 - .tasks/0034-build-edition-details-with-progress-status-and-history-controls.md
 
@@ -42,7 +39,7 @@ Provide the minimal usable edition page for daily progress/status updates and hi
 
 ## Steps
 
-1. Show titles/kind/language/publication source and basic work identity; add narrow metadata/title corrections
+1. Create web/src/edition/EditionPage.tsx for titles/kind/language/publication source/basic work identity and narrow metadata/title corrections
 2. Add per-unit progress, consumption and observation history/correction/retraction controls
 3. Test restart fetch, stale revision, unknown total, invalid fields, loading/error and mobile layout
 
@@ -69,10 +66,7 @@ Provide the minimal usable edition page for daily progress/status updates and hi
 - `{"id":"focused","type":"automated","required":true,"environment":"local","profile":"report","command":"pnpm --dir web exec tsc --noEmit && pnpm --dir web test -- --run src/edition"}`
 
 ## Documentation updates
-
 - Update docs/progress.md on lifecycle changes.
-- Update docs/progress.md on lifecycle changes.
-
 
 ## Notes
 

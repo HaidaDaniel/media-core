@@ -24,7 +24,6 @@ Add the small release-binding vertical slice: explicit map, projection, pending 
 - docs/product/requirements.md
 
 ## Files allowed to edit
-
 - internal/app/import_binding.go
 - internal/app/import_binding_test.go
 - internal/store/releases.go
@@ -39,12 +38,16 @@ Add the small release-binding vertical slice: explicit map, projection, pending 
 - internal/mcp/imports.go
 - internal/mcp/imports_test.go
 - internal/mcp/server.go
+- web/src/activity/ActivityPage.tsx
+- web/src/activity/ActivityPage.test.tsx
+- web/src/work/WorkPage.tsx
+- web/src/work/WorkPage.test.tsx
+- web/src/api/client.ts
+- web/src/api/releases.ts
 - web/src/activity/imports/**
 - web/src/work/releases/**
 - tests/acceptance/releases_test.go
 - docs/progress.md
-
-- .tasks/0043-bind-imported-releases-and-expose-release-history-across-interfaces.md
 
 - .tasks/0043-bind-imported-releases-and-expose-release-history-across-interfaces.md
 
@@ -59,7 +62,7 @@ Add the small release-binding vertical slice: explicit map, projection, pending 
 
 1. Persist audited publication→edition bindings and immutable release projections; handle rebind/revoke
 2. Add bounded HTTP/MCP JSON batch/binding/release adapters and CLI releases
-3. Extend existing activity/work panels with pending binding and release list; implement scenario E fixtures
+3. Add typed release API calls in web/src/api/releases.ts using the existing client, and mount new controls from ActivityPage.tsx and WorkPage.tsx; implement scenario E including reachable parent-panel tests
 
 ## Acceptance criteria
 
@@ -81,13 +84,10 @@ Add the small release-binding vertical slice: explicit map, projection, pending 
 
 ## Verification
 
-- `{"id":"focused","type":"automated","required":true,"environment":"local","profile":"report","command":"go test ./internal/app ./internal/store ./internal/httpapi ./internal/mcp ./tests/acceptance -run \"Test(ImportBinding|Release|ScenarioE)\" && pnpm --dir web exec tsc --noEmit && pnpm --dir web test -- --run src/activity/imports src/work/releases"}`
+- `{"id":"focused","type":"automated","required":true,"environment":"local","profile":"report","command":"go test ./internal/app ./internal/store ./internal/httpapi ./internal/mcp ./tests/acceptance -run \"Test(ImportBinding|Release|ScenarioE)\" && pnpm --dir web exec tsc --noEmit && pnpm --dir web test -- --run src/activity/imports src/work/releases src/activity/ActivityPage.test.tsx src/work/WorkPage.test.tsx"}`
 
 ## Documentation updates
-
 - Update docs/progress.md on lifecycle changes.
-- Update docs/progress.md on lifecycle changes.
-
 
 ## Notes
 

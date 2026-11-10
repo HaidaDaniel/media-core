@@ -24,7 +24,6 @@ Create lightweight React/Vite routing shell with common fetch/session/error hand
 - docs/application-contract.md
 
 ## Files allowed to edit
-
 - web/package.json
 - web/pnpm-lock.yaml
 - web/tsconfig*.json
@@ -41,8 +40,6 @@ Create lightweight React/Vite routing shell with common fetch/session/error hand
 
 - .tasks/0030-bootstrap-react-shell-typed-api-client-and-login.md
 
-- .tasks/0030-bootstrap-react-shell-typed-api-client-and-login.md
-
 ## Files forbidden to edit
 
 - AGENTS.md
@@ -53,7 +50,7 @@ Create lightweight React/Vite routing shell with common fetch/session/error hand
 ## Steps
 
 1. Pin React/TS/Vite and minimal testing/router tooling with ADR dependency note
-2. Implement typed fetch client against frozen fixtures plus session login/logout and in-memory CSRF
+2. Create web/src/api/client.ts as the reusable typed fetch client against frozen fixtures, plus session login/logout and in-memory CSRF
 3. Create shell/client tests, explicit build/typecheck/test scripts and responsive navigation
 
 ## Acceptance criteria
@@ -79,10 +76,7 @@ Create lightweight React/Vite routing shell with common fetch/session/error hand
 - `{"id":"focused","type":"automated","required":true,"environment":"local","profile":"report","command":"pnpm --dir web exec tsc --noEmit && pnpm --dir web test -- --run && pnpm --dir web build"}`
 
 ## Documentation updates
-
 - Update docs/progress.md on lifecycle changes.
-- Update docs/progress.md on lifecycle changes.
-
 
 ## Notes
 

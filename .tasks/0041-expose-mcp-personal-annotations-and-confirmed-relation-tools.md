@@ -24,7 +24,6 @@ Complete thin MCP bindings for existing personal annotations, relationship lifec
 - docs/application-contract.md
 
 ## Files allowed to edit
-
 - internal/mcp/annotations.go
 - internal/mcp/relations.go
 - internal/mcp/activity.go
@@ -32,8 +31,6 @@ Complete thin MCP bindings for existing personal annotations, relationship lifec
 - internal/mcp/relations_test.go
 - internal/mcp/server.go
 - docs/progress.md
-
-- .tasks/0041-expose-mcp-personal-annotations-and-confirmed-relation-tools.md
 
 - .tasks/0041-expose-mcp-personal-annotations-and-confirmed-relation-tools.md
 
@@ -73,10 +70,7 @@ Complete thin MCP bindings for existing personal annotations, relationship lifec
 - `{"id":"focused","type":"automated","required":true,"environment":"local","profile":"report","command":"go test ./internal/mcp -run \"TestMCP(Annotation|Relation|Origin|Activity)\""}`
 
 ## Documentation updates
-
 - Update docs/progress.md on lifecycle changes.
-- Update docs/progress.md on lifecycle changes.
-
 
 ## Notes
 

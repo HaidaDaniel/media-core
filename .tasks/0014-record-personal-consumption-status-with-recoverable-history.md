@@ -24,7 +24,6 @@ Implement independent consumption state updates, correction/retraction and statu
 - docs/application-contract.md
 
 ## Files allowed to edit
-
 - internal/app/consumption.go
 - internal/app/consumption_test.go
 - internal/store/consumption.go
@@ -34,8 +33,6 @@ Implement independent consumption state updates, correction/retraction and statu
 - internal/cli/consumption.go
 - internal/runtime/runtime.go
 - docs/progress.md
-
-- .tasks/0014-record-personal-consumption-status-with-recoverable-history.md
 
 - .tasks/0014-record-personal-consumption-status-with-recoverable-history.md
 
@@ -75,10 +72,7 @@ Implement independent consumption state updates, correction/retraction and statu
 - `{"id":"focused","type":"automated","required":true,"environment":"local","profile":"report","command":"go test ./internal/app ./internal/store ./internal/cli -run \"Test(Consumption|Status)\""}`
 
 ## Documentation updates
-
 - Update docs/progress.md on lifecycle changes.
-- Update docs/progress.md on lifecycle changes.
-
 
 ## Notes
 

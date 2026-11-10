@@ -23,7 +23,6 @@ Produce local release artifacts with embedded UI and verify complete-state resto
 - docs/product/requirements.md
 
 ## Files allowed to edit
-
 - internal/webassets/**
 - internal/httpapi/assets.go
 - internal/httpapi/assets_test.go
@@ -77,9 +76,7 @@ Produce local release artifacts with embedded UI and verify complete-state resto
 - `{"id":"focused","type":"automated","required":true,"environment":"local","profile":"report","command":"bash scripts/build-release.sh && go test ./internal/httpapi ./tests/packaging ./tests/acceptance -run \"Test(Assets|Package|ScenarioF)\""}`
 
 ## Documentation updates
-
 - Update docs/progress.md on lifecycle changes.
-
 
 ## Notes
 

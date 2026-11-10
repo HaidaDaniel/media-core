@@ -24,7 +24,6 @@ Promote identity reservations into multiple edition references with roles and pr
 - docs/application-contract.md
 
 ## Files allowed to edit
-
 - internal/app/references.go
 - internal/app/references_test.go
 - internal/store/references.go
@@ -33,8 +32,6 @@ Promote identity reservations into multiple edition references with roles and pr
 - internal/cli/references.go
 - internal/runtime/runtime.go
 - docs/progress.md
-
-- .tasks/0019-attach-multiple-sourced-external-references-safely.md
 
 - .tasks/0019-attach-multiple-sourced-external-references-safely.md
 
@@ -74,10 +71,7 @@ Promote identity reservations into multiple edition references with roles and pr
 - `{"id":"focused","type":"automated","required":true,"environment":"local","profile":"report","command":"go test ./internal/app ./internal/store ./internal/cli -run \"TestReference\""}`
 
 ## Documentation updates
-
 - Update docs/progress.md on lifecycle changes.
-- Update docs/progress.md on lifecycle changes.
-
 
 ## Notes
 

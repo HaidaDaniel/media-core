@@ -24,13 +24,10 @@ Present one logical work and its edition/source relationships with deliberate co
 - docs/application-contract.md
 
 ## Files allowed to edit
-
 - web/src/work/**
 - web/src/relations/**
 - web/src/App.tsx
 - docs/progress.md
-
-- .tasks/0033-build-work-details-and-explicit-related-media-navigation.md
 
 - .tasks/0033-build-work-details-and-explicit-related-media-navigation.md
 
@@ -43,7 +40,7 @@ Present one logical work and its edition/source relationships with deliberate co
 
 ## Steps
 
-1. Build work titles/aliases/edition summaries and work-note display
+1. Create web/src/work/WorkPage.tsx for work titles/aliases/edition summaries and work-note display
 2. Add readable relation/source lists and propose/confirm/revoke/origin forms with evidence
 3. Test anime→manga navigation, proposed claim labels, unknown source, cycle/conflict and keyboard layout
 
@@ -70,10 +67,7 @@ Present one logical work and its edition/source relationships with deliberate co
 - `{"id":"focused","type":"automated","required":true,"environment":"local","profile":"report","command":"pnpm --dir web exec tsc --noEmit && pnpm --dir web test -- --run src/work src/relations"}`
 
 ## Documentation updates
-
 - Update docs/progress.md on lifecycle changes.
-- Update docs/progress.md on lifecycle changes.
-
 
 ## Notes
 

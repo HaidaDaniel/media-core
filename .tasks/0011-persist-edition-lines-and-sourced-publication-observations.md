@@ -23,15 +23,12 @@ Add concrete edition identity and independent sourced publication state.
 - docs/domain-model.md
 
 ## Files allowed to edit
-
 - internal/domain/edition.go
 - internal/domain/edition_test.go
 - internal/store/editions.go
 - internal/store/editions_test.go
 - internal/store/migrations/0003_editions.sql
 - docs/progress.md
-
-- .tasks/0011-persist-edition-lines-and-sourced-publication-observations.md
 
 - .tasks/0011-persist-edition-lines-and-sourced-publication-observations.md
 
@@ -71,10 +68,7 @@ Add concrete edition identity and independent sourced publication state.
 - `{"id":"focused","type":"automated","required":true,"environment":"local","profile":"report","command":"go test ./internal/domain ./internal/store -run \"Test(Edition|Publication)\""}`
 
 ## Documentation updates
-
 - Update docs/progress.md on lifecycle changes.
-- Update docs/progress.md on lifecycle changes.
-
 
 ## Notes
 

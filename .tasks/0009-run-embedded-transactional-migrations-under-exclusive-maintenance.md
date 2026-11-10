@@ -22,7 +22,6 @@ Provide explicit init/migrate and a schema-version boundary for all database mod
 - docs/task-system.md
 
 ## Files allowed to edit
-
 - internal/store/migrations.go
 - internal/store/migrations_test.go
 - internal/store/migrations/0001_schema.sql
@@ -30,8 +29,6 @@ Provide explicit init/migrate and a schema-version boundary for all database mod
 - internal/cli/init_test.go
 - internal/runtime/runtime.go
 - docs/progress.md
-
-- .tasks/0009-run-embedded-transactional-migrations-under-exclusive-maintenance.md
 
 - .tasks/0009-run-embedded-transactional-migrations-under-exclusive-maintenance.md
 
@@ -71,10 +68,7 @@ Provide explicit init/migrate and a schema-version boundary for all database mod
 - `{"id":"focused","type":"automated","required":true,"environment":"local","profile":"report","command":"go test ./internal/store ./internal/cli -run \"Test(Migration|Init|Schema)\""}`
 
 ## Documentation updates
-
 - Update docs/progress.md on lifecycle changes.
-- Update docs/progress.md on lifecycle changes.
-
 
 ## Notes
 

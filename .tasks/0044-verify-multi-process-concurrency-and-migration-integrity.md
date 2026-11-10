@@ -7,7 +7,7 @@ Lane: reliability
 Scope: reliability
 Risk: high
 Parallel: false
-Depends on: 0012,0015,0023,0037
+Depends on: 0012,0015,0023,0037,0043
 Tags: planned,m5,async,migration
 
 ## Goal
@@ -23,14 +23,11 @@ Add focused process-level counterexamples for the shared SQLite and maintenance 
 - docs/product/requirements.md
 
 ## Files allowed to edit
-
 - tests/concurrency/**
 - tests/migrations/**
 - internal/store/database_test.go
 - internal/store/migrations_test.go
 - docs/progress.md
-
-- .tasks/0044-verify-multi-process-concurrency-and-migration-integrity.md
 
 - .tasks/0044-verify-multi-process-concurrency-and-migration-integrity.md
 
@@ -51,7 +48,7 @@ Add focused process-level counterexamples for the shared SQLite and maintenance 
 
 - No duplicate exact identities, half history rows or lost successful commit
 - Busy deadlines bounded and failures have stable locked/conflict code
-- All append-only migrations work from each prior fixture without losing rows
+- All append-only migrations through 0013_release_bindings work from each prior fixture without losing rows; prerequisite 0043 ensures final MVP schema exists
 
 ## Invariants
 
@@ -70,10 +67,7 @@ Add focused process-level counterexamples for the shared SQLite and maintenance 
 - `{"id":"focused","type":"automated","required":true,"environment":"local","profile":"report","command":"go test ./tests/concurrency ./tests/migrations"}`
 
 ## Documentation updates
-
 - Update docs/progress.md on lifecycle changes.
-- Update docs/progress.md on lifecycle changes.
-
 
 ## Notes
 

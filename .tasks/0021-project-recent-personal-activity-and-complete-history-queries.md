@@ -24,7 +24,6 @@ Provide bounded recent activity/history over existing observation and revision t
 - docs/application-contract.md
 
 ## Files allowed to edit
-
 - internal/app/activity.go
 - internal/app/activity_test.go
 - internal/store/activity.go
@@ -33,8 +32,6 @@ Provide bounded recent activity/history over existing observation and revision t
 - internal/cli/activity.go
 - internal/runtime/runtime.go
 - docs/progress.md
-
-- .tasks/0021-project-recent-personal-activity-and-complete-history-queries.md
 
 - .tasks/0021-project-recent-personal-activity-and-complete-history-queries.md
 
@@ -74,10 +71,7 @@ Provide bounded recent activity/history over existing observation and revision t
 - `{"id":"focused","type":"automated","required":true,"environment":"local","profile":"report","command":"go test ./internal/app ./internal/store ./internal/cli -run \"Test(Activity|HistoryView|LibraryFacets)\""}`
 
 ## Documentation updates
-
 - Update docs/progress.md on lifecycle changes.
-- Update docs/progress.md on lifecycle changes.
-
 
 ## Notes
 

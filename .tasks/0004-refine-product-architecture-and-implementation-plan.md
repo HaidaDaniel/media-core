@@ -1,6 +1,6 @@
 # Task 0004 - Refine product architecture and implementation plan
 
-State: doing
+State: review
 Owner: codex-media-plan-20261110
 Mode: mvp
 Lane: planning

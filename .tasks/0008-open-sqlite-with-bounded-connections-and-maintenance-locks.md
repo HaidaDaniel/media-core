@@ -22,7 +22,6 @@ Add the pure-Go SQLite connection factory and process-lifetime maintenance exclu
 - docs/task-system.md
 
 ## Files allowed to edit
-
 - go.mod
 - go.sum
 - internal/store/database.go
@@ -32,8 +31,6 @@ Add the pure-Go SQLite connection factory and process-lifetime maintenance exclu
 - internal/runtime/runtime.go
 - docs/decisions.md
 - docs/progress.md
-
-- .tasks/0008-open-sqlite-with-bounded-connections-and-maintenance-locks.md
 
 - .tasks/0008-open-sqlite-with-bounded-connections-and-maintenance-locks.md
 
@@ -73,10 +70,7 @@ Add the pure-Go SQLite connection factory and process-lifetime maintenance exclu
 - `{"id":"focused","type":"automated","required":true,"environment":"local","profile":"report","command":"go test ./internal/store -run \"Test(Database|Maintenance)\""}`
 
 ## Documentation updates
-
 - Update docs/progress.md on lifecycle changes.
-- Update docs/progress.md on lifecycle changes.
-
 
 ## Notes
 

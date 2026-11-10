@@ -24,13 +24,10 @@ Build the daily library screen with matching-edition states and URL-backed searc
 - docs/application-contract.md
 
 ## Files allowed to edit
-
 - web/src/library/**
 - web/src/App.tsx
 - web/src/styles.css
 - docs/progress.md
-
-- .tasks/0031-build-library-list-search-filters-and-counts.md
 
 - .tasks/0031-build-library-list-search-filters-and-counts.md
 
@@ -70,10 +67,7 @@ Build the daily library screen with matching-edition states and URL-backed searc
 - `{"id":"focused","type":"automated","required":true,"environment":"local","profile":"report","command":"pnpm --dir web exec tsc --noEmit && pnpm --dir web test -- --run src/library"}`
 
 ## Documentation updates
-
 - Update docs/progress.md on lifecycle changes.
-- Update docs/progress.md on lifecycle changes.
-
 
 ## Notes
 

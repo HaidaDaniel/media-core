@@ -23,7 +23,6 @@ Restore a current-schema backup into an isolated or explicitly replaceable state
 - docs/product/requirements.md
 
 ## Files allowed to edit
-
 - internal/backup/restore.go
 - internal/backup/restore_test.go
 - internal/app/restore.go
@@ -32,8 +31,6 @@ Restore a current-schema backup into an isolated or explicitly replaceable state
 - internal/runtime/runtime.go
 - docs/engineering/backup-restore.md
 - docs/progress.md
-
-- .tasks/0023-restore-validated-backups-under-exclusive-maintenance.md
 
 - .tasks/0023-restore-validated-backups-under-exclusive-maintenance.md
 
@@ -73,10 +70,7 @@ Restore a current-schema backup into an isolated or explicitly replaceable state
 - `{"id":"focused","type":"automated","required":true,"environment":"local","profile":"report","command":"go test ./internal/backup ./internal/app ./internal/cli -run \"TestRestore\""}`
 
 ## Documentation updates
-
 - Update docs/progress.md on lifecycle changes.
-- Update docs/progress.md on lifecycle changes.
-
 
 ## Notes
 

@@ -24,7 +24,6 @@ Persist exact numeric progress observations and current values without erasing h
 - docs/application-contract.md
 
 ## Files allowed to edit
-
 - internal/app/progress.go
 - internal/app/progress_test.go
 - internal/store/progress.go
@@ -33,8 +32,6 @@ Persist exact numeric progress observations and current values without erasing h
 - internal/cli/progress.go
 - internal/runtime/runtime.go
 - docs/progress.md
-
-- .tasks/0015-record-edition-progress-by-unit-with-correction-history.md
 
 - .tasks/0015-record-edition-progress-by-unit-with-correction-history.md
 
@@ -74,10 +71,7 @@ Persist exact numeric progress observations and current values without erasing h
 - `{"id":"focused","type":"automated","required":true,"environment":"local","profile":"report","command":"go test ./internal/app ./internal/store ./internal/cli -run \"TestProgress\""}`
 
 ## Documentation updates
-
 - Update docs/progress.md on lifecycle changes.
-- Update docs/progress.md on lifecycle changes.
-
 
 ## Notes
 

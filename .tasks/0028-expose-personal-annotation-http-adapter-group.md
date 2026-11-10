@@ -23,13 +23,10 @@ Adapt the existing annotation services to bounded typed HTTP routes without new 
 - docs/application-contract.md
 
 ## Files allowed to edit
-
 - internal/httpapi/annotations.go
 - internal/httpapi/annotations_test.go
 - internal/httpapi/routes.go
 - docs/progress.md
-
-- .tasks/0028-expose-personal-annotation-http-adapter-group.md
 
 - .tasks/0028-expose-personal-annotation-http-adapter-group.md
 
@@ -69,10 +66,7 @@ Adapt the existing annotation services to bounded typed HTTP routes without new 
 - `{"id":"focused","type":"automated","required":true,"environment":"local","profile":"report","command":"go test ./internal/httpapi -run \"TestHTTPAnnotation\""}`
 
 ## Documentation updates
-
 - Update docs/progress.md on lifecycle changes.
-- Update docs/progress.md on lifecycle changes.
-
 
 ## Notes
 

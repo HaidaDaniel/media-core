@@ -24,12 +24,9 @@ Provide fast title/URL/ID addition with explicit possible-duplicate decisions.
 - docs/application-contract.md
 
 ## Files allowed to edit
-
 - web/src/add/**
 - web/src/App.tsx
 - docs/progress.md
-
-- .tasks/0032-build-manual-quick-add-and-duplicate-choice-screen.md
 
 - .tasks/0032-build-manual-quick-add-and-duplicate-choice-screen.md
 
@@ -69,10 +66,7 @@ Provide fast title/URL/ID addition with explicit possible-duplicate decisions.
 - `{"id":"focused","type":"automated","required":true,"environment":"local","profile":"report","command":"pnpm --dir web exec tsc --noEmit && pnpm --dir web test -- --run src/add"}`
 
 ## Documentation updates
-
 - Update docs/progress.md on lifecycle changes.
-- Update docs/progress.md on lifecycle changes.
-
 
 ## Notes
 

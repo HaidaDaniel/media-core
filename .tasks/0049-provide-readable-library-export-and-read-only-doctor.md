@@ -23,7 +23,6 @@ Provide portable readable state export and diagnostics without inventing repair 
 - docs/application-contract.md
 
 ## Files allowed to edit
-
 - internal/app/export.go
 - internal/app/export_test.go
 - internal/cli/export.go
@@ -72,9 +71,7 @@ Provide portable readable state export and diagnostics without inventing repair 
 - `{"id":"focused","type":"automated","required":true,"environment":"local","profile":"report","command":"go test ./internal/app ./internal/cli -run \"Test(Export|Doctor)\""}`
 
 ## Documentation updates
-
 - Update docs/progress.md on lifecycle changes.
-
 
 ## Notes
 

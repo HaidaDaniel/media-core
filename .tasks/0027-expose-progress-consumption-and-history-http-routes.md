@@ -23,13 +23,10 @@ Provide reading observation/status endpoints and correction/history access.
 - docs/application-contract.md
 
 ## Files allowed to edit
-
 - internal/httpapi/reading.go
 - internal/httpapi/reading_test.go
 - internal/httpapi/routes.go
 - docs/progress.md
-
-- .tasks/0027-expose-progress-consumption-and-history-http-routes.md
 
 - .tasks/0027-expose-progress-consumption-and-history-http-routes.md
 
@@ -69,10 +66,7 @@ Provide reading observation/status endpoints and correction/history access.
 - `{"id":"focused","type":"automated","required":true,"environment":"local","profile":"report","command":"go test ./internal/httpapi -run \"TestHTTPReading\""}`
 
 ## Documentation updates
-
 - Update docs/progress.md on lifecycle changes.
-- Update docs/progress.md on lifecycle changes.
-
 
 ## Notes
 

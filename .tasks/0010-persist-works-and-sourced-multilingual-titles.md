@@ -23,7 +23,6 @@ Persist story groupings and arbitrary multilingual titles with deterministic Uni
 - docs/domain-model.md
 
 ## Files allowed to edit
-
 - go.mod
 - go.sum
 - internal/domain/title.go
@@ -33,8 +32,6 @@ Persist story groupings and arbitrary multilingual titles with deterministic Uni
 - internal/store/migrations/0002_works_titles.sql
 - docs/decisions.md
 - docs/progress.md
-
-- .tasks/0010-persist-works-and-sourced-multilingual-titles.md
 
 - .tasks/0010-persist-works-and-sourced-multilingual-titles.md
 
@@ -74,10 +71,7 @@ Persist story groupings and arbitrary multilingual titles with deterministic Uni
 - `{"id":"focused","type":"automated","required":true,"environment":"local","profile":"report","command":"go test ./internal/domain ./internal/store -run \"Test(Work|Title|Normalize)\""}`
 
 ## Documentation updates
-
 - Update docs/progress.md on lifecycle changes.
-- Update docs/progress.md on lifecycle changes.
-
 
 ## Notes
 

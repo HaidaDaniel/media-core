@@ -24,13 +24,10 @@ Compose compact personal annotation panels over the already implemented annotati
 - docs/application-contract.md
 
 ## Files allowed to edit
-
 - web/src/annotations/**
 - web/src/edition/EditionPage.tsx
 - web/src/library/**
 - docs/progress.md
-
-- .tasks/0035-build-edition-personal-panels-for-notes-ratings-intentions-and-sources.md
 
 - .tasks/0035-build-edition-personal-panels-for-notes-ratings-intentions-and-sources.md
 
@@ -72,10 +69,7 @@ Compose compact personal annotation panels over the already implemented annotati
 - `{"id":"focused","type":"automated","required":true,"environment":"local","profile":"report","command":"pnpm --dir web exec tsc --noEmit && pnpm --dir web test -- --run src/annotations"}`
 
 ## Documentation updates
-
 - Update docs/progress.md on lifecycle changes.
-- Update docs/progress.md on lifecycle changes.
-
 
 ## Notes
 

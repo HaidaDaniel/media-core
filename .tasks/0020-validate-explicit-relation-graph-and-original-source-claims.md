@@ -24,7 +24,6 @@ Implement scoped, provenance-bearing relations/origin assertions with proposal a
 - docs/application-contract.md
 
 ## Files allowed to edit
-
 - internal/domain/relation.go
 - internal/app/relations.go
 - internal/app/relations_test.go
@@ -34,8 +33,6 @@ Implement scoped, provenance-bearing relations/origin assertions with proposal a
 - internal/cli/relations.go
 - internal/runtime/runtime.go
 - docs/progress.md
-
-- .tasks/0020-validate-explicit-relation-graph-and-original-source-claims.md
 
 - .tasks/0020-validate-explicit-relation-graph-and-original-source-claims.md
 
@@ -75,10 +72,7 @@ Implement scoped, provenance-bearing relations/origin assertions with proposal a
 - `{"id":"focused","type":"automated","required":true,"environment":"local","profile":"report","command":"go test ./internal/domain ./internal/app ./internal/store ./internal/cli -run \"Test(Relation|Origin)\""}`
 
 ## Documentation updates
-
 - Update docs/progress.md on lifecycle changes.
-- Update docs/progress.md on lifecycle changes.
-
 
 ## Notes
 

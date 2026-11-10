@@ -24,7 +24,6 @@ Implement edition 1–10 ratings with retained changes and explicit clearing/cor
 - docs/application-contract.md
 
 ## Files allowed to edit
-
 - internal/app/ratings.go
 - internal/app/ratings_test.go
 - internal/store/ratings.go
@@ -34,8 +33,6 @@ Implement edition 1–10 ratings with retained changes and explicit clearing/cor
 - internal/cli/ratings.go
 - internal/runtime/runtime.go
 - docs/progress.md
-
-- .tasks/0018-add-rating-observations-and-rating-search-filters.md
 
 - .tasks/0018-add-rating-observations-and-rating-search-filters.md
 
@@ -75,10 +72,7 @@ Implement edition 1–10 ratings with retained changes and explicit clearing/cor
 - `{"id":"focused","type":"automated","required":true,"environment":"local","profile":"report","command":"go test ./internal/app ./internal/store ./internal/cli -run \"TestRating\""}`
 
 ## Documentation updates
-
 - Update docs/progress.md on lifecycle changes.
-- Update docs/progress.md on lifecycle changes.
-
 
 ## Notes
 

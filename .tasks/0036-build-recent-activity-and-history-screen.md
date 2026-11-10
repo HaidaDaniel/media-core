@@ -24,12 +24,9 @@ Show recent personal changes with useful dates and links rather than analytics.
 - docs/application-contract.md
 
 ## Files allowed to edit
-
 - web/src/activity/**
 - web/src/App.tsx
 - docs/progress.md
-
-- .tasks/0036-build-recent-activity-and-history-screen.md
 
 - .tasks/0036-build-recent-activity-and-history-screen.md
 
@@ -42,7 +39,7 @@ Show recent personal changes with useful dates and links rather than analytics.
 
 ## Steps
 
-1. Build paginated activity list with recorded/observed time and correction labels
+1. Create web/src/activity/ActivityPage.tsx with paginated activity list, recorded/observed time and correction labels
 2. Add navigation to edition/history and empty/loading/error states
 3. Test deterministic ordering and imported-event variant with a contract fixture only
 
@@ -69,10 +66,7 @@ Show recent personal changes with useful dates and links rather than analytics.
 - `{"id":"focused","type":"automated","required":true,"environment":"local","profile":"report","command":"pnpm --dir web exec tsc --noEmit && pnpm --dir web test -- --run src/activity"}`
 
 ## Documentation updates
-
 - Update docs/progress.md on lifecycle changes.
-- Update docs/progress.md on lifecycle changes.
-
 
 ## Notes
 

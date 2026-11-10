@@ -24,7 +24,6 @@ Implement normalized title/alias lookup, paginated work cards and work/edition r
 - docs/application-contract.md
 
 ## Files allowed to edit
-
 - internal/app/library.go
 - internal/app/library_test.go
 - internal/store/library.go
@@ -33,8 +32,6 @@ Implement normalized title/alias lookup, paginated work cards and work/edition r
 - internal/cli/library_test.go
 - internal/runtime/runtime.go
 - docs/progress.md
-
-- .tasks/0013-search-and-retrieve-the-persistent-library-through-cli.md
 
 - .tasks/0013-search-and-retrieve-the-persistent-library-through-cli.md
 
@@ -74,10 +71,7 @@ Implement normalized title/alias lookup, paginated work cards and work/edition r
 - `{"id":"focused","type":"automated","required":true,"environment":"local","profile":"report","command":"go test ./internal/app ./internal/store ./internal/cli -run \"Test(Library|Search|Catalog)\""}`
 
 ## Documentation updates
-
 - Update docs/progress.md on lifecycle changes.
-- Update docs/progress.md on lifecycle changes.
-
 
 ## Notes
 

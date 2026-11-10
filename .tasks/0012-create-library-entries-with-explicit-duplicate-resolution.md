@@ -24,7 +24,6 @@ Implement atomic manual add with exact identity replay and title-candidate decis
 - docs/application-contract.md
 
 ## Files allowed to edit
-
 - internal/app/addition.go
 - internal/app/addition_test.go
 - internal/app/mutation.go
@@ -35,8 +34,6 @@ Implement atomic manual add with exact identity replay and title-candidate decis
 - internal/cli/add_test.go
 - internal/runtime/runtime.go
 - docs/progress.md
-
-- .tasks/0012-create-library-entries-with-explicit-duplicate-resolution.md
 
 - .tasks/0012-create-library-entries-with-explicit-duplicate-resolution.md
 
@@ -76,10 +73,7 @@ Implement atomic manual add with exact identity replay and title-candidate decis
 - `{"id":"focused","type":"automated","required":true,"environment":"local","profile":"report","command":"go test ./internal/app ./internal/store ./internal/cli -run \"Test(Addition|Identity|Mutation|Add)\""}`
 
 ## Documentation updates
-
 - Update docs/progress.md on lifecycle changes.
-- Update docs/progress.md on lifecycle changes.
-
 
 ## Notes
 

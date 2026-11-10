@@ -22,13 +22,10 @@ Implement deterministic flag/environment/default resolution and secure state pat
 - docs/task-system.md
 
 ## Files allowed to edit
-
 - internal/config/**
 - internal/runtime/runtime.go
 - docs/engineering/configuration.md
 - docs/progress.md
-
-- .tasks/0006-resolve-explicit-configuration-and-local-state-paths.md
 
 - .tasks/0006-resolve-explicit-configuration-and-local-state-paths.md
 
@@ -68,10 +65,7 @@ Implement deterministic flag/environment/default resolution and secure state pat
 - `{"id":"focused","type":"automated","required":true,"environment":"local","profile":"report","command":"go test ./internal/config"}`
 
 ## Documentation updates
-
 - Update docs/progress.md on lifecycle changes.
-- Update docs/progress.md on lifecycle changes.
-
 
 ## Notes
 

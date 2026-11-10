@@ -23,7 +23,6 @@ Provide usable same-host/remote-host Hermes instructions and a deterministic con
 - docs/hermes.md
 
 ## Files allowed to edit
-
 - docs/hermes.md
 - tests/acceptance/hermes_test.go
 - tests/fixtures/ssh-stdio/**
@@ -67,9 +66,7 @@ Provide usable same-host/remote-host Hermes instructions and a deterministic con
 - `{"id":"focused","type":"automated","required":true,"environment":"local","profile":"report","command":"go test ./tests/acceptance -run \"TestHermes\""}`
 
 ## Documentation updates
-
 - Update docs/progress.md on lifecycle changes.
-
 
 ## Notes
 

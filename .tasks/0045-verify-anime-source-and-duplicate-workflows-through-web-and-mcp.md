@@ -24,7 +24,6 @@ Automate scenarios A/C and DTO/error parity across real Web/MCP boundaries.
 - docs/application-contract.md
 
 ## Files allowed to edit
-
 - web/package.json
 - web/pnpm-lock.yaml
 - web/playwright.config.ts
@@ -33,8 +32,6 @@ Automate scenarios A/C and DTO/error parity across real Web/MCP boundaries.
 - tests/contracts/parity_test.go
 - docs/decisions.md
 - docs/progress.md
-
-- .tasks/0045-verify-anime-source-and-duplicate-workflows-through-web-and-mcp.md
 
 - .tasks/0045-verify-anime-source-and-duplicate-workflows-through-web-and-mcp.md
 
@@ -74,10 +71,7 @@ Automate scenarios A/C and DTO/error parity across real Web/MCP boundaries.
 - `{"id":"focused","type":"automated","required":true,"environment":"local","profile":"report","command":"go test ./tests/acceptance ./tests/contracts -run \"Test(ScenarioA|ScenarioC|Parity)\" && pnpm --dir web exec playwright test e2e/library.spec.ts"}`
 
 ## Documentation updates
-
 - Update docs/progress.md on lifecycle changes.
-- Update docs/progress.md on lifecycle changes.
-
 
 ## Notes
 

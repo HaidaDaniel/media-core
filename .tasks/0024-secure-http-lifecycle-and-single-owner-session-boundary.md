@@ -23,7 +23,6 @@ Create loopback serve mode with real session/CSRF/Origin/Host protections before
 - docs/application-contract.md
 
 ## Files allowed to edit
-
 - internal/httpapi/server.go
 - internal/httpapi/security.go
 - internal/httpapi/session.go
@@ -34,8 +33,6 @@ Create loopback serve mode with real session/CSRF/Origin/Host protections before
 - internal/runtime/runtime.go
 - docs/engineering/configuration.md
 - docs/progress.md
-
-- .tasks/0024-secure-http-lifecycle-and-single-owner-session-boundary.md
 
 - .tasks/0024-secure-http-lifecycle-and-single-owner-session-boundary.md
 
@@ -75,10 +72,7 @@ Create loopback serve mode with real session/CSRF/Origin/Host protections before
 - `{"id":"focused","type":"automated","required":true,"environment":"local","profile":"report","command":"go test ./internal/httpapi ./internal/cli -run \"Test(HTTPServer|Session|Security|Owner)\""}`
 
 ## Documentation updates
-
 - Update docs/progress.md on lifecycle changes.
-- Update docs/progress.md on lifecycle changes.
-
 
 ## Notes
 

@@ -23,13 +23,10 @@ Expose the three core catalog read endpoints through shared library services.
 - docs/application-contract.md
 
 ## Files allowed to edit
-
 - internal/httpapi/library.go
 - internal/httpapi/library_test.go
 - internal/httpapi/routes.go
 - docs/progress.md
-
-- .tasks/0025-expose-catalog-search-and-detail-http-reads.md
 
 - .tasks/0025-expose-catalog-search-and-detail-http-reads.md
 
@@ -69,10 +66,7 @@ Expose the three core catalog read endpoints through shared library services.
 - `{"id":"focused","type":"automated","required":true,"environment":"local","profile":"report","command":"go test ./internal/httpapi -run \"TestHTTPLibrary\""}`
 
 ## Documentation updates
-
 - Update docs/progress.md on lifecycle changes.
-- Update docs/progress.md on lifecycle changes.
-
 
 ## Notes
 

@@ -23,13 +23,10 @@ Expose resolve/create/add-edition and narrow catalog corrections with explicit i
 - docs/application-contract.md
 
 ## Files allowed to edit
-
 - internal/httpapi/catalog_writes.go
 - internal/httpapi/catalog_writes_test.go
 - internal/httpapi/routes.go
 - docs/progress.md
-
-- .tasks/0026-expose-quick-add-and-catalog-correction-http-writes.md
 
 - .tasks/0026-expose-quick-add-and-catalog-correction-http-writes.md
 
@@ -69,10 +66,7 @@ Expose resolve/create/add-edition and narrow catalog corrections with explicit i
 - `{"id":"focused","type":"automated","required":true,"environment":"local","profile":"report","command":"go test ./internal/httpapi -run \"TestHTTPCatalogWrite\""}`
 
 ## Documentation updates
-
 - Update docs/progress.md on lifecycle changes.
-- Update docs/progress.md on lifecycle changes.
-
 
 ## Notes
 

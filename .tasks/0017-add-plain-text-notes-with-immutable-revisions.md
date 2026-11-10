@@ -24,7 +24,6 @@ Preserve ordinary work/edition notes and distinguish edits from later thoughts.
 - docs/application-contract.md
 
 ## Files allowed to edit
-
 - internal/app/notes.go
 - internal/app/notes_test.go
 - internal/store/notes.go
@@ -33,8 +32,6 @@ Preserve ordinary work/edition notes and distinguish edits from later thoughts.
 - internal/cli/notes.go
 - internal/runtime/runtime.go
 - docs/progress.md
-
-- .tasks/0017-add-plain-text-notes-with-immutable-revisions.md
 
 - .tasks/0017-add-plain-text-notes-with-immutable-revisions.md
 
@@ -74,10 +71,7 @@ Preserve ordinary work/edition notes and distinguish edits from later thoughts.
 - `{"id":"focused","type":"automated","required":true,"environment":"local","profile":"report","command":"go test ./internal/app ./internal/store ./internal/cli -run \"TestNote\""}`
 
 ## Documentation updates
-
 - Update docs/progress.md on lifecycle changes.
-- Update docs/progress.md on lifecycle changes.
-
 
 ## Notes
 

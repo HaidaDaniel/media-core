@@ -24,7 +24,6 @@ Import version 1.0 file/stdin envelopes into immutable pending records with even
 - docs/domain-model.md
 
 ## Files allowed to edit
-
 - internal/importer/decode.go
 - internal/importer/decode_test.go
 - internal/app/imports.go
@@ -37,8 +36,6 @@ Import version 1.0 file/stdin envelopes into immutable pending records with even
 - tests/contracts/release-watcher/**
 - docs/integration-contract.md
 - docs/progress.md
-
-- .tasks/0042-stage-immutable-release-watcher-events-idempotently.md
 
 - .tasks/0042-stage-immutable-release-watcher-events-idempotently.md
 
@@ -78,10 +75,7 @@ Import version 1.0 file/stdin envelopes into immutable pending records with even
 - `{"id":"focused","type":"automated","required":true,"environment":"local","profile":"report","command":"go test ./internal/importer ./internal/app ./internal/store -run \"Test(Import|EventDecode)\""}`
 
 ## Documentation updates
-
 - Update docs/progress.md on lifecycle changes.
-- Update docs/progress.md on lifecycle changes.
-
 
 ## Notes
 

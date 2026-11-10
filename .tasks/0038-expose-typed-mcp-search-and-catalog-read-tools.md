@@ -24,13 +24,10 @@ Expose search_library/get_work/get_edition over the existing query service.
 - docs/application-contract.md
 
 ## Files allowed to edit
-
 - internal/mcp/library.go
 - internal/mcp/library_test.go
 - internal/mcp/server.go
 - docs/progress.md
-
-- .tasks/0038-expose-typed-mcp-search-and-catalog-read-tools.md
 
 - .tasks/0038-expose-typed-mcp-search-and-catalog-read-tools.md
 
@@ -70,10 +67,7 @@ Expose search_library/get_work/get_edition over the existing query service.
 - `{"id":"focused","type":"automated","required":true,"environment":"local","profile":"report","command":"go test ./internal/mcp -run \"TestMCPLibrary\""}`
 
 ## Documentation updates
-
 - Update docs/progress.md on lifecycle changes.
-- Update docs/progress.md on lifecycle changes.
-
 
 ## Notes
 
