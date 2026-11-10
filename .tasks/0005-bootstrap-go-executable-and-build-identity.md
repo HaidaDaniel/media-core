@@ -26,7 +26,9 @@ Create the smallest compiling executable with version and mode dispatch seams, w
 - go.mod
 - cmd/media-core/main.go
 - internal/runtime/runtime.go
+- internal/runtime/*_test.go
 - internal/cli/cli.go
+- internal/cli/*_test.go
 - internal/buildinfo/**
 - docs/progress.md
 - .tasks/0005-bootstrap-go-executable-and-build-identity.md
