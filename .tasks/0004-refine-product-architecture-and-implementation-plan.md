@@ -64,12 +64,10 @@ Revise personal library documentation and shared CLI HTTP MCP architecture; veri
 - `{"id":"apk-lint","type":"automated","required":true,"environment":"local","profile":"deterministic","apkOperation":"lint"}`
 - `{"id":"apk-doctor","type":"automated","required":true,"environment":"local","profile":"deterministic","apkOperation":"doctor"}`
 - `{"id":"apk-sync","type":"automated","required":true,"environment":"local","profile":"deterministic","apkOperation":"sync-check"}`
-- `{"id":"whitespace","type":"automated","required":true,"environment":"local","profile":"deterministic","command":"git diff --check HEAD^ HEAD"}`
+- `{"id":"whitespace","type":"automated","required":true,"environment":"local","profile":"deterministic","command":"git diff --check 7acb2f0458bdfff33bd48c4312b2eb2be944b56d HEAD"}`
 
 ## Documentation updates
 
 - docs/progress.md
 
 ## Notes
-
-
