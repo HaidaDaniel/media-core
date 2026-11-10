@@ -1,53 +1,20 @@
 # Roadmap
 
-The order is dependency-driven. A stage is complete only with implementation and named verification evidence; documentation does not complete a stage.
+Implementation milestones are observable capability boundaries, not approval or completion inferred from documents. M2 and M3 may proceed in parallel after shared contracts; both are required for MVP. See the [45-task inventory/dependency graph/coverage](implementation-plan.md).
 
-## Stage 0 — Documentation (task 0002)
+| Milestone | Tasks (including their explicit prerequisites) | Observable exit |
+| --- | --- | --- |
+| M0 — Product and contracts specified | 0004 | Coherent docs, superseding ADRs, validated task graph, fresh-context review and APK gate. Operator's product instruction supplies the target; no invented human acceptance is recorded. |
+| M1 — Persistent local library | 0005–0015, 0022–0023, 0049 | CLI manually adds/searches work+edition, records progress/status, reopens, exports and restores its available state. Earliest useful CLI after 0013. |
+| M2 — First usable Web UI | 0024–0027, 0030–0032, 0034 | Authenticated add/duplicate decision/search/open edition/update status/progress in responsive UI. Initial dev server is tooling; production embedding in M5. |
+| M3 — First usable Hermes/MCP | 0037–0040 | Same basic operations over typed stdio tools without HTTP. Can run alongside M2, not after the whole product. |
+| M4 — Practical related-media library | 0016–0021, 0028–0029, 0033, 0035–0036, 0041 | Completed anime → saved unread manga, note/rating/tag/source, confirmed relation/origin and retained corrections through both interfaces. |
+| M5 — Integrated distributable MVP | 0042–0048 | Version 1.0 import/replay/binding, cross-interface A–F workflows plus G security/offline checks, full-state backup/restore, embedded binary and documented secure local/NAS arrangements. No actual deployment implied. |
 
-- README, project, scope, architecture, domain model, roadmap, integration contract, decisions.
-- No runtime code.
+A small useful application exists before all tasks finish: CLI at 0013, first browser workflow at M2, matching Hermes workflow at M3. Full source relationships and annotations land at M4; imported release workflows and artifact packaging complete M5. Task numbers are identifiers, not the execution sequence: 0049 belongs early in M1.
 
-## Stage 1 — Local library core
+Foundation order: 0005, then 0006/0007, 0008, 0009. Ordered migrations deliberately serialize domain integration; HTTP/MCP/UI branches and backup/export branch at their named dependencies. Use isolated worktrees for parallel mutable work, never two claimed tasks in one checkout.
 
-- Go module, build identity, SQLite migrations.
-- MediaWork, Edition, ProgressRecord, ConsumptionStatus, Rating, Note, MediaRelation.
-- CLI `add`, `list`, `show`, `progress`, `status`, `rate`, `note`, `link`, `remove`, `export`, `backup`, `restore`, `doctor`, `version`.
-- Stable JSON envelope; RU/EN human output; on-demand execution only.
-- Tests: persistence/restart, progress history, status/rating/note, relations, backup/restore, invalid input, JSON.
+Future after MVP: optional provider proposals/covers, native remote MCP if SSH is unsuitable, content/asset references beyond URLs, translation-project adapters and device delivery. No OCR/inpainting, content acquisition, rendering, translation execution or unused plugin framework is scheduled now.
 
-Exit: a user can maintain a local library without Internet, and a backup restores it.
-
-## Stage 2 — Release Watcher import
-
-- Read `release-watcher events --json` (or an exported file) using schema version 1.0.
-- Store immutable imported events, dedupe by `event_id`, attach to an explicit Edition.
-- Show release history and recent events; do not auto-merge editions.
-- Handle count-only events without inventing chapter numbers.
-- Tests: first import, replay idempotency, event types, sliding-window semantics, unknown publication, schema mismatch.
-
-## Stage 3 — Editions and relations
-
-- Explicit same-story/translation/adaptation links across WN, LN, manga, anime.
-- Provenance and user correction.
-- No automatic similarity merge.
-
-## Stage 4 — MCP stdio
-
-- Same application use cases as the CLI; no separate business logic.
-- Stable tool/result JSON; local only in the first version.
-
-## Stage 5 — Content references and assets (read-only)
-
-- ContentReference, ContentAsset, ContentProvider records.
-- Register/verify an asset by hash; link to edition and provenance.
-- No delivery or scraping by default.
-
-## Stage 6 — Delivery and translation (future)
-
-- DeliveryTarget capabilities and delivery state.
-- Original/translation asset links with external harness provenance.
-- Format conversion/delivery only when a real device scenario justifies it.
-
-## Explicitly deferred
-
-Hosted sync, web UI, social features, recommendations, streaming, DRM, automatic scraping, mandatory LLM, plugin marketplace, microservices, Docker/PostgreSQL/Redis as runtime requirements, and a shared SQLite file with Release Watcher.
+Existing task 0003 is an unstarted adoption follow-up, preserved rather than silently completed. Its overlapping generic documentation objective is now substantially addressed by 0004, but a later owner/operator should explicitly reconcile/cancel it if appropriate; no false completion is recorded here.

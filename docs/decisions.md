@@ -58,3 +58,41 @@ Architecture and dependency decisions for Media Core. Add a new entry for every 
 - Status: Accepted
 - Decision: All core library operations, backup and restore work offline. External metadata, covers, translation and delivery are optional explicit integrations that may fail without blocking local data. No telemetry or mandatory hosted account.
 - Consequences: The product remains usable on a home device and independent of any model/provider.
+
+
+## ADR-0009 — First-class Web UI and MCP; optional resident HTTP mode
+
+- Date: 2026-11-10
+- Status: Accepted for the revised target, implementing the operator's product instruction; not implementation approval/evidence.
+- Supersedes: ADR-0002 only where it prohibits server mode or universally promises zero idle RAM; ADR-0003 only where it makes CLI primary and MCP a deferrable optional stage. Original entries above remain historical records.
+- Decision: One Go binary has CLI, MCP stdio and `serve` modes over shared app services. React + TypeScript + Vite produces embedded static assets. Both Web UI and Hermes/MCP are MVP requirements; CLI/MCP need no HTTP. Node remains build tooling only.
+- Rationale: Daily manual use and agent interaction are both core product needs. A modest resident process is justified when the UI is enabled; disabled modes require no daemon.
+- Consequences: HTTP lifecycle/session/security and frontend build tasks are required. Loopback default; no automatic network exposure. No extra backend service, production Node server or Docker dependency.
+
+## ADR-0010 — Orthogonal state and recoverable personal observations
+
+- Date: 2026-11-10
+- Status: Accepted target clarification of ADR-0004.
+- Decision: Consumption, intention and sourced publication state are independent. Editions hold progress/rating/state histories; work or edition notes use revisions. Genuine changes append observations, corrections preserve superseded/retracted records. Translation is a relationship, not a medium. Multiple provenance-bearing title rows replace three hardcoded language fields.
+- Consequences: Unknown is explicit, paused/on-hold aliases disappear, progress never silently completes a work. Ordinary relational history, not event sourcing. Shared validation and idempotency prevent interface drift.
+
+## ADR-0011 — Explicit graph and deterministic identity resolution
+
+- Date: 2026-11-10
+- Status: Accepted target clarification of ADR-0004/0005.
+- Decision: Work and edition relationships have constrained endpoint types, direction, provenance and proposed/confirmed/revoked states. Titles only suggest candidates. External exact identities and request keys support safe retries; contradictory identities fail. Source-edge cycles are rejected transactionally. Imported payloads stay immutable; corrected bindings are separate audited records.
+- Consequences: Users can preserve completed anime and unread manga under one story or link separate groupings. No inferred WN-first origin, silent fuzzy merge, history purge or graph database. Origin assertions and sources retain uncertainty.
+
+## ADR-0012 — Single-owner sessions and SSH for initial remote Hermes
+
+- Date: 2026-11-10
+- Status: Accepted target deployment choice; no host deployment authorized.
+- Decision: Loopback HTTP still requires owner login, Origin/Host/CSRF protections and short-lived opaque sessions. Non-loopback requires explicit allow-remote, configured HTTPS origin and Go TLS keys. Initial NAS Hermes access uses stdio via verified SSH, not unauthenticated remote MCP. Native Streamable HTTP MCP is deferred pending a concrete client requirement and its own auth design.
+- Consequences: No multi-user RBAC. Secrets live outside the frontend/repository. SSH tunnel is the simplest UI option; local-only use needs neither TLS nor SSH. Tests must cover missing credentials and unsafe defaults.
+
+## ADR-0013 — Shared SQLite lifecycle and consistent maintenance
+
+- Date: 2026-11-10
+- Status: Accepted target refinement of ADR-0002.
+- Decision: Local-disk WAL, per-connection foreign keys/busy timeout, short immediate write transactions; shared lifetime maintenance lock for open handles and exclusive init/migrate/restore. Explicit migrations rather than hot schema changes. Snapshot backup includes manifest/hash; restore validates before replacement and requires stopped processes.
+- Consequences: A persistent serve/MCP process blocks restore until stopped. No copying an uncheckpointed live DB alone, no NFS database, no cross-host SQLite mount. Pure-Go driver must prove snapshot/concurrency behavior in focused tests. Dependencies are selected/pinned in implementation tasks with additional decision entries; none are added by planning.

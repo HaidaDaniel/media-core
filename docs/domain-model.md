@@ -1,132 +1,91 @@
 # Domain model
 
-Status: accepted design; not implemented. This document defines the minimum concepts and invariants for the future Go + SQLite implementation.
+Target design, not implemented. SQLite tables with foreign keys and ordinary history rows suffice; these histories are not an event-sourcing architecture.
 
-## Library concepts
+## Identity and grouping
 
-```text
-MediaWork 1---* Edition 1---* ProgressRecord
-    |              |
-    |              *---* ExternalReference
-    |              |
-    *---* MediaRelation (explicit)
-                   |
-                   *---* ReleaseRecord (linked)
-                              ^
-                              |
-                        ImportRecord (staging, edition nullable)
-```
+`MediaWork{id, revision, created_at, updated_at, archived_at?}` is a logical story grouping chosen by the user. Each `Edition{id, work_id, kind, language?, other_label?, revision, created_at, updated_at, archived_at?}` belongs to exactly one work. Creation of a work requires at least one title; it need not have an edition yet. Personal consumption always targets an edition. Same-work grouping does not imply adaptation, origin, identical language or shared progress.
 
-### MediaWork
+Edition kinds: `web_novel`, `light_novel`, `book`, `manga`, `manhwa`, `manhua`, `anime`, `movie`, `tv`, `game`, `visual_novel`, `other`, `unknown`. `other` requires a bounded descriptive label. Translation is a relation between editions of a medium, not a medium enum: a Russian manga translation remains `manga`. A separately tracked language, release line, revision or adaptation is a distinct edition; extra URLs for the same line are references. Mirrors alone do not create editions.
 
-A logical story or title, for example "The Dreaming Boy Is a Realist". It is the user's grouping container, not an automatic merge key.
+Different story groupings can be related without merging. Users may add editions under a known work or create a separate work and confirm a cross-work link. The MVP has no destructive merge/reparent operation; incorrect identity is handled by revoking links and archiving a mistaken entry with a replacement reference. IDs remain stable and history stays readable.
 
-| Field | Meaning |
-| --- | --- |
-| `id` | internal id |
-| `original_title` | title in the original language |
-| `title_ru`, `title_en` | user/agent supplied localized titles, nullable |
-| `created_at`, `updated_at` | local timestamps |
+## Titles and search
 
-A localized title is stored once and reused. If absent, the CLI shows the original; it never fabricates a translation.
+`Title{id, work_id? , edition_id?, text, language?, kind, preferred, provenance, created_at, retired_at?}` targets exactly one work or edition (separate work-title and edition-title tables are the initial physical representation). `kind`: `original`, `localized`, `romanized`, `alias`. BCP-47 language is nullable (unknown); romanization has its own title row. At most one active preferred display title per target, independent of original-language claims. Require a work display title; an edition falls back to its work title if none is supplied. Never fabricate a translation. Correct titles by retiring/replacing rows and retaining provenance.
 
-### Edition
+Store original text plus a Go-computed search key: Unicode NFKC, full Unicode case fold, trim and collapse Unicode whitespace. Preserve diacritics, kana/kanji, punctuation and `ё`; no implicit transliteration or `ё`→`е` equivalence. Romaji and translated aliases must be supplied explicitly. Search normalized substring across active work and edition titles, returning distinct work cards with matching editions. Escape SQL LIKE `%`, `_` and escape characters as literals. SQLite's built-in ASCII `lower()`/NOCASE is insufficient. Start with scans at personal-library scale; FTS/vector search is unnecessary. Stable sort uses normalized preferred title then ID; filters operate on one qualifying edition, not unrelated editions in a work.
 
-One concrete edition/line: WN, LN, book, manga, film, series, anime, translation, other. Editions belong to a MediaWork.
+## Independent state dimensions
 
-| Field | Meaning | Origin |
+| Dimension | Values | Default / unknown |
 | --- | --- | --- |
-| `id` | internal id | computed |
-| `work_id` | owning MediaWork | relation |
-| `kind` | `wn`, `ln`, `book`, `manga`, `film`, `series`, `anime`, `translation`, `other`, `unknown` | user fact |
-| `title` | edition title, nullable | user/source fact |
-| `language` | BCP-47 tag or unknown | user/source fact |
-| `original_url` | canonical source URL, nullable | user/source fact |
-| `external_ref` | import reference such as Release Watcher `publication_id` / `external_work_reference`, nullable | integration fact |
-| `status` | publication status (`ongoing`, `completed`, `unknown`) | source fact when proven |
-| `status_source` | provenance of status | provenance |
-| `first_release_at`, `last_release_at` | known release range, nullable | computed from releases |
-| `created_at`, `updated_at` | local timestamps | computed |
+| Personal consumption | `not_started`, `in_progress`, `paused`, `completed`, `dropped` | NULL = unknown historical consumption; new manually added edition defaults to `not_started` |
+| Personal intention | `none`, `interested`, `saved`, `planned`, `not_interested` | `none` means no recorded intention, not dislike |
+| Edition publication | `unknown`, `ongoing`, `completed`, `hiatus`, `cancelled` | explicit `unknown`, with nullable source |
 
-WN and LN are separate Editions unless the user explicitly relates them. A translation is an Edition with its own language and provenance. A mirror is not a new story.
+`planned` is stronger than `saved` (an actual plan versus a bookmark); they are mutually exclusive intention values. “Read later” and “watch later” are UI labels derived from `saved`/`planned` and medium, not extra states. `paused` is the only temporary consumption suspension; no duplicate `on_hold`. Not interested does not mean dropped; dropped records actual discontinued consumption.
 
-### ExternalReference
+All transitions between consumption values, including unknown, are allowed by explicit user action and recorded; rereading can move `completed` to `in_progress`, restarting can move `dropped` to `in_progress`. Setting the same current value is a no-op. A surprising transition can request a UI reason but is not a hidden business restriction. Status never automatically changes progress or intention; progress never automatically marks completed. All intention transitions are explicit; no automatic “completed means uninterested” rule.
 
-A user or integration reference attached to an Edition/Release: provider, URL, external id, kind. Multiple references may point at the same edition. References do not merge editions automatically.
+`ConsumptionStatus` and `IntentionRecord` have edition, value, observed_at, recorded_at, actor, reason and optional supersedes_id. Publication observations have edition, value, observed_at, recorded_at, provenance and supersedes_id. Current state is the last non-retracted observation by `(observed_at, recorded_at, id)`; past-dated observations do not overwrite newer ones. Status source/reference is required for a known publication claim (a manual assertion is a source). Unknown or silence never means cancelled/completed. Conflicting source assertions stay in history; the selected latest observation and its source are shown, without implying consensus.
 
-### ProgressRecord
+## History and corrections
 
-One progress observation, not a mutable counter without history.
+Personal observations are normal rows written transactionally; current queries select active observations. All store UTC RFC3339 instants, actor (`user`, `agent`, `import` plus identity), source and recorded_at. observed_at defaults to now and cannot exceed server time by more than five minutes. Record a genuine change as a new observation. Correct a mistake via `supersedes_id` on a replacement for the same entity and dimension/unit, or explicit retraction with reason. Corrections keep the old row and its audit fields; no in-place history overwrite. One row can be superseded at most once. History exposes both effective and superseded rows. Idempotency request keys prevent retry-created observations. Work/edition `revision` increments on any child mutation; expected_revision prevents lost updates.
 
-| Field | Meaning |
-| --- | --- |
-| `id` | internal id |
-| `edition_id` | tracked edition |
-| `unit` | `chapter`, `volume`, `episode`, `page`, `percent` |
-| `position` | numeric/text position, nullable |
-| `total` | total units if known, nullable |
-| `occurred_at` | when the user reached it |
-| `source` | `manual`, `agent`, `import` |
-| `note` | optional bounded comment |
+## ProgressRecord
 
-The current progress is derived from the latest record. History is preserved. Two positions for different editions are never summed.
+`{id, edition_id, unit, position, total?, label?, observed_at, recorded_at, actor, supersedes_id?}`. Units: chapter, volume, episode, page, percent. Position is a non-negative decimal stored exactly (decimal string over JSON; fixed precision up to 3 fractional digits). Page is integral; percent is 0–100 with implicit total 100. Other known totals must be positive and at least the position; missing total is NULL, never zero or an estimate. Bound values to 1,000,000,000; label (e.g. “Extra 42.5”) supplements a numeric position, never substitutes parsing arbitrary text.
 
-### ConsumptionStatus
+Progress belongs to one edition and one unit. The latest effective observation per unit is current; never sum chapters with volumes or progress across translations. Lower positions are allowed for rereads with an optional reason. Unknown current progress is absence of a record; not position zero. New observations may have an unknown total even if an older record had one; no silent carry-forward. Release counts never set total or personal progress without a separate explicit personal update. History and current queries survive reopen.
 
-A user-owned state: `planned`, `in_progress`, `paused`, `completed`, `dropped`, `on_hold`, `unknown`, with timestamps and optional reason. Publication completion from a source never forces the user's status.
+## Notes, ratings, intentions and tags
 
-### Rating and Note
+`Note` targets exactly one work or edition, with text, spoiler flag and optional quote/location. Immutable `NoteRevision` rows preserve text corrections and retractions. A revision points to the immediately preceding revision; expected_revision rejects concurrent overwrites. A note edit is visibly an edit; adding a later thought creates a new note. Bounded plain text, rendered escaped; raw HTML is not supported.
 
-- Rating: bounded user rating (for example 1–10) with a scale definition and timestamp; changes are new records or explicitly audited updates.
-- Note: free text with created/updated timestamps, optional quote/page reference, optional spoiler flag.
+`Rating` is edition-scoped, integral 1–10, timestamped with actor and optional comment. Clearing it is an explicit null observation, not zero. Current rating follows the history rule; a change is distinct from correcting a mistaken rating. Work cards show the qualifying edition's rating, not an unexplained average.
 
-### MediaRelation
+`Tag` has a normalized unique name (NFKC/case fold/whitespace, 1–64 characters); tags can attach to a work or edition. Attach/detach is audited, idempotent and never alters consumption. `favorite` and `manga-translation-candidate` are simple tags; `read-later` may be a user tag but the saved/planned filter uses intention only. No workflow engine.
 
-An explicit, directed or symmetric relation between MediaWorks or Editions: `same_story`, `translation_of`, `adaptation_of`, `side_story`, `prequel`, `sequel`, `related`, `alternative`. It has provenance (`manual`, `agent`) and confidence/unknown. Relations are created deliberately and never inferred from title similarity alone.
+## ExternalReference and origin assertions
 
-### ImportRecord (staging)
+`ExternalReference{id, edition_id, provider, external_id?, url?, role, authoritative, language?, provenance, created_at, retired_at?}` requires external_id or absolute HTTP(S) URL; provider is a bounded nonempty namespace. Roles: `publication`, `metadata`, `translation`, `release_watcher`, `translation_project`, `content`. Authoritative publication status must be explicitly asserted, not inferred from a URL or metadata database. Store source claims with actor/source URI, observed_at and optional evidence text. Links are never fetched in the MVP; schemes such as javascript/file are rejected.
 
-An immutable imported Release Watcher event before it is linked to an edition: event id, event type, publication id, external work reference, raw payload, schema version, detection time, and a nullable `edition_id`. Unknown additive fields are preserved. An event with no explicit edition link stays `pending`; it is never auto-attached by title. Linking is an explicit user/agent action.
+URL normalization: lowercase scheme/host, remove default port and fragment; preserve path case, trailing slash, query order/values and percent-encoding. Do not conflate http/https, mirrors or tracking query strings. Provider external IDs are case-sensitive opaque strings unless a future documented provider contract says otherwise. Unique active `(provider, external_id)` and normalized URL identify a reference globally; conflicts on another edition require identity resolution, never reassignment. Same edition + new URL adds a reference; it does not create an edition. Retire erroneous references with correction provenance; do not erase them.
 
-### ReleaseRecord (imported)
+`OriginClaim{id, edition_id, kind, state, provenance, replaces_id?}` has kind `original`, `anime_original`, or `unknown`; state `proposed`, `confirmed`, `revoked`. Unknown is the default absence of a confirmed origin. A confirmed source edge says only that an adaptation derives from this edition, not that this is the ultimate original. Trace accepted source edges and show confirmed origin assertions; there can be multiple sources. A source may be uncatalogued: keep a note/reference rather than invent an edition or an ultimate origin.
 
-A release projection created after an ImportRecord is linked to an edition: event id, type, edition/publication reference, external release ids, numbers, titles, URLs, source times, detection time, schema version. It is immutable after creation; corrections are new events or explicit annotations. The original ImportRecord remains the provenance source.
+## MediaRelation graph
 
-## Content delivery concepts (future, concept only)
+One relational table contains typed endpoints and foreign-key/check constraints. Both endpoints are of the same scope; mixed work→edition links are invalid.
 
-These concepts are documented so the MVP schema does not block them. They are not implemented and perform no network calls.
+| Scope | Relation | Direction / rule |
+| --- | --- | --- |
+| Edition | `adaptation_of` | adaptation → source; multiple sources allowed |
+| Edition | `translation_of` | translation → immediate source; same medium, different language or explicit translator/version distinction |
+| Edition | `alternative_version` | symmetric; same story but distinct line/version |
+| Work | `same_underlying_work` | symmetric assertion, does not merge IDs |
+| Work | `sequel_of` | later story → earlier story; prequel is the inverse display |
+| Work | `side_story_of` | side story → main story |
+| Work or edition | `related` | symmetric, same scope |
 
-### ContentReference
+Each edge has state proposed/confirmed/revoked, provenance, created_at, confirmed_by/at and optional replaces_id. Agent-fetched claims default to proposed; they do not appear as confirmed facts or identity keys. Only explicit user-authorized confirmation creates a confirmed fact. MCP may submit confirmation when conveying an explicit user instruction; it must carry confirmation and actor context. Confidence is an optional hint, never a threshold for confirmation.
 
-A pointer to external content: provider, URL/external id, media type, language, edition/work relation, optional version. It is not the content itself.
+No self links. Symmetric pairs store IDs in canonical order. Duplicate active edges return the existing edge; uniqueness is over scope/type/endpoints for non-revoked states. Reject cycles in the combined confirmed `adaptation_of` + `translation_of` source graph, and separately in confirmed `sequel_of` and `side_story_of` graphs, inside the same write transaction as insertion/confirmation. Undirected related/version links can form cycles. Revoking a bad link preserves its history; a replacement is a new edge. Work grouping and same_underlying_work never create progress-sharing or automatic identity collapse. Related-media reads show proposals separately and can traverse both directions with bounded depth/visited IDs.
 
-### ContentAsset
+## Duplicate policy
 
-A stored or deliverable content object: hash, byte size, media type, language, provenance (origin reference), rights/license note, created/verified timestamps, optional storage location. The same content may have several representations.
+1. Same idempotency key + same canonical request returns the original response; same key + different request returns `conflict`.
+2. Matching active external ID or normalized URL returns existing edition (`created:false`, `reason:already_exists`) only when no contradictory explicit work/kind/language is supplied; contradictory identity returns `identity_conflict` without writes.
+3. Exact normalized title is a **possible match**, not identity. Return candidates with evidence and a short-lived candidate token; do not create until the caller chooses existing, add-edition-under-work, or explicit create-distinct.
+4. Different edition of an existing work requires explicit work_id and edition attributes. Same edition with a new URL uses add-reference.
+5. Unresolved match stays unresolved. Recheck candidates and uniqueness inside the creation transaction; stale candidate decisions return `conflict`. No silent fuzzy merge or title uniqueness constraint. Similar-title hints may be lexical later, but never authoritative.
 
-### ContentProvider
+## Release and import records
 
-A source that can resolve a ContentReference or acquire/produce a ContentAsset. Providers are explicit, optional integrations with timeout/error contracts. Media Core does not crawl arbitrary sites as a core feature.
+`ImportRecord` preserves immutable event_id, schema_version, raw JSON and typed source IDs. Linking lives in separate audited `ImportBinding` rows so the raw import stays immutable. `ReleaseRecord` is an immutable edition-scoped projection keyed by event and release identity; revoked/replaced bindings hide obsolete projections without deleting them. Pending imports have no current binding. Unique event_id ensures replay is a no-op; different payload for the same ID is `identity_conflict`. Counts, source time and detection time are separate from personal progress. See [integration contract](integration-contract.md).
 
-### DeliveryTarget
+## Future boundaries
 
-A destination such as an e-reader, a local folder or another library. It declares capabilities (formats, languages, size limits) and a delivery state. Delivery is a future module, separate from library truth.
-
-### Original/translation link
-
-A translation asset links to its original asset/reference through a `translation_of` relation, with translator/harness provenance, source language, target language and version. A translation is never presented as the original. If a translation is unavailable, the UI shows the original; it does not invent one.
-
-### External translation harness
-
-Media Core may record that an external harness produced a translated asset. It does not embed an LLM, scheduling or translation execution in the core MVP. The harness is a provider/provenance boundary.
-
-## Invariants
-
-1. One Edition belongs to one MediaWork; a MediaWork may have several Editions.
-2. No automatic merging by title, cover or fuzzy string.
-3. Progress, status, rating and notes are user-owned and edition-scoped.
-4. Release Watcher events are deduplicated by `event_id`; importing twice is a no-op. Pending ImportRecords may have no edition; a ReleaseRecord requires one.
-5. A publication line's release counts are never summed with another edition's counts.
-6. Facts, computed values and unknowns are stored distinctly; unknown stays NULL/unknown.
-7. Content assets and delivery are future concepts; library truth does not depend on them.
-8. Deleting or pausing a Release Watcher watch does not delete Media Core history.
+`ContentReference` is a pointer; `ContentAsset` would hold hash/location/type/language/provenance; `ContentProvider` would resolve it; `DeliveryTarget` would describe a destination. No unused asset tables are needed now. Translator Agent/manga translation projects use reference roles and translation relations with language/provenance. OCR, acquisition, rendering, inpainting, model execution and delivery remain outside the MVP.

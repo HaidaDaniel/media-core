@@ -1,36 +1,25 @@
 # Progress
 
-Status vocabulary: `planned`, `implemented`, `tested`, `deployed`, `blocked`. Documentation and task creation never imply implementation.
+Status vocabulary: planned, implemented, tested, deployed, blocked. Documentation is not application implementation.
+
+## Current planning phase (2026-11-10)
+
+Task 0004 is doing, owner codex-media-plan-20261110. Initial worktree was clean on main at 7acb2f0458bdfff33bd48c4312b2eb2be944b56d. Existing 0001 canceled / 0002 done / 0003 todo are preserved.
+
+Product/domain/architecture revised for personal history, distinct state dimensions, explicit sources/editions and equal Web + Hermes/MCP scope. ADR-0009–0013 amend earlier target decisions without deleting their history. 45 future implementation tasks 0005–0049 are unclaimed todo; [inventory/coverage/dependencies](implementation-plan.md).
 
 ## Planned
 
-- Go module, build identity and SQLite migrations.
-- MediaWork, Edition, progress, status, rating, note and relation storage.
-- CLI commands with stable JSON, RU/EN human output and backup/restore.
-- Release Watcher event import with idempotent `event_id` handling.
-- MCP stdio over the same use cases.
-- ContentReference/ContentAsset/ContentProvider and DeliveryTarget as future read-only concepts.
-- Translation harness provenance and content delivery modules.
+M1 persistent CLI/SQLite/backup; M2 usable responsive Web UI; M3 equivalent basic MCP; M4 practical sources/relations/opinions/intentions; M5 imports, parity, complete restore and embedded packaging. See [roadmap](roadmap.md). First implementation task: 0005, only after 0004's review/gate/done.
 
 ## Implemented
 
-- Documentation-only foundation: README, project, scope, architecture, domain model, roadmap, integration contract and ADRs.
-- APK v0.5.2 pinned as a development-only dependency.
-- No runtime code, no SQLite schema, no CLI, no MCP.
+Documentation and task contracts only. APK 0.5.2 remains the sole pinned tooling dependency. No Go runtime, schema, HTTP/API, React application, MCP tools or deployment is implemented.
 
-## Tested
+## Verification
 
-- APK contract lint and documentation consistency (task 0002 evidence). No application tests exist.
+Initial APK doctor/lint/sync passed; doctor warned about no application stack, no quality capabilities, missing license and missing .env.example. These are observed planning-repository limitations. Final candidate verification and independent review are pending; results will be recorded after the committed candidate is checked. No application tests have been run or claimed.
 
-## Deployed
+## Deployed / blocked
 
-- Not deployed. There is no runtime artifact.
-
-## Blocked
-
-- Runtime work is not blocked; it is intentionally deferred to separate implementation tasks.
-- Release Watcher import cannot be tested until both projects have matching event fixtures and a Media Core importer.
-
-## Next step
-
-Create the Stage 1 local-library task: Go bootstrap, SQLite schema and the first CLI vertical slice.
+No runtime artifact or deployment. Runtime work is intentionally unstarted, not technically blocked. Real Hermes/NAS connectivity and supported dependency versions require implementation-time verification; manual/local operation has no external provider prerequisite. License choice remains an operator decision.

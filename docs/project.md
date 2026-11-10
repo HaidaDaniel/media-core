@@ -1,55 +1,25 @@
 # Media Core project
 
-Status: accepted documentation. No runtime implementation exists in this repository yet.
+Status: target product specified; no Go application, HTTP API, Web UI or MCP implementation yet.
 
-## Mission
+Media Core is a single person's persistent library of encountered, consumed and saved media. Its primary purpose is to answer what I watched/read, where I stopped and what I thought. Future interests, negative impressions and possible translation candidates are ordinary library information, not a rejection or recommendation workflow.
 
-Media Core is a personal, local-first library for serialized and non-serialized media. It answers:
+The user may know a title in Japanese, Russian, English, romaji or another alias. They should find an existing entry, see its editions, and follow explicit links to adaptations, translations and original publication sources. Missing metadata remains missing. An agent's guess about a source is a proposal until confirmed.
 
-- What did I read or watch?
-- Where did I stop, and what is the current progress?
-- What is its status in my life (planned, in progress, paused, completed, dropped)?
-- What did I think of it (rating, notes, quotes)?
-- Which editions, translations and adaptations are the same story, and which are separate?
-- What was published recently in a work I follow?
+## Core example
 
-It is not a content marketplace, streaming service, social network or recommendation engine.
+An anime is completed and rated 8/10. Its manga source is `not_started` with intention `saved`, a publication URL and the note: “Interesting anime. Original is manga. Saved for later because reading manga on my phone is inconvenient.” Add `manga-translation-candidate`. Navigating either edition shows the relationship and retained personal history. A different device, edition or future translation may make reading practical later.
 
-## Primary user and workflow
+Works group a logical story; editions represent concrete publication/adaptation lines. The grouping is explicit and never proves a source relationship. A web novel need not be the original: manga, games, visual novels and anime-original productions can be roots. Uncertain origins stay uncertain.
 
-One person manages their own library on a home Linux machine, optionally driven by an agent.
+## First usable product
 
-```text
-media-core add --title "..." --type wn
-media-core progress <id> --chapter 42
-media-core status <id> completed --rating 8
-media-core note <id> "The ending ..."
-media-core list --json
-```
+Both Web UI and Hermes/MCP support manual add, duplicate review, multilingual search, work/edition details, progress/status updates, notes, ratings, intentions/tags, references and confirmed relationships. CLI uses the same services and provides import, backup, restore, export and diagnostics. No interface maintains separate rules or storage.
 
-Release Watcher can supply new-release events. Media Core stores them as release history and can link them to the user's edition/progress, but remains usable without Release Watcher.
+Local operations work offline without an LLM. Metadata providers and covers are optional future enrichment. Release Watcher owns detection; imported events never change personal reading progress. Translator Agent and future manga translation tools remain external.
 
-## Product principles
+## Runtime expectations
 
-1. Local-first: all core reads/writes work offline. No mandatory cloud, telemetry or hosted identity.
-2. Agent-first, not AI-dependent: every operation is a deterministic CLI use case with stable JSON. Agents can drive it without special server access.
-3. One binary, SQLite, on-demand execution; no always-running daemon or web server in the MVP.
-4. Durable history and readable export/backup are core, not afterthoughts.
-5. Facts, computed values and unknowns are distinct. Missing data stays missing.
-6. Editions are explicit. WN, LN, manga, anime and translations are separate publication/edition lines unless the user links them.
-7. Release Watcher events are immutable inputs. Import is idempotent by `event_id`; events are never rewritten to fit a title match.
-8. Content delivery, translation execution and provider crawling are future modules, not MVP dependencies.
+One Go binary with SQLite in a local state directory. CLI and MCP stdio run on demand; the optional HTTP/Web UI process is resident only while enabled. Web assets are built during development/release, embedded in Go, and require no production Node server. On a NAS, run processes on the NAS against its local filesystem; access the UI by SSH tunnel or authenticated TLS, and Hermes by stdio locally or over SSH.
 
-## Status
-
-| Area | State |
-| --- | --- |
-| Product/scope/architecture/domain/roadmap docs | implemented |
-| Integration contract with Release Watcher | documented |
-| Go module, SQLite schema, CLI | planned |
-| MCP stdio | planned after CLI |
-| ContentReference/ContentAsset/ContentProvider/DeliveryTarget | concept only |
-| Translation harness integration | concept only |
-| Content delivery | future module |
-
-See [scope](scope.md), [architecture](architecture.md), [domain model](domain-model.md), [roadmap](roadmap.md), [integration contract](integration-contract.md) and [decisions](decisions.md).
+See [scope](scope.md), [domain](domain-model.md), [contracts](application-contract.md), [architecture](architecture.md) and [roadmap](roadmap.md). Documentation is not implementation evidence.
