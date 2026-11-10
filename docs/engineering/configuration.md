@@ -42,9 +42,12 @@ values.
 
 ## Secrets
 
-- The owner secret and TLS key material are wrapped in a secret type whose
-  rendered form is always `redacted` (or `<unset>`); configuration
-  diagnostics never contain secret values.
+- The owner secret is wrapped in a secret type whose rendered form is
+  always `redacted` (or `<unset>`); configuration diagnostics never contain
+  the secret value.
+- TLS key material is not part of the resolved configuration; only the TLS
+  certificate and key **file paths** are held and rendered, and enforcing
+  those files happens in the `serve` lifecycle (task 0024).
 - Diagnostics render state directory, listener, public origin, allow-remote
   flag, and TLS file paths only.
 
