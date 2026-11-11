@@ -1,7 +1,7 @@
 # Task 0010 - Persist works and sourced multilingual titles
 
-State: todo
-Owner: none
+State: doing
+Owner: opencode-media-20261110
 Mode: mvp
 Lane: domain
 Scope: domain
@@ -23,6 +23,7 @@ Persist story groupings and arbitrary multilingual titles with deterministic Uni
 - docs/domain-model.md
 
 ## Files allowed to edit
+
 - go.mod
 - go.sum
 - internal/domain/title.go
@@ -30,9 +31,9 @@ Persist story groupings and arbitrary multilingual titles with deterministic Uni
 - internal/store/works.go
 - internal/store/works_test.go
 - internal/store/migrations/0002_works_titles.sql
+- internal/store/migrations_test.go
 - docs/decisions.md
 - docs/progress.md
-
 - .tasks/0010-persist-works-and-sourced-multilingual-titles.md
 
 ## Files forbidden to edit
@@ -71,10 +72,12 @@ Persist story groupings and arbitrary multilingual titles with deterministic Uni
 - `{"id":"focused","type":"automated","required":true,"environment":"local","profile":"report","command":"go test ./internal/domain ./internal/store -run \"Test(Work|Title|Normalize)\""}`
 
 ## Documentation updates
+
 - Update docs/progress.md on lifecycle changes.
 
 ## Notes
 
+- Scope amendment 2026-11-11: added internal/store/migrations_test.go. The 0009 runner tests assert the embedded set's shape and version; appending 0002_works_titles.sql requires updating those counts. No runner behavior changes.
 - Milestone: M1. See docs/implementation-plan.md for requirements and graph.
 - Unstarted implementation contract. Tests/commands above are to be created or made runnable by this task; none is claimed to pass today.
 - Before editing, read existing allowed source files supplied by completed dependencies. Missing paths are new files owned by this task, not existing context.
