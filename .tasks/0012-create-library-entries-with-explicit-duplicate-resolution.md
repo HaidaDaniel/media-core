@@ -34,6 +34,7 @@ Implement atomic manual add with exact identity replay and title-candidate decis
 - internal/cli/add.go
 - internal/cli/add_test.go
 - internal/cli/cli.go
+- internal/cli/init_test.go
 - internal/runtime/runtime.go
 - internal/store/migrations_test.go
 - docs/progress.md
@@ -86,3 +87,4 @@ Implement atomic manual add with exact identity replay and title-candidate decis
 - Only listed paths plus this task file may change. Do not edit other task contracts or generated agent instructions; task lifecycle is managed by APK.
 - Keep contract behavior fixed; if a counterexample requires expanding scope, update this task before source edits. No actual host deployment, push or publication is authorized.
 - Scope amendment 2026-11-11: added internal/cli/cli.go (the usage text lists capability commands; the new add command joins that list) and internal/store/migrations_test.go (the 0009 runner tests pin the embedded migration set's shape and version; 0004 raises it) to the allowed files.
+- Scope amendment 2026-11-11: added internal/cli/init_test.go (its usage-list test asserts the command list that the new add command joins) to the allowed files.
