@@ -200,6 +200,36 @@ func TestDatabaseRejectsRelativeStateDir(t *testing.T) {
 	}
 }
 
+func TestOpenTightensPreexistingModes(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.Chmod(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	lockPath := filepath.Join(dir, MaintenanceLockFileName)
+	if err := os.WriteFile(lockPath, nil, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	db, err := Open(dir)
+	if err != nil {
+		t.Fatalf("Open: %v", err)
+	}
+	defer db.Close()
+	dirInfo, err := os.Stat(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if perm := dirInfo.Mode().Perm(); perm != 0o700 {
+		t.Errorf("pre-existing state dir mode = %o, want 0700", perm)
+	}
+	lockInfo, err := os.Stat(lockPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if perm := lockInfo.Mode().Perm(); perm != 0o600 {
+		t.Errorf("pre-existing lock file mode = %o, want 0600", perm)
+	}
+}
+
 // TestOpenAppliesSchemaCheckSeam proves the schema runner seam is invoked
 // on the normal open path and that a failing check releases everything.
 func TestOpenAppliesSchemaCheckSeam(t *testing.T) {

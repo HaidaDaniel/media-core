@@ -97,8 +97,15 @@ func (d *Database) configure(stateDir string) error {
 		d.db = nil
 		return err
 	}
-	// Secure file modes on the database and its sidecars.
-	for _, name := range []string{path, path + "-wal", path + "-shm"} {
+	// Secure file modes on the state directory, the maintenance lock,
+	// the database and its sidecars; pre-existing loose modes are
+	// tightened on every open.
+	if err := os.Chmod(stateDir, 0o700); err != nil {
+		db.Close()
+		d.db = nil
+		return fmt.Errorf("store: chmod state dir: %w", err)
+	}
+	for _, name := range []string{d.lock.Path(), path, path + "-wal", path + "-shm"} {
 		if info, err := os.Lstat(name); err == nil && info.Mode()&os.ModeSymlink == 0 {
 			if err := os.Chmod(name, 0o600); err != nil {
 				db.Close()
