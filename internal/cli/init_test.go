@@ -151,7 +151,7 @@ func TestInitUsageListsCommands(t *testing.T) {
 	if code != ExitOK {
 		t.Fatalf("help exit = %d", code)
 	}
-	for _, want := range []string{"init", "migrate", "version"} {
+	for _, want := range []string{"init", "migrate", "version", "add"} {
 		if !strings.Contains(out, want) {
 			t.Errorf("usage does not list %q:\n%s", want, out)
 		}

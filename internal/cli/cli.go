@@ -11,13 +11,15 @@ import (
 	"github.com/HaidaDaniel/media-core/internal/runtime"
 )
 
-// Exit codes for process termination, per docs/application-contract.md.
+// Exit codes for process termination, per docs/application-contract.md:
+// 2 covers both invalid input and conflict-class failures.
 const (
-	ExitOK             = 0
-	ExitError          = 1
-	ExitUsage          = 2
-	ExitPartialImport  = 3
-	ExitLocked         = 4
+	ExitOK            = 0
+	ExitError         = 1
+	ExitUsage         = 2
+	ExitConflict      = ExitUsage
+	ExitPartialImport = 3
+	ExitLocked        = 4
 )
 
 const usage = `usage: media-core <command>
@@ -26,6 +28,7 @@ commands:
   version  print build identity
   init     initialize the database (first setup)
   migrate  bring an existing database to the current schema
+  add      add a library entry with explicit duplicate resolution
   serve    reserved: HTTP API + embedded UI (not implemented yet)
   mcp      reserved: MCP stdio (not implemented yet)
 

@@ -1,7 +1,7 @@
 # Task 0012 - Create library entries with explicit duplicate resolution
 
-State: todo
-Owner: none
+State: doing
+Owner: opencode-media-20261110
 Mode: mvp
 Lane: application
 Scope: application
@@ -24,6 +24,7 @@ Implement atomic manual add with exact identity replay and title-candidate decis
 - docs/application-contract.md
 
 ## Files allowed to edit
+
 - internal/app/addition.go
 - internal/app/addition_test.go
 - internal/app/mutation.go
@@ -32,9 +33,10 @@ Implement atomic manual add with exact identity replay and title-candidate decis
 - internal/store/migrations/0004_identity.sql
 - internal/cli/add.go
 - internal/cli/add_test.go
+- internal/cli/cli.go
 - internal/runtime/runtime.go
+- internal/store/migrations_test.go
 - docs/progress.md
-
 - .tasks/0012-create-library-entries-with-explicit-duplicate-resolution.md
 
 ## Files forbidden to edit
@@ -73,6 +75,7 @@ Implement atomic manual add with exact identity replay and title-candidate decis
 - `{"id":"focused","type":"automated","required":true,"environment":"local","profile":"report","command":"go test ./internal/app ./internal/store ./internal/cli -run \"Test(Addition|Identity|Mutation|Add)\""}`
 
 ## Documentation updates
+
 - Update docs/progress.md on lifecycle changes.
 
 ## Notes
@@ -82,3 +85,4 @@ Implement atomic manual add with exact identity replay and title-candidate decis
 - Before editing, read existing allowed source files supplied by completed dependencies. Missing paths are new files owned by this task, not existing context.
 - Only listed paths plus this task file may change. Do not edit other task contracts or generated agent instructions; task lifecycle is managed by APK.
 - Keep contract behavior fixed; if a counterexample requires expanding scope, update this task before source edits. No actual host deployment, push or publication is authorized.
+- Scope amendment 2026-11-11: added internal/cli/cli.go (the usage text lists capability commands; the new add command joins that list) and internal/store/migrations_test.go (the 0009 runner tests pin the embedded migration set's shape and version; 0004 raises it) to the allowed files.
