@@ -327,9 +327,13 @@ func (d *Database) AddEditionTitle(ctx context.Context, now time.Time, editionID
 		seq    int
 		active int
 	)
-	if err := tx.QueryRowContext(ctx,
-		`SELECT COALESCE(MAX(seq), 0) + 1, COUNT(*) FROM edition_titles
-		 WHERE edition_id = ? AND retired_at IS NULL`, editionID).Scan(&seq, &active); err != nil {
+	// seq advances over all rows (active and retired) so a title added after
+	// a full retirement never reuses a retired seq under the unique index;
+	// the active count drives the preferred-promotion rule.
+	if err := tx.QueryRowContext(ctx, `
+		SELECT COALESCE(MAX(seq), 0) + 1,
+		       COALESCE(SUM(CASE WHEN retired_at IS NULL THEN 1 ELSE 0 END), 0)
+		FROM edition_titles WHERE edition_id = ?`, editionID).Scan(&seq, &active); err != nil {
 		return Edition{}, fmt.Errorf("store: next title seq: %w", err)
 	}
 	// The first title of an edition becomes preferred so the edition has a

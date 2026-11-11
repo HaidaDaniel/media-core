@@ -180,6 +180,17 @@ func TestEditionTitlesWithWorkFallback(t *testing.T) {
 	if err := db.DB().QueryRow(`SELECT retired_at FROM edition_titles WHERE edition_id = ?`, e.ID).Scan(&retiredAt); err != nil {
 		t.Fatalf("retired history row missing: %v", err)
 	}
+	// A title added after a full retirement must not collide with the retired
+	// seq and must become preferred (the edition had no active titles).
+	e, err = db.AddEditionTitle(ctx, now.Add(3*time.Second), e.ID, e.Revision, TitleInput{
+		Text: "Second Name", Kind: domain.TitleOriginal, Provenance: "manual",
+	})
+	if err != nil {
+		t.Fatalf("AddEditionTitle after full retirement: %v", err)
+	}
+	if len(e.Titles) != 1 || !e.Titles[0].Preferred || e.Titles[0].Text != "Second Name" {
+		t.Fatalf("titles = %+v, want only Second Name and preferred", e.Titles)
+	}
 }
 
 func TestEditionTitleRetirementPromotesOldest(t *testing.T) {
