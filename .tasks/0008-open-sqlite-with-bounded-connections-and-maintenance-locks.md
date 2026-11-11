@@ -1,6 +1,6 @@
 # Task 0008 - Open SQLite with bounded connections and maintenance locks
 
-State: doing
+State: done
 Owner: opencode-media-20261110
 Mode: mvp
 Lane: storage
