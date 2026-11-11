@@ -1,7 +1,7 @@
 # Task 0011 - Persist edition lines and sourced publication observations
 
-State: todo
-Owner: none
+State: doing
+Owner: opencode-media-20261110
 Mode: mvp
 Lane: domain
 Scope: domain
@@ -23,13 +23,14 @@ Add concrete edition identity and independent sourced publication state.
 - docs/domain-model.md
 
 ## Files allowed to edit
+
 - internal/domain/edition.go
 - internal/domain/edition_test.go
 - internal/store/editions.go
 - internal/store/editions_test.go
 - internal/store/migrations/0003_editions.sql
+- internal/store/migrations_test.go
 - docs/progress.md
-
 - .tasks/0011-persist-edition-lines-and-sourced-publication-observations.md
 
 ## Files forbidden to edit
@@ -68,10 +69,12 @@ Add concrete edition identity and independent sourced publication state.
 - `{"id":"focused","type":"automated","required":true,"environment":"local","profile":"report","command":"go test ./internal/domain ./internal/store -run \"Test(Edition|Publication)\""}`
 
 ## Documentation updates
+
 - Update docs/progress.md on lifecycle changes.
 
 ## Notes
 
+- Scope amendment 2026-11-11: added internal/store/migrations_test.go. The migration runner tests pin the embedded set's shape and version; appending 0003_editions.sql requires updating those counts. No runner behavior changes.
 - Milestone: M1. See docs/implementation-plan.md for requirements and graph.
 - Unstarted implementation contract. Tests/commands above are to be created or made runnable by this task; none is claimed to pass today.
 - Before editing, read existing allowed source files supplied by completed dependencies. Missing paths are new files owned by this task, not existing context.
