@@ -130,13 +130,18 @@ func (d *Database) configure(stateDir string, checkSchema bool) error {
 
 // dsnFor builds the driver DSN with the per-connection pragmas; the
 // modernc driver applies _pragma parameters to every new connection.
+// _txlock=immediate is the driver's transaction-mode parameter (it ignores
+// sql.TxOptions.Isolation): every non-readonly transaction started by the
+// pool issues BEGIN IMMEDIATE, as the architecture requires for short write
+// transactions. Plain autocommit reads are unaffected.
 func dsnFor(path string) string {
 	u := &url.URL{Scheme: "file", Path: path}
 	return u.String() +
 		"?_pragma=journal_mode(wal)" +
 		"&_pragma=foreign_keys(1)" +
 		"&_pragma=synchronous(full)" +
-		"&_pragma=busy_timeout(5000)"
+		"&_pragma=busy_timeout(5000)" +
+		"&_txlock=immediate"
 }
 
 // verifyPragmas proves the required per-connection configuration is

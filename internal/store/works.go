@@ -74,16 +74,20 @@ func validateTitleInput(in TitleInput) error {
 	return nil
 }
 
-// beginImmediate starts a short write transaction; the driver maps the
-// serializable level to BEGIN IMMEDIATE so writes serialize identity checks
-// and history changes.
+// beginImmediate starts a short write transaction that issues BEGIN
+// IMMEDIATE (the store DSN sets the driver's _txlock=immediate parameter),
+// so writes serialize identity checks and history changes from the first
+// statement.
 func (d *Database) beginImmediate(ctx context.Context) (*sql.Tx, error) {
-	tx, err := d.db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})
+	tx, err := d.db.BeginTx(ctx, &sql.TxOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("store: begin transaction: %w", err)
 	}
 	return tx, nil
 }
+
+// instantUTC renders an instant as UTC RFC3339 with second precision; the
+// fixed precision keeps stored timestamps lexicographically sortable.
 
 func instantUTC(t time.Time) string { return t.UTC().Format(time.RFC3339) }
 
@@ -344,7 +348,7 @@ func bumpWorkRevision(tx *sql.Tx, ctx context.Context, workID string, revision i
 		return fmt.Errorf("store: bump work revision: %w", err)
 	}
 	if n != 1 {
-		return fmt.Errorf("%w: expected %d, current %d", ErrRevisionMismatch, revision, revision+1)
+		return fmt.Errorf("%w: expected %d, but the work was updated concurrently", ErrRevisionMismatch, revision)
 	}
 	return nil
 }

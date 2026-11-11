@@ -2,7 +2,11 @@ package store
 
 import (
 	"context"
+	"database/sql"
 	"errors"
+	"os"
+	"os/exec"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -361,6 +365,71 @@ func TestWorkSearchLiteralWildcards(t *testing.T) {
 	check("%", []string{wild.ID}) // a bare % is literal, not a wildcard
 	check("100%_off%", nil)       // trailing literal % is not a wildcard
 	check("plain", []string{plain.ID})
+}
+
+// workTxRole switches the test binary into the write-transaction holder.
+const workTxRole = "MEDIA_CORE_TEST_WORK_TX_ROLE"
+
+// TestWorkWriteTransactionIsImmediate proves the store DSN makes write
+// transactions begin IMMEDIATE: a second process that only opened a
+// transaction and read (no write statement) still holds the write lock, so
+// a concurrent write times out busy instead of succeeding.
+func TestWorkWriteTransactionIsImmediate(t *testing.T) {
+	if os.Getenv(workTxRole) == "hold" {
+		workTxChild(os.Getenv(subprocessDir))
+		return
+	}
+	dir := filepath.Join(t.TempDir(), "state")
+	if err := migrateState(dir); err != nil {
+		t.Fatalf("migrateState: %v", err)
+	}
+	bin, err := os.Executable()
+	if err != nil {
+		t.Fatalf("test binary path: %v", err)
+	}
+	cmd := exec.Command(bin, "-test.run=TestWorkWriteTransactionIsImmediate")
+	cmd.Env = append(os.Environ(), workTxRole+"=hold", subprocessDir+"="+dir)
+	if err := cmd.Start(); err != nil {
+		t.Fatalf("start holder: %v", err)
+	}
+	defer killAndWait(t, cmd)
+	waitForHoldMarker(t, dir)
+	db, err := Open(dir)
+	if err != nil {
+		t.Fatalf("Open while holder keeps a write transaction: %v", err)
+	}
+	defer db.Close()
+	start := time.Now()
+	_, err = db.DB().Exec("CREATE TABLE immediate_probe (x INTEGER)")
+	elapsed := time.Since(start)
+	if err == nil {
+		t.Fatal("write succeeded while the holder's transaction is open: write transactions are not BEGIN IMMEDIATE")
+	}
+	if !containsLocked(err.Error()) {
+		t.Fatalf("write error = %v, want a busy/locked error", err)
+	}
+	if elapsed < 4*time.Second || elapsed > 7*time.Second {
+		t.Errorf("write gave up after %v, want the ~5s busy timeout", elapsed)
+	}
+}
+
+// workTxChild holds an open read-only write transaction until killed; the
+// marker signals the transaction is open.
+func workTxChild(stateDir string) {
+	db, err := Open(stateDir)
+	if err == nil {
+		tx, err := db.DB().BeginTx(context.Background(), &sql.TxOptions{})
+		if err == nil {
+			var one int
+			if err := tx.QueryRow("SELECT 1").Scan(&one); err == nil {
+				writeMarker(stateDir)
+				<-make(chan struct{})
+			}
+			tx.Rollback()
+		}
+		db.Close()
+	}
+	os.Exit(1)
 }
 
 func TestWorkListOrderedByPreferredKey(t *testing.T) {

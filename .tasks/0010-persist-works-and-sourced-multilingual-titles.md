@@ -32,6 +32,7 @@ Persist story groupings and arbitrary multilingual titles with deterministic Uni
 - internal/store/works_test.go
 - internal/store/migrations/0002_works_titles.sql
 - internal/store/migrations_test.go
+- internal/store/database.go
 - docs/decisions.md
 - docs/progress.md
 - .tasks/0010-persist-works-and-sourced-multilingual-titles.md
@@ -78,6 +79,7 @@ Persist story groupings and arbitrary multilingual titles with deterministic Uni
 ## Notes
 
 - Scope amendment 2026-11-11: added internal/store/migrations_test.go. The 0009 runner tests assert the embedded set's shape and version; appending 0002_works_titles.sql requires updating those counts. No runner behavior changes.
+- Scope amendment 2026-11-11 (review fix): added internal/store/database.go. Independent review found that modernc.org/sqlite v1.62.0 ignores sql.LevelSerializable (tx.go uses only the _txlock DSN parameter), so the architecture-required BEGIN IMMEDIATE writes were not in effect and the beginImmediate comment was wrong. Fix: _txlock=immediate in the store DSN plus a regression test. No behavior change beyond the documented write-transaction mode.
 - Milestone: M1. See docs/implementation-plan.md for requirements and graph.
 - Unstarted implementation contract. Tests/commands above are to be created or made runnable by this task; none is claimed to pass today.
 - Before editing, read existing allowed source files supplied by completed dependencies. Missing paths are new files owned by this task, not existing context.
