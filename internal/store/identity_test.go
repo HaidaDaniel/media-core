@@ -379,3 +379,88 @@ func TestAdditionAttemptJournalStored(t *testing.T) {
 		t.Fatalf("a failed validation must not reserve a key")
 	}
 }
+
+// TestAdditionAttemptConcurrentCommitRace proves the race window the
+// application settles through the journal: while the original entry
+// transaction is open, an identical attempt from a second handle waits on
+// the write lock; after the original commits, the rival's in-transaction
+// identity recheck reports the match instead of creating a second entry.
+func TestAdditionAttemptConcurrentCommitRace(t *testing.T) {
+	dir := t.TempDir()
+	dbA := openMigrated(t, dir)
+	defer dbA.Close()
+	dbB, err := Open(dir)
+	if err != nil {
+		t.Fatalf("second handle: %v", err)
+	}
+	defer dbB.Close()
+	ctx := context.Background()
+	now := workTestNow()
+	nowS := instantUTC(now)
+
+	// The original transaction: work, title, edition, identity and journal
+	// row, left uncommitted while the rival attempt runs.
+	tx, err := dbA.beginImmediate(ctx)
+	if err != nil {
+		t.Fatalf("beginImmediate: %v", err)
+	}
+	for _, stmt := range []struct {
+		query string
+		args  []any
+	}{
+		{`INSERT INTO works (id, revision, created_at, updated_at) VALUES (?, 0, ?, ?)`, []any{"w-race", nowS, nowS}},
+		{`INSERT INTO work_titles (id, work_id, seq, text, search_key, language, kind, preferred, provenance, created_at)
+		  VALUES (?, ?, 1, ?, ?, NULL, ?, 1, 'manual', ?)`, []any{"wt-race", "w-race", "Race Story", domain.SearchKey("Race Story"), string(domain.TitleOriginal), nowS}},
+		{`INSERT INTO editions (id, work_id, kind, other_label, language, revision, created_at, updated_at)
+		  VALUES (?, ?, ?, NULL, NULL, 0, ?, ?)`, []any{"e-race", "w-race", string(domain.KindManga), nowS, nowS}},
+		{`INSERT INTO external_identities (id, edition_id, provider, external_id, normalized_url, created_at)
+		  VALUES (?, ?, ?, ?, NULL, ?)`, []any{"id-race", "e-race", "p", "e1", nowS}},
+		{`INSERT INTO mutation_journal (request_id, operation, request_hash, result_json, actor, created_at)
+		  VALUES (?, ?, ?, ?, ?, ?)`, []any{"r-race", "create_library_entry", "h-race", `{"created":true}`, "local", nowS}},
+	} {
+		if _, err := tx.ExecContext(ctx, stmt.query, stmt.args...); err != nil {
+			t.Fatalf("seed statement: %v", err)
+		}
+	}
+
+	type outcome struct {
+		res EntryResult
+		err error
+	}
+	done := make(chan outcome, 1)
+	go func() {
+		res, err := dbB.AttemptEntry(ctx, now, EntryAttempt{
+			Titles: []TitleInput{{Text: "Race Story", Kind: domain.TitleOriginal, Provenance: "manual"}},
+			Kind:   kindPtr(domain.KindManga),
+			References: []ReferenceInput{
+				{Provider: strPtr("p"), ExternalID: strPtr("e1")},
+			},
+			Journal: &JournalInput{RequestID: "r-race", Operation: "create_library_entry", RequestHash: "h-race", Actor: "local"},
+		})
+		done <- outcome{res, err}
+	}()
+	time.Sleep(100 * time.Millisecond) // let the rival reach the write lock
+	if err := tx.Commit(); err != nil {
+		t.Fatalf("commit original: %v", err)
+	}
+	got := <-done
+	if got.err != nil {
+		t.Fatalf("rival attempt: %v", got.err)
+	}
+	if got.res.Outcome != EntryIdentityMatch || got.res.Matched == nil || got.res.Matched.EditionID != "e-race" {
+		t.Fatalf("rival = %+v, want the identity match on the committed edition", got.res)
+	}
+	var works, journal int
+	if err := dbA.DB().QueryRow(`SELECT COUNT(*) FROM works`).Scan(&works); err != nil {
+		t.Fatalf("count works: %v", err)
+	}
+	if works != 1 {
+		t.Fatalf("works = %d, want 1 (the rival wrote nothing)", works)
+	}
+	if err := dbA.DB().QueryRow(`SELECT COUNT(*) FROM mutation_journal`).Scan(&journal); err != nil {
+		t.Fatalf("count journal: %v", err)
+	}
+	if journal != 1 {
+		t.Fatalf("journal rows = %d, want 1", journal)
+	}
+}

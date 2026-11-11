@@ -65,8 +65,8 @@ func alreadyExists(workID string, workRevision int64, editionID *string) Additio
 // validateAddition checks the payload before any database access. Failed
 // validation never reserves an idempotency key.
 func validateAddition(req AdditionRequest) error {
-	if len(req.Titles) == 0 && len(req.References) == 0 {
-		return fmt.Errorf("a title or a known identity is required")
+	if len(req.Titles) == 0 && len(req.References) == 0 && req.WorkID == nil {
+		return fmt.Errorf("a title, a known identity or an explicit work is required")
 	}
 	preferred := 0
 	for _, t := range req.Titles {
@@ -110,8 +110,8 @@ func validateAddition(req AdditionRequest) error {
 			return err
 		}
 	}
-	if req.WorkID != nil && (req.Choice == nil || *req.Choice != ChoiceAddEdition) {
-		return fmt.Errorf("work_id is only used with the add_edition choice")
+	if req.WorkID != nil && (req.Choice == nil || (*req.Choice != ChoiceAddEdition && *req.Choice != ChoiceUseExisting)) {
+		return fmt.Errorf("work_id is used with the add_edition or use_existing choice")
 	}
 	if req.Choice != nil {
 		if !req.Choice.Valid() {
@@ -403,10 +403,7 @@ func (s *Service) createEntry(ctx context.Context, req AdditionRequest, dec *sto
 		BlockOnCandidates: dec == nil,
 	})
 	if err != nil {
-		if entry, lerr := s.db.LookupJournal(ctx, req.RequestID); lerr == nil && entry != nil && entry.RequestHash == hash {
-			return replayResult(entry, req.MutationBase)
-		}
-		return AdditionResult{}, mapStoreError(err, req.MutationBase)
+		return s.settleAttempt(ctx, req, hash, err)
 	}
 	switch res.Outcome {
 	case store.EntryCreated:
@@ -420,6 +417,17 @@ func (s *Service) createEntry(ctx context.Context, req AdditionRequest, dec *sto
 		if err := checkIdentityContradiction(req, res.Matched); err != nil {
 			return AdditionResult{}, err
 		}
+		// A concurrent identical create may have committed after the
+		// pre-check lookup; its stored result is the exact replay and
+		// wins over the existing report.
+		if entry, lerr := s.db.LookupJournal(ctx, req.RequestID); lerr != nil {
+			return AdditionResult{}, mapStoreError(lerr, req.MutationBase)
+		} else if entry != nil {
+			if entry.RequestHash != hash {
+				return AdditionResult{}, conflict("the idempotency key was already used with a different payload", req.MutationBase)
+			}
+			return replayResult(entry, req.MutationBase)
+		}
 		return existingResult(ctx, s, res.Matched)
 	case store.EntryCandidates:
 		return AdditionResult{}, &AppError{
@@ -430,4 +438,22 @@ func (s *Service) createEntry(ctx context.Context, req AdditionRequest, dec *sto
 		}
 	}
 	return AdditionResult{}, mapStoreError(fmt.Errorf("store: unexpected entry outcome"), req.MutationBase)
+}
+
+// settleAttempt consults the journal after a failed attempt: a concurrent
+// commit of the same key replays its stored result, a different payload on
+// the same key is a key-collision conflict, and anything else maps the
+// attempt error.
+func (s *Service) settleAttempt(ctx context.Context, req AdditionRequest, hash string, err error) (AdditionResult, error) {
+	entry, lerr := s.db.LookupJournal(ctx, req.RequestID)
+	if lerr != nil {
+		return AdditionResult{}, mapStoreError(lerr, req.MutationBase)
+	}
+	if entry != nil {
+		if entry.RequestHash != hash {
+			return AdditionResult{}, conflict("the idempotency key was already used with a different payload", req.MutationBase)
+		}
+		return replayResult(entry, req.MutationBase)
+	}
+	return AdditionResult{}, mapStoreError(err, req.MutationBase)
 }

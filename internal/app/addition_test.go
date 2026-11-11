@@ -551,3 +551,135 @@ func TestAdditionResponseLoss(t *testing.T) {
 		t.Fatalf("works = %d, want 1", countWorks(t, s))
 	}
 }
+
+// TestAdditionIdentityMatchAfterConcurrentCommitReplays proves the
+// post-commit identity-match path consults the journal: when the in-
+// transaction identity recheck meets a reservation committed by a
+// concurrent identical create (after this call's pre-check lookup), the
+// stored created result is replayed, and a different payload on the same
+// key conflicts instead of surfacing as existing or a storage error.
+func TestAdditionIdentityMatchAfterConcurrentCommitReplays(t *testing.T) {
+	s := newTestService(t)
+	ctx := context.Background()
+	original := baseReq(t, "r-race", "Raced Story")
+	original.Kind = appKind(domain.KindManga)
+	original.References = []store.ReferenceInput{{Provider: appStr("p"), ExternalID: appStr("e1")}}
+	created, err := s.CreateLibraryEntry(ctx, original)
+	if err != nil {
+		t.Fatalf("CreateLibraryEntry: %v", err)
+	}
+	if !created.Created {
+		t.Fatalf("created = %+v, want created", created)
+	}
+	// Directly exercise the identity-match path, bypassing the pre-check
+	// replay: the same key and payload must return the stored result.
+	got, err := s.createEntry(ctx, original, nil, nil)
+	if err != nil {
+		t.Fatalf("createEntry identical: %v", err)
+	}
+	if !additionResultsEqual(got, created) {
+		t.Fatalf("identical retry = %+v, want the stored result %+v", got, created)
+	}
+	// A different payload on the same key is a key-collision conflict.
+	mismatch := original
+	mismatch.Titles = []store.TitleInput{{Text: "Other Title", Kind: domain.TitleOriginal, Provenance: "manual"}}
+	if _, err := s.createEntry(ctx, mismatch, nil, nil); err == nil {
+		t.Fatal("createEntry different payload: want a conflict")
+	} else if ae := appError(t, err); ae.Code != ErrConflict {
+		t.Fatalf("error = %+v, want conflict", ae)
+	}
+}
+
+// TestAdditionUseExistingDisambiguatesMultipleWorks proves use_existing can
+// complete when the candidates span multiple distinct works — the state the
+// supported create_distinct flow itself produces.
+func TestAdditionUseExistingDisambiguatesMultipleWorks(t *testing.T) {
+	s := newTestService(t)
+	ctx := context.Background()
+	first := baseReq(t, "twin-1", "Twin Story")
+	created, err := s.CreateLibraryEntry(ctx, first)
+	if err != nil {
+		t.Fatalf("first create: %v", err)
+	}
+	// The supported create_distinct flow creates a second same-title work.
+	res, err := s.ResolveAddition(ctx, baseReq(t, "twin-2", "Twin Story"))
+	if err != nil {
+		t.Fatalf("ResolveAddition: %v", err)
+	}
+	if res.Outcome != OutcomeCandidates || res.CandidateToken == nil {
+		t.Fatalf("resolve = %+v, want candidates with a token", res)
+	}
+	distinct := baseReq(t, "twin-2", "Twin Story")
+	distinct.Choice = appChoice(ChoiceCreateDistinct)
+	distinct.CandidateToken = res.CandidateToken
+	second, err := s.CreateLibraryEntry(ctx, distinct)
+	if err != nil {
+		t.Fatalf("create_distinct: %v", err)
+	}
+	if !second.Created || second.WorkID == created.WorkID {
+		t.Fatalf("create_distinct = %+v, want a new distinct work", second)
+	}
+	// Two same-title works: use_existing must accept an explicit work_id.
+	again, err := s.ResolveAddition(ctx, baseReq(t, "twin-3", "Twin Story"))
+	if err != nil {
+		t.Fatalf("second resolve: %v", err)
+	}
+	if again.Outcome != OutcomeCandidates || len(again.Candidates) != 2 || again.CandidateToken == nil {
+		t.Fatalf("second resolve = %+v, want two work candidates", again)
+	}
+	pick := baseReq(t, "twin-3", "Twin Story")
+	pick.WorkID = &second.WorkID
+	pick.Choice = appChoice(ChoiceUseExisting)
+	pick.CandidateToken = again.CandidateToken
+	got, err := s.CreateLibraryEntry(ctx, pick)
+	if err != nil {
+		t.Fatalf("use_existing: %v", err)
+	}
+	if got.Created || got.WorkID != second.WorkID {
+		t.Fatalf("use_existing = %+v, want the picked work as existing", got)
+	}
+	// A work_id outside the candidate set conflicts without writes.
+	absent, err := domain.NewUUID()
+	if err != nil {
+		t.Fatalf("NewUUID: %v", err)
+	}
+	stale := baseReq(t, "twin-4", "Twin Story")
+	stale.WorkID = &absent
+	stale.Choice = appChoice(ChoiceUseExisting)
+	stale.CandidateToken = again.CandidateToken
+	if _, err := s.CreateLibraryEntry(ctx, stale); err == nil {
+		t.Fatal("use_existing with a non-candidate work: want a conflict")
+	} else if ae := appError(t, err); ae.Code != ErrConflict {
+		t.Fatalf("error = %+v, want conflict", ae)
+	}
+	if countWorks(t, s) != 2 {
+		t.Fatalf("works = %d, want 2 (no writes from the rejected pick)", countWorks(t, s))
+	}
+}
+
+// TestAdditionAddEditionWithoutTitlePassesValidation proves an add_edition
+// request under an explicit work no longer fails the title-or-identity
+// check; the missing candidate token is the next reported problem.
+func TestAdditionAddEditionWithoutTitlePassesValidation(t *testing.T) {
+	s := newTestService(t)
+	ctx := context.Background()
+	work := baseReq(t, "work-only", "Host Story")
+	created, err := s.CreateLibraryEntry(ctx, work)
+	if err != nil {
+		t.Fatalf("CreateLibraryEntry: %v", err)
+	}
+	req := AdditionRequest{
+		MutationBase: MutationBase{
+			RequestID: "work-only-2",
+			Actor:     Actor{Principal: "local", Origin: domain.OriginUser},
+		},
+		WorkID: &created.WorkID,
+		Kind:   appKind(domain.KindManga),
+		Choice: appChoice(ChoiceAddEdition),
+	}
+	if _, err := s.CreateLibraryEntry(ctx, req); err == nil {
+		t.Fatal("want an error")
+	} else if ae := appError(t, err); ae.Code != ErrInvalidArgument || !strings.Contains(ae.Message, "token") {
+		t.Fatalf("error = %+v, want invalid_argument about the candidate token", ae)
+	}
+}
