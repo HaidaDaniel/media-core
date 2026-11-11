@@ -1,6 +1,6 @@
 # Task 0009 - Run embedded transactional migrations under exclusive maintenance
 
-State: doing
+State: done
 Owner: opencode-media-20261110
 Mode: mvp
 Lane: storage
