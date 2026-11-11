@@ -308,6 +308,13 @@ func (s *Service) CreateLibraryEntry(ctx context.Context, req AdditionRequest) (
 			return AdditionResult{}, conflict("the request changed since the candidates were resolved", req.MutationBase)
 		}
 		if s.now().Unix() >= dec.ExpiresUnix {
+			// A concurrent identical create may have committed after the
+			// pre-check lookup; its stored result wins over the expiry.
+			if found, r, lerr := s.lookupStoredResult(ctx, req, hash); lerr != nil {
+				return AdditionResult{}, lerr
+			} else if found {
+				return r, nil
+			}
 			return AdditionResult{}, conflict("the candidate decision expired; resolve again", req.MutationBase)
 		}
 		switch *req.Choice {
@@ -337,8 +344,27 @@ func replayResult(entry *store.JournalEntry, req MutationBase) (AdditionResult, 
 	return r, nil
 }
 
+// lookupStoredResult settles a same-key result committed after this call's
+// pre-check lookup: a matching hash replays the stored result, a different
+// hash is a key-collision conflict, and no row reports found=false.
+func (s *Service) lookupStoredResult(ctx context.Context, req AdditionRequest, hash string) (bool, AdditionResult, error) {
+	entry, err := s.db.LookupJournal(ctx, req.RequestID)
+	if err != nil {
+		return false, AdditionResult{}, mapStoreError(err, req.MutationBase)
+	}
+	if entry == nil {
+		return false, AdditionResult{}, nil
+	}
+	if entry.RequestHash != hash {
+		return false, AdditionResult{}, conflict("the idempotency key was already used with a different payload", req.MutationBase)
+	}
+	r, err := replayResult(entry, req.MutationBase)
+	return true, r, err
+}
+
 // useExisting confirms a candidate work still exists and returns it without
-// writing.
+// writing. The outcome reserves the request key so an exact retry replays
+// and a different payload on the same key conflicts.
 func (s *Service) useExisting(ctx context.Context, req AdditionRequest, dec *candidateTokenPayload) (AdditionResult, error) {
 	candidates, err := s.collectCandidates(ctx, req)
 	if err != nil {
@@ -355,7 +381,28 @@ func (s *Service) useExisting(ctx context.Context, req AdditionRequest, dec *can
 	if err != nil {
 		return AdditionResult{}, mapStoreError(err, req.MutationBase)
 	}
-	return alreadyExists(w.ID, w.Revision, nil), nil
+	res := alreadyExists(w.ID, w.Revision, nil)
+	b, err := json.Marshal(res)
+	if err != nil {
+		return AdditionResult{}, &AppError{Code: ErrInternalError, Message: "encode existing result", RequestID: req.RequestID, Actor: req.Actor.Principal}
+	}
+	hash := journalRequestHash(req)
+	if err := s.db.ReserveJournal(ctx, s.now(), store.JournalInput{
+		RequestID:   req.RequestID,
+		Operation:   "create_library_entry",
+		RequestHash: hash,
+		ResultJSON:  string(b),
+		Actor:       req.Actor.Principal,
+	}); err != nil {
+		// A concurrent identical call may have won the key first.
+		if found, r, lerr := s.lookupStoredResult(ctx, req, hash); lerr != nil {
+			return AdditionResult{}, lerr
+		} else if found {
+			return r, nil
+		}
+		return AdditionResult{}, mapStoreError(err, req.MutationBase)
+	}
+	return res, nil
 }
 
 // selectWork picks the work a use_existing decision refers to: an explicit
@@ -420,16 +467,20 @@ func (s *Service) createEntry(ctx context.Context, req AdditionRequest, dec *sto
 		// A concurrent identical create may have committed after the
 		// pre-check lookup; its stored result is the exact replay and
 		// wins over the existing report.
-		if entry, lerr := s.db.LookupJournal(ctx, req.RequestID); lerr != nil {
-			return AdditionResult{}, mapStoreError(lerr, req.MutationBase)
-		} else if entry != nil {
-			if entry.RequestHash != hash {
-				return AdditionResult{}, conflict("the idempotency key was already used with a different payload", req.MutationBase)
-			}
-			return replayResult(entry, req.MutationBase)
+		if found, r, lerr := s.lookupStoredResult(ctx, req, hash); lerr != nil {
+			return AdditionResult{}, lerr
+		} else if found {
+			return r, nil
 		}
 		return existingResult(ctx, s, res.Matched)
 	case store.EntryCandidates:
+		// The same replay settlement applies when the in-transaction
+		// candidate recheck meets the winner's committed titles.
+		if found, r, lerr := s.lookupStoredResult(ctx, req, hash); lerr != nil {
+			return AdditionResult{}, lerr
+		} else if found {
+			return r, nil
+		}
 		return AdditionResult{}, &AppError{
 			Code:      ErrDuplicateCandidate,
 			Message:   "exact title matches exist; resolve the candidates and choose",
@@ -445,15 +496,12 @@ func (s *Service) createEntry(ctx context.Context, req AdditionRequest, dec *sto
 // the same key is a key-collision conflict, and anything else maps the
 // attempt error.
 func (s *Service) settleAttempt(ctx context.Context, req AdditionRequest, hash string, err error) (AdditionResult, error) {
-	entry, lerr := s.db.LookupJournal(ctx, req.RequestID)
+	found, r, lerr := s.lookupStoredResult(ctx, req, hash)
 	if lerr != nil {
-		return AdditionResult{}, mapStoreError(lerr, req.MutationBase)
+		return AdditionResult{}, lerr
 	}
-	if entry != nil {
-		if entry.RequestHash != hash {
-			return AdditionResult{}, conflict("the idempotency key was already used with a different payload", req.MutationBase)
-		}
-		return replayResult(entry, req.MutationBase)
+	if found {
+		return r, nil
 	}
 	return AdditionResult{}, mapStoreError(err, req.MutationBase)
 }

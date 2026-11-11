@@ -590,6 +590,39 @@ func TestAdditionIdentityMatchAfterConcurrentCommitReplays(t *testing.T) {
 	}
 }
 
+// TestAdditionTitleOnlyConcurrentCommitReplays proves the plain title-only
+// create path: when the in-transaction candidate recheck meets the winner's
+// committed title, the stored created result is replayed instead of
+// surfacing as a candidate match, and a different payload on the same key
+// conflicts.
+func TestAdditionTitleOnlyConcurrentCommitReplays(t *testing.T) {
+	s := newTestService(t)
+	ctx := context.Background()
+	original := baseReq(t, "t-race", "Title Race")
+	created, err := s.CreateLibraryEntry(ctx, original)
+	if err != nil {
+		t.Fatalf("CreateLibraryEntry: %v", err)
+	}
+	if !created.Created {
+		t.Fatalf("created = %+v, want created", created)
+	}
+	// Directly exercise the candidate path, bypassing the pre-check
+	// replay: the same key and payload must return the stored result.
+	got, err := s.createEntry(ctx, original, nil, nil)
+	if err != nil {
+		t.Fatalf("createEntry identical: %v", err)
+	}
+	if !additionResultsEqual(got, created) {
+		t.Fatalf("identical retry = %+v, want the stored result %+v", got, created)
+	}
+	mismatch := baseReq(t, "t-race", "Different Title")
+	if _, err := s.createEntry(ctx, mismatch, nil, nil); err == nil {
+		t.Fatal("createEntry different payload: want a conflict")
+	} else if ae := appError(t, err); ae.Code != ErrConflict {
+		t.Fatalf("error = %+v, want conflict", ae)
+	}
+}
+
 // TestAdditionUseExistingDisambiguatesMultipleWorks proves use_existing can
 // complete when the candidates span multiple distinct works — the state the
 // supported create_distinct flow itself produces.
@@ -654,6 +687,51 @@ func TestAdditionUseExistingDisambiguatesMultipleWorks(t *testing.T) {
 	}
 	if countWorks(t, s) != 2 {
 		t.Fatalf("works = %d, want 2 (no writes from the rejected pick)", countWorks(t, s))
+	}
+}
+
+// TestAdditionUseExistingReservesKey proves the no-write outcome reserves
+// the request key: an exact retry replays the stored result and a
+// different payload on the same key conflicts.
+func TestAdditionUseExistingReservesKey(t *testing.T) {
+	s := newTestService(t)
+	ctx := context.Background()
+	if _, err := s.CreateLibraryEntry(ctx, baseReq(t, "u-1", "Reserve Story")); err != nil {
+		t.Fatalf("first create: %v", err)
+	}
+	res, err := s.ResolveAddition(ctx, baseReq(t, "u-2", "Reserve Story"))
+	if err != nil || res.Outcome != OutcomeCandidates || res.CandidateToken == nil {
+		t.Fatalf("resolve = %+v err = %v, want candidates with a token", res, err)
+	}
+	pick := baseReq(t, "u-2", "Reserve Story")
+	pick.Choice = appChoice(ChoiceUseExisting)
+	pick.CandidateToken = res.CandidateToken
+	got, err := s.CreateLibraryEntry(ctx, pick)
+	if err != nil {
+		t.Fatalf("use_existing: %v", err)
+	}
+	if got.Created || got.Reason == nil || *got.Reason != "already_exists" {
+		t.Fatalf("use_existing = %+v, want the existing result", got)
+	}
+	// The key is reserved: an exact retry replays the stored result.
+	retry, err := s.CreateLibraryEntry(ctx, pick)
+	if err != nil {
+		t.Fatalf("retry: %v", err)
+	}
+	if !additionResultsEqual(retry, got) {
+		t.Fatalf("retry = %+v, want the stored existing result %+v", retry, got)
+	}
+	// A different payload on the reserved key conflicts.
+	other := baseReq(t, "u-2", "Reserve Story")
+	other.Choice = appChoice(ChoiceCreateDistinct)
+	other.CandidateToken = res.CandidateToken
+	if _, err := s.CreateLibraryEntry(ctx, other); err == nil {
+		t.Fatal("different payload on the reserved key: want a conflict")
+	} else if ae := appError(t, err); ae.Code != ErrConflict {
+		t.Fatalf("error = %+v, want conflict", ae)
+	}
+	if countWorks(t, s) != 1 {
+		t.Fatalf("works = %d, want 1 (nothing new was created)", countWorks(t, s))
 	}
 }
 

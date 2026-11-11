@@ -311,6 +311,22 @@ func (d *Database) LookupJournal(ctx context.Context, requestID string) (*Journa
 	return &e, nil
 }
 
+// ReserveJournal records one journal row in its own write transaction. It
+// reserves the request key for a no-write outcome so an exact retry
+// replays and a different payload on the same key conflicts; a duplicate
+// key fails and the caller settles through LookupJournal.
+func (d *Database) ReserveJournal(ctx context.Context, now time.Time, j JournalInput) error {
+	tx, err := d.beginImmediate(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	if err := recordJournalTx(ctx, tx, j, now); err != nil {
+		return err
+	}
+	return tx.Commit()
+}
+
 func recordJournalTx(ctx context.Context, tx *sql.Tx, j JournalInput, now time.Time) error {
 	if _, err := tx.ExecContext(ctx,
 		`INSERT INTO mutation_journal (request_id, operation, request_hash, result_json, actor, created_at)
