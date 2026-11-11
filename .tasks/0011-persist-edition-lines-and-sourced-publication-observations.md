@@ -1,6 +1,6 @@
 # Task 0011 - Persist edition lines and sourced publication observations
 
-State: doing
+State: done
 Owner: opencode-media-20261110
 Mode: mvp
 Lane: domain
