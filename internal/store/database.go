@@ -20,10 +20,11 @@ const busyTimeoutMs = 5000
 // synchronousFull is the PRAGMA synchronous value for FULL.
 const synchronousFull = 2
 
-// schemaCheck is the seam where the schema runner plugs in. The normal
-// opener performs no schema work and never migrates implicitly; task 0009
-// replaces the no-op with the explicit schema check.
-var schemaCheck func(*sql.DB) error = func(*sql.DB) error { return nil }
+// schemaCheck is the schema boundary for normal opens: it verifies the
+// database sits at exactly the current schema version and never migrates.
+// Missing, pending, and newer schemas are rejected; only the exclusive
+// maintenance session (init/migrate) runs migrations.
+var schemaCheck func(*sql.DB) error = CheckSchema
 
 // Database is an opened, fully configured SQLite connection set. It holds
 // the lifetime maintenance lock until Close.
@@ -33,14 +34,16 @@ type Database struct {
 	lock *MaintenanceLock
 }
 
-// Open opens (creating if needed) the fixed database under the shared
-// lifetime lock.
+// Open opens the fixed database under the shared lifetime lock for normal
+// startup. It requires an initialized, current schema: a missing, pending,
+// or newer schema is rejected and never migrated.
 func Open(stateDir string) (*Database, error) {
 	return open(stateDir, LockShared)
 }
 
 // OpenForMaintenance opens the database under the exclusive maintenance
-// lock for init, migration and restore.
+// lock for init, migration and restore. It performs no schema check; the
+// caller runs the migrations.
 func OpenForMaintenance(stateDir string) (*Database, error) {
 	return open(stateDir, LockExclusive)
 }
@@ -60,17 +63,22 @@ func open(stateDir string, mode LockMode) (*Database, error) {
 		return nil, err
 	}
 	d := &Database{lock: lock}
-	if err := d.configure(stateDir); err != nil {
+	// The schema boundary guards normal startup only: the exclusive
+	// maintenance session is what creates and migrates the schema, so it
+	// must be able to open an uninitialized database.
+	checkSchema := mode == LockShared
+	if err := d.configure(stateDir, checkSchema); err != nil {
 		lock.Release()
 		return nil, err
 	}
 	return d, nil
 }
 
-// configure opens the driver connection with the bounded pool and verifies
-// the per-connection pragmas took effect. Any failure closes the
-// connection so no partially configured connection escapes.
-func (d *Database) configure(stateDir string) error {
+// configure opens the driver connection with the bounded pool, verifies the
+// per-connection pragmas took effect, and (for normal opens) enforces the
+// schema boundary. Any failure closes the connection so no partially
+// configured connection escapes.
+func (d *Database) configure(stateDir string, checkSchema bool) error {
 	path := filepath.Join(stateDir, DBFileName)
 	if info, err := os.Lstat(path); err == nil {
 		if info.Mode()&os.ModeSymlink != 0 {
@@ -92,10 +100,12 @@ func (d *Database) configure(stateDir string) error {
 		d.db = nil
 		return err
 	}
-	if err := schemaCheck(db); err != nil {
-		db.Close()
-		d.db = nil
-		return err
+	if checkSchema {
+		if err := schemaCheck(db); err != nil {
+			db.Close()
+			d.db = nil
+			return err
+		}
 	}
 	// Secure file modes on the state directory, the maintenance lock,
 	// the database and its sidecars; pre-existing loose modes are

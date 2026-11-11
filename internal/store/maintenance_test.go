@@ -232,6 +232,21 @@ func TestMaintenanceSubprocessHold(t *testing.T) {
 	})
 }
 
+// migrateState initializes the schema under the exclusive maintenance lock
+// so a subsequent normal open passes the schema boundary; a real server
+// starts after init.
+func migrateState(stateDir string) error {
+	db, err := OpenForMaintenance(stateDir)
+	if err != nil {
+		return err
+	}
+	if _, err := RunMigrations(db.DB()); err != nil {
+		db.Close()
+		return err
+	}
+	return db.Close()
+}
+
 // childHold blocks forever holding the requested resource; the parent
 // kills the process. A marker file signals that the hold is in place so
 // the parent cannot race the child's lock acquisition.
@@ -240,7 +255,9 @@ func childHold(role, stateDir string) {
 	switch role {
 	case "db":
 		var db *Database
-		db, err = Open(stateDir)
+		if err = migrateState(stateDir); err == nil {
+			db, err = Open(stateDir)
+		}
 		if err == nil {
 			writeMarker(stateDir)
 			<-make(chan struct{})
@@ -248,7 +265,9 @@ func childHold(role, stateDir string) {
 		}
 	case "busydb":
 		var db *Database
-		db, err = Open(stateDir)
+		if err = migrateState(stateDir); err == nil {
+			db, err = Open(stateDir)
+		}
 		if err == nil {
 			if _, err = db.DB().Exec("CREATE TABLE busy_probe (x INTEGER)"); err == nil {
 				var tx *sql.Tx

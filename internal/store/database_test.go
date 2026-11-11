@@ -10,12 +10,32 @@ import (
 	"time"
 )
 
-func TestDatabaseOpenCreatesSecureStateAndDB(t *testing.T) {
-	dir := filepath.Join(t.TempDir(), "state")
+// openMigrated initializes the schema under the exclusive maintenance lock
+// and then reopens normally under the shared lifetime lock; normal opens
+// require an initialized schema since task 0009.
+func openMigrated(t *testing.T, dir string) *Database {
+	t.Helper()
+	maint, err := OpenForMaintenance(dir)
+	if err != nil {
+		t.Fatalf("OpenForMaintenance: %v", err)
+	}
+	if _, err := RunMigrations(maint.DB()); err != nil {
+		maint.Close()
+		t.Fatalf("RunMigrations: %v", err)
+	}
+	if err := maint.Close(); err != nil {
+		t.Fatalf("maintenance Close: %v", err)
+	}
 	db, err := Open(dir)
 	if err != nil {
 		t.Fatalf("Open: %v", err)
 	}
+	return db
+}
+
+func TestDatabaseOpenCreatesSecureStateAndDB(t *testing.T) {
+	dir := filepath.Join(t.TempDir(), "state")
+	db := openMigrated(t, dir)
 	defer db.Close()
 
 	dirInfo, err := os.Stat(dir)
@@ -41,10 +61,7 @@ func TestDatabaseOpenCreatesSecureStateAndDB(t *testing.T) {
 }
 
 func TestDatabasePragmasEffective(t *testing.T) {
-	db, err := Open(t.TempDir())
-	if err != nil {
-		t.Fatalf("Open: %v", err)
-	}
+	db := openMigrated(t, t.TempDir())
 	defer db.Close()
 
 	var journal string
@@ -77,10 +94,7 @@ func TestDatabasePragmasEffective(t *testing.T) {
 
 func TestDatabaseOpenHoldsLifetimeLock(t *testing.T) {
 	dir := t.TempDir()
-	db, err := Open(dir)
-	if err != nil {
-		t.Fatalf("Open: %v", err)
-	}
+	db := openMigrated(t, dir)
 	defer db.Close()
 	if _, err := acquireMaintenanceLock(dir, LockExclusive, 100*time.Millisecond); !errors.Is(err, ErrLocked) {
 		t.Errorf("exclusive lock while db open: err = %v, want ErrLocked", err)
@@ -89,10 +103,7 @@ func TestDatabaseOpenHoldsLifetimeLock(t *testing.T) {
 
 func TestDatabaseCloseReleasesLock(t *testing.T) {
 	dir := t.TempDir()
-	db, err := Open(dir)
-	if err != nil {
-		t.Fatalf("Open: %v", err)
-	}
+	db := openMigrated(t, dir)
 	if err := db.Close(); err != nil {
 		t.Fatalf("Close: %v", err)
 	}
@@ -107,10 +118,7 @@ func TestDatabaseCloseReleasesLock(t *testing.T) {
 
 func TestDatabaseReopenSurvives(t *testing.T) {
 	dir := t.TempDir()
-	first, err := Open(dir)
-	if err != nil {
-		t.Fatalf("first Open: %v", err)
-	}
+	first := openMigrated(t, dir)
 	path := first.Path()
 	if err := first.Close(); err != nil {
 		t.Fatalf("first Close: %v", err)
@@ -209,10 +217,7 @@ func TestOpenTightensPreexistingModes(t *testing.T) {
 	if err := os.WriteFile(lockPath, nil, 0o644); err != nil {
 		t.Fatal(err)
 	}
-	db, err := Open(dir)
-	if err != nil {
-		t.Fatalf("Open: %v", err)
-	}
+	db := openMigrated(t, dir)
 	defer db.Close()
 	dirInfo, err := os.Stat(dir)
 	if err != nil {
@@ -248,5 +253,40 @@ func TestOpenAppliesSchemaCheckSeam(t *testing.T) {
 	}
 	if err := l.Release(); err != nil {
 		t.Fatal(err)
+	}
+}
+
+// TestSchemaBoundaryRejectsUninitialized proves a normal open never creates
+// or upgrades a missing schema and releases everything on rejection.
+func TestSchemaBoundaryRejectsUninitialized(t *testing.T) {
+	dir := t.TempDir()
+	_, err := Open(dir)
+	if !errors.Is(err, ErrSchemaMissing) {
+		t.Fatalf("Open on uninitialized state: err = %v, want ErrSchemaMissing", err)
+	}
+	l, err := acquireMaintenanceLock(dir, LockExclusive, 100*time.Millisecond)
+	if err != nil {
+		t.Fatalf("lock not released after schema rejection: %v", err)
+	}
+	if err := l.Release(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// TestSchemaBoundaryRejectsNewer proves a normal open rejects a ledger from
+// a newer build instead of downgrading or hot-upgrading.
+func TestSchemaBoundaryRejectsNewer(t *testing.T) {
+	dir := t.TempDir()
+	db := openMigrated(t, dir)
+	if _, err := db.DB().Exec(`INSERT INTO schema_migrations (version, name, applied_at) VALUES (99, '0099_future.sql', '2026-01-01T00:00:00Z')`); err != nil {
+		db.Close()
+		t.Fatalf("insert future ledger row: %v", err)
+	}
+	if err := db.Close(); err != nil {
+		t.Fatalf("Close: %v", err)
+	}
+	_, err := Open(dir)
+	if !errors.Is(err, ErrSchemaNewer) {
+		t.Fatalf("Open on newer schema: err = %v, want ErrSchemaNewer", err)
 	}
 }

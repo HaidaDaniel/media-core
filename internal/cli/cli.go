@@ -11,17 +11,21 @@ import (
 	"github.com/HaidaDaniel/media-core/internal/runtime"
 )
 
-// Exit codes for process termination.
+// Exit codes for process termination, per docs/application-contract.md.
 const (
-	ExitOK    = 0
-	ExitError = 1
-	ExitUsage = 2
+	ExitOK             = 0
+	ExitError          = 1
+	ExitUsage          = 2
+	ExitPartialImport  = 3
+	ExitLocked         = 4
 )
 
 const usage = `usage: media-core <command>
 
 commands:
   version  print build identity
+  init     initialize the database (first setup)
+  migrate  bring an existing database to the current schema
   serve    reserved: HTTP API + embedded UI (not implemented yet)
   mcp      reserved: MCP stdio (not implemented yet)
 
@@ -35,8 +39,8 @@ func Usage(w io.Writer) {
 
 // Run executes argv (excluding the program name) and returns a process exit
 // code. Missing and unsupported commands print usage and return ExitUsage;
-// reserved commands fail with ExitError. No state directory or server is
-// created for any bootstrap command.
+// reserved commands fail with ExitError; capability commands return the exit
+// code they carry (runtime.ExitCodeError) or ExitUsage when unclassified.
 func Run(args []string, out, err io.Writer) int {
 	if len(args) == 0 {
 		fmt.Fprintln(err, "media-core: missing command")
@@ -52,6 +56,10 @@ func Run(args []string, out, err io.Writer) int {
 		var reserved runtime.ErrReserved
 		if errors.As(runErr, &reserved) {
 			return ExitError
+		}
+		var exitErr *runtime.ExitCodeError
+		if errors.As(runErr, &exitErr) {
+			return exitErr.Exit
 		}
 		Usage(err)
 		return ExitUsage
