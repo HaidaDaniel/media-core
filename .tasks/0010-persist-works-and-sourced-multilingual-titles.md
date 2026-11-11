@@ -1,6 +1,6 @@
 # Task 0010 - Persist works and sourced multilingual titles
 
-State: doing
+State: done
 Owner: opencode-media-20261110
 Mode: mvp
 Lane: domain
