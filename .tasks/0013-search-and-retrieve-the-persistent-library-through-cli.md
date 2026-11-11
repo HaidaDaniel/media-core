@@ -1,7 +1,7 @@
 # Task 0013 - Search and retrieve the persistent library through CLI
 
-State: todo
-Owner: none
+State: doing
+Owner: opencode-media-20261110
 Mode: mvp
 Lane: application
 Scope: application
@@ -24,15 +24,16 @@ Implement normalized title/alias lookup, paginated work cards and work/edition r
 - docs/application-contract.md
 
 ## Files allowed to edit
+
 - internal/app/library.go
 - internal/app/library_test.go
 - internal/store/library.go
 - internal/store/library_test.go
 - internal/cli/library.go
 - internal/cli/library_test.go
+- internal/cli/cli.go
 - internal/runtime/runtime.go
 - docs/progress.md
-
 - .tasks/0013-search-and-retrieve-the-persistent-library-through-cli.md
 
 ## Files forbidden to edit
@@ -71,10 +72,12 @@ Implement normalized title/alias lookup, paginated work cards and work/edition r
 - `{"id":"focused","type":"automated","required":true,"environment":"local","profile":"report","command":"go test ./internal/app ./internal/store ./internal/cli -run \"Test(Library|Search|Catalog)\""}`
 
 ## Documentation updates
+
 - Update docs/progress.md on lifecycle changes.
 
 ## Notes
 
+- Scope amendment 2026-11-12: internal/cli/cli.go is allowed so the new list/show/title/edition commands appear in the help usage text.
 - Milestone: M1. See docs/implementation-plan.md for requirements and graph.
 - Unstarted implementation contract. Tests/commands above are to be created or made runnable by this task; none is claimed to pass today.
 - Before editing, read existing allowed source files supplied by completed dependencies. Missing paths are new files owned by this task, not existing context.

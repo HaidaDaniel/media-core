@@ -29,6 +29,10 @@ commands:
   init     initialize the database (first setup)
   migrate  bring an existing database to the current schema
   add      add a library entry with explicit duplicate resolution
+  list     search and list the library as work cards
+  show     show one work or edition detail view
+  title    add, retire or prefer a work or edition title
+  edition  update edition metadata; archive or unarchive an edition
   serve    reserved: HTTP API + embedded UI (not implemented yet)
   mcp      reserved: MCP stdio (not implemented yet)
 
