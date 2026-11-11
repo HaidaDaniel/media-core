@@ -1,6 +1,6 @@
 # Task 0012 - Create library entries with explicit duplicate resolution
 
-State: doing
+State: done
 Owner: opencode-media-20261110
 Mode: mvp
 Lane: application
