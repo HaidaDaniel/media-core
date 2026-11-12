@@ -1,7 +1,7 @@
 # Task 0017 - Add plain-text notes with immutable revisions
 
-State: todo
-Owner: none
+State: doing
+Owner: opencode-media-20261110
 Mode: mvp
 Lane: application
 Scope: application
@@ -24,15 +24,21 @@ Preserve ordinary work/edition notes and distinguish edits from later thoughts.
 - docs/application-contract.md
 
 ## Files allowed to edit
+
 - internal/app/notes.go
 - internal/app/notes_test.go
 - internal/store/notes.go
 - internal/store/notes_test.go
 - internal/store/migrations/0008_notes.sql
+- internal/store/editions.go
+- internal/store/migrations_test.go
+- internal/app/library.go
+- internal/app/mutation.go
 - internal/cli/notes.go
+- internal/cli/notes_test.go
+- internal/cli/cli.go
 - internal/runtime/runtime.go
 - docs/progress.md
-
 - .tasks/0017-add-plain-text-notes-with-immutable-revisions.md
 
 ## Files forbidden to edit
@@ -71,6 +77,7 @@ Preserve ordinary work/edition notes and distinguish edits from later thoughts.
 - `{"id":"focused","type":"automated","required":true,"environment":"local","profile":"report","command":"go test ./internal/app ./internal/store ./internal/cli -run \"TestNote\""}`
 
 ## Documentation updates
+
 - Update docs/progress.md on lifecycle changes.
 
 ## Notes
