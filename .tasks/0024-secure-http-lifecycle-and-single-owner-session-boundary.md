@@ -1,6 +1,6 @@
 # Task 0024 - Secure HTTP lifecycle and single-owner session boundary
 
-State: doing
+State: done
 Owner: opencode-media-20261110
 Mode: mvp
 Lane: http
