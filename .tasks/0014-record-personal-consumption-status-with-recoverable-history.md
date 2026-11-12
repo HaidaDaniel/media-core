@@ -1,6 +1,6 @@
 # Task 0014 - Record personal consumption status with recoverable history
 
-State: doing
+State: done
 Owner: opencode-media-20261110
 Mode: mvp
 Lane: application
