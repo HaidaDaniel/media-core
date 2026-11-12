@@ -32,6 +32,7 @@ Implement independent consumption state updates, correction/retraction and statu
 - internal/store/migrations/0005_consumption.sql
 - internal/store/library.go
 - internal/cli/consumption.go
+- internal/cli/consumption_test.go
 - internal/runtime/runtime.go
 - docs/progress.md
 - .tasks/0014-record-personal-consumption-status-with-recoverable-history.md
