@@ -33,7 +33,9 @@ Create loopback serve mode with real session/CSRF/Origin/Host protections before
 - internal/cli/owner.go
 - internal/cli/owner_test.go
 - internal/cli/cli.go
+- internal/cli/cli_test.go
 - internal/runtime/runtime.go
+- internal/runtime/runtime_test.go
 - docs/engineering/configuration.md
 - docs/progress.md
 - .tasks/0024-secure-http-lifecycle-and-single-owner-session-boundary.md
@@ -85,3 +87,4 @@ Create loopback serve mode with real session/CSRF/Origin/Host protections before
 - Only listed paths plus this task file may change. Do not edit other task contracts or generated agent instructions; task lifecycle is managed by APK.
 - Keep contract behavior fixed; if a counterexample requires expanding scope, update this task before source edits. No actual host deployment, push or publication is authorized.
 - Scope amendment (2026-11-12): the owner command joins the CLI usage text, so internal/cli/cli.go joins the allowed list; internal/cli/owner_test.go carries the owner-command tests.
+- Scope amendment (2026-11-12, second): serve is implemented by this task, so the reserved-serve assertions in internal/cli/cli_test.go and internal/runtime/runtime_test.go must change with the command; both join the allowed list.
