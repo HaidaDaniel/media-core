@@ -146,9 +146,13 @@ func TestCatalogListFiltersCLI(t *testing.T) {
 	if code != ExitUsage {
 		t.Fatalf("unknown kind: exit = %d, stderr = %q, want %d", code, errw, ExitUsage)
 	}
-	code, _, errw = runCLI(t, "list", "--state-dir", dir, "--sort", "rating")
+	code, _, errw = runCLI(t, "list", "--state-dir", dir, "--sort", "nope")
 	if code != ExitUsage {
 		t.Fatalf("unknown sort: exit = %d, stderr = %q, want %d", code, errw, ExitUsage)
+	}
+	code, _, errw = runCLI(t, "list", "--state-dir", dir, "--rating", "not-a-number")
+	if code != ExitUsage {
+		t.Fatalf("non-numeric minimum rating: exit = %d, stderr = %q, want %d", code, errw, ExitUsage)
 	}
 }
 

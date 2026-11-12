@@ -179,7 +179,7 @@ func mapStoreError(err error, req MutationBase) *AppError {
 		return NewAppError(ErrLocked, "the database is locked by another process")
 	case errors.Is(err, store.ErrWorkNotFound), errors.Is(err, store.ErrEditionNotFound), errors.Is(err, store.ErrConsumptionNotFound),
 		errors.Is(err, store.ErrProgressNotFound), errors.Is(err, store.ErrIntentionNotFound), errors.Is(err, store.ErrTagNotFound),
-		errors.Is(err, store.ErrNoteNotFound):
+		errors.Is(err, store.ErrNoteNotFound), errors.Is(err, store.ErrRatingNotFound):
 		return &AppError{Code: ErrNotFound, Message: err.Error(), RequestID: req.RequestID, Actor: req.Actor.Principal}
 	case errors.Is(err, store.ErrRevisionMismatch):
 		return &AppError{Code: ErrConflict, Message: "record changed; reload before retrying", RequestID: req.RequestID, Actor: req.Actor.Principal}
@@ -194,7 +194,7 @@ func mapStoreError(err error, req MutationBase) *AppError {
 	case errors.Is(err, store.ErrInvalidTitle), errors.Is(err, store.ErrInvalidEdition),
 		errors.Is(err, store.ErrInvalidConsumption), errors.Is(err, store.ErrInvalidProgress),
 		errors.Is(err, store.ErrInvalidIntention), errors.Is(err, store.ErrInvalidTag),
-		errors.Is(err, store.ErrInvalidNote),
+		errors.Is(err, store.ErrInvalidNote), errors.Is(err, store.ErrInvalidRating),
 		errors.Is(err, store.ErrInvalidReference),
 		errors.Is(err, store.ErrInvalidURL), errors.Is(err, store.ErrNoTitle):
 		return &AppError{Code: ErrInvalidArgument, Message: err.Error(), RequestID: req.RequestID, Actor: req.Actor.Principal}

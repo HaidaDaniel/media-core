@@ -90,6 +90,7 @@ type listArgs struct {
 	unknownCons  bool
 	intentions   []domain.Intention
 	tags         []string
+	minRating    *int
 	sort         app.LibrarySort
 	limit        int
 	cursor       *string
@@ -166,6 +167,16 @@ func parseListArgs(args []string) (*listArgs, error) {
 				return nil, err
 			}
 			a.tags = append(a.tags, v)
+		case "--rating":
+			v, err := needValue()
+			if err != nil {
+				return nil, err
+			}
+			n, err := strconv.Atoi(v)
+			if err != nil {
+				return nil, fmt.Errorf("media-core list: minimum rating is not a number: %v", err)
+			}
+			a.minRating = &n
 		case "--sort":
 			v, err := needValue()
 			if err != nil {
@@ -173,7 +184,7 @@ func parseListArgs(args []string) (*listArgs, error) {
 			}
 			s := app.LibrarySort(v)
 			if !s.Valid() {
-				return nil, fmt.Errorf("media-core list: unknown sort %q (title, created_at, updated_at)", v)
+				return nil, fmt.Errorf("media-core list: unknown sort %q (title, created_at, updated_at, rating)", v)
 			}
 			a.sort = s
 		case "--limit":
@@ -218,6 +229,7 @@ func runList(args []string, out io.Writer) error {
 		UnknownConsumption: a.unknownCons,
 		Intentions:         a.intentions,
 		Tags:               a.tags,
+		MinRating:          a.minRating,
 		Sort:               a.sort,
 		Limit:              a.limit,
 		Cursor:             a.cursor,

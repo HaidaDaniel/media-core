@@ -28,8 +28,8 @@ func TestMigrationLoadOrdersAndValidates(t *testing.T) {
 	if err != nil {
 		t.Fatalf("loadMigrations: %v", err)
 	}
-	if len(migs) != 8 {
-		t.Fatalf("embedded migrations = %d, want 8 (0001 baseline, 0002 works/titles, 0003 editions, 0004 identity, 0005 consumption, 0006 progress, 0007 intention/tags, 0008 notes)", len(migs))
+	if len(migs) != 9 {
+		t.Fatalf("embedded migrations = %d, want 9 (0001 baseline, 0002 works/titles, 0003 editions, 0004 identity, 0005 consumption, 0006 progress, 0007 intention/tags, 0008 notes, 0009 ratings)", len(migs))
 	}
 	if migs[0].Version != 1 || migs[0].Name != "0001_schema.sql" {
 		t.Fatalf("migration 1 = %+v, want version 1 named 0001_schema.sql", migs[0])
@@ -54,6 +54,9 @@ func TestMigrationLoadOrdersAndValidates(t *testing.T) {
 	}
 	if migs[7].Version != 8 || migs[7].Name != "0008_notes.sql" {
 		t.Fatalf("migration 8 = %+v, want version 8 named 0008_notes.sql", migs[7])
+	}
+	if migs[8].Version != 9 || migs[8].Name != "0009_ratings.sql" {
+		t.Fatalf("migration 9 = %+v, want version 9 named 0009_ratings.sql", migs[8])
 	}
 	for _, m := range migs {
 		if strings.TrimSpace(m.SQL) == "" {
@@ -93,8 +96,8 @@ func TestMigrationRunAppliesOnce(t *testing.T) {
 	if err != nil {
 		t.Fatalf("RunMigrations: %v", err)
 	}
-	if version != 8 {
-		t.Fatalf("schema version = %d, want 8", version)
+	if version != 9 {
+		t.Fatalf("schema version = %d, want 9", version)
 	}
 	for _, want := range []struct {
 		version int
@@ -108,6 +111,7 @@ func TestMigrationRunAppliesOnce(t *testing.T) {
 		{6, "0006_progress.sql"},
 		{7, "0007_intention_tags.sql"},
 		{8, "0008_notes.sql"},
+		{9, "0009_ratings.sql"},
 	} {
 		var name, appliedAt string
 		if err := db.QueryRow(`SELECT name, applied_at FROM schema_migrations WHERE version = ?`, want.version).Scan(&name, &appliedAt); err != nil {
@@ -133,15 +137,15 @@ func TestMigrationRunRepeatIsNoop(t *testing.T) {
 	if err != nil {
 		t.Fatalf("second RunMigrations: %v", err)
 	}
-	if version != 8 {
-		t.Fatalf("schema version = %d, want 8", version)
+	if version != 9 {
+		t.Fatalf("schema version = %d, want 9", version)
 	}
 	var count int
 	if err := db.QueryRow(`SELECT COUNT(*) FROM schema_migrations`).Scan(&count); err != nil {
 		t.Fatalf("read ledger: %v", err)
 	}
-	if count != 8 {
-		t.Fatalf("ledger rows = %d, want 8", count)
+	if count != 9 {
+		t.Fatalf("ledger rows = %d, want 9", count)
 	}
 }
 
@@ -154,8 +158,8 @@ func TestMigrationRunRollsBackInvalid(t *testing.T) {
 		t.Fatalf("baseline RunMigrations: %v", err)
 	}
 	bad := migration{
-		Version: 9,
-		Name:    "0009_bad.sql",
+		Version: 10,
+		Name:    "0010_bad.sql",
 		SQL:     "CREATE TABLE rollback_probe (x INTEGER); INSERT INTO rollback_probe VALUES (1); SELECT * FROM no_such_table;",
 	}
 	if err := applyMigration(db, bad); err == nil {
@@ -172,8 +176,8 @@ func TestMigrationRunRollsBackInvalid(t *testing.T) {
 	if err := db.QueryRow(`SELECT COUNT(*) FROM schema_migrations`).Scan(&count); err != nil {
 		t.Fatalf("read ledger: %v", err)
 	}
-	if count != 8 {
-		t.Fatalf("ledger rows = %d, want 8 (failed migration must not be recorded)", count)
+	if count != 9 {
+		t.Fatalf("ledger rows = %d, want 9 (failed migration must not be recorded)", count)
 	}
 }
 

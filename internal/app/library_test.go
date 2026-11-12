@@ -206,8 +206,14 @@ func TestLibrarySearchCursorBinding(t *testing.T) {
 func TestLibrarySearchValidation(t *testing.T) {
 	s := newTestService(t)
 	ctx := context.Background()
-	if _, err := s.SearchLibrary(ctx, LibraryFilter{Sort: "rating"}); err == nil || appError(t, err).Code != ErrInvalidArgument {
+	if _, err := s.SearchLibrary(ctx, LibraryFilter{Sort: "nope"}); err == nil || appError(t, err).Code != ErrInvalidArgument {
 		t.Fatal("unknown sort: want invalid_argument")
+	}
+	if _, err := s.SearchLibrary(ctx, LibraryFilter{Sort: SortTitle, MinRating: intPtr(0)}); err == nil || appError(t, err).Code != ErrInvalidArgument {
+		t.Fatal("minimum rating 0: want invalid_argument")
+	}
+	if _, err := s.SearchLibrary(ctx, LibraryFilter{Sort: SortTitle, MinRating: intPtr(11)}); err == nil || appError(t, err).Code != ErrInvalidArgument {
+		t.Fatal("minimum rating 11: want invalid_argument")
 	}
 	for _, limit := range []int{-1, 101} {
 		if _, err := s.SearchLibrary(ctx, LibraryFilter{Sort: SortTitle, Limit: limit}); err == nil || appError(t, err).Code != ErrInvalidArgument {

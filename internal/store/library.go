@@ -21,12 +21,13 @@ const (
 	SortTitle     SortMode = "title"
 	SortCreatedAt SortMode = "created_at"
 	SortUpdatedAt SortMode = "updated_at"
+	SortRating    SortMode = "rating"
 )
 
 // Valid reports whether the sort mode is a defined v1 value.
 func (m SortMode) Valid() bool {
 	switch m {
-	case SortTitle, SortCreatedAt, SortUpdatedAt:
+	case SortTitle, SortCreatedAt, SortUpdatedAt, SortRating:
 		return true
 	}
 	return false
@@ -64,9 +65,13 @@ type LibraryQuery struct {
 	Intentions []domain.Intention
 	// Tags holds normalized tag names; a work tag or the qualifying
 	// edition's tag satisfies the dimension.
-	Tags  []string
-	Sort  SortMode
-	Limit int
+	Tags []string
+	// MinRating is the minimum-rating dimension: the current effective
+	// rating of the same qualifying edition must be at least the value.
+	// An absent or cleared rating never matches.
+	MinRating *int
+	Sort      SortMode
+	Limit     int
 	// AfterKey and AfterID seek past the last served row of the previous
 	// page; AfterID empty means the first page.
 	AfterKey string
@@ -210,6 +215,10 @@ func editionFilter(q LibraryQuery) (string, []any) {
 			args = append(args, t)
 		}
 	}
+	if q.MinRating != nil {
+		parts = append(parts, currentRatingAtLeast())
+		args = append(args, *q.MinRating)
+	}
 	return strings.Join(parts, " AND "), args
 }
 
@@ -315,12 +324,52 @@ func currentPublicationIn(n int) string {
 	)`, placeholders(n))
 }
 
+// currentRatingAtLeast reports editions whose current (last non-superseded)
+// rating observation is at least the given value. A cleared or unrecorded
+// rating never matches the dimension.
+func currentRatingAtLeast() string {
+	return `EXISTS (
+		SELECT 1 FROM rating_observations o
+		WHERE o.edition_id = e.id
+		  AND o.value >= ?
+		  AND NOT EXISTS (SELECT 1 FROM rating_observations s WHERE s.supersedes_id = o.id)
+		  AND NOT EXISTS (
+			SELECT 1 FROM rating_observations n
+			WHERE n.edition_id = e.id
+			  AND NOT EXISTS (SELECT 1 FROM rating_observations s2 WHERE s2.supersedes_id = n.id)
+			  AND (n.observed_at, n.recorded_at, n.id) > (o.observed_at, o.recorded_at, o.id)
+		  )
+	)`
+}
+
+// ratingSortKeyExpr reports the work's sort key for rating sort: the
+// inverted best (maximum) current rating of any of its editions, zero-padded
+// so the text order is the numeric order. A work without any current
+// rating takes the largest key and sorts last, after every rated work.
+func ratingSortKeyExpr() string {
+	return `printf('%05d', 10000 - COALESCE((
+		SELECT MAX(o.value) FROM editions e
+		JOIN rating_observations o ON o.edition_id = e.id
+		WHERE e.work_id = w.id
+		  AND o.value IS NOT NULL
+		  AND NOT EXISTS (SELECT 1 FROM rating_observations s WHERE s.supersedes_id = o.id)
+		  AND NOT EXISTS (
+			SELECT 1 FROM rating_observations n
+			WHERE n.edition_id = e.id
+			  AND NOT EXISTS (SELECT 1 FROM rating_observations s2 WHERE s2.supersedes_id = n.id)
+			  AND (n.observed_at, n.recorded_at, n.id) > (o.observed_at, o.recorded_at, o.id)
+		  )
+	), 0))`
+}
+
 func seekClause(sort SortMode) string {
 	switch sort {
 	case SortCreatedAt:
 		return "(w.created_at, w.id) > (?, ?)"
 	case SortUpdatedAt:
 		return "(w.updated_at, w.id) > (?, ?)"
+	case SortRating:
+		return "(" + ratingSortKeyExpr() + ", w.id) > (?, ?)"
 	default:
 		return "(p.search_key, w.id) > (?, ?)"
 	}
@@ -332,21 +381,25 @@ func orderClause(sort SortMode) string {
 		return "ORDER BY w.created_at, w.id"
 	case SortUpdatedAt:
 		return "ORDER BY w.updated_at, w.id"
+	case SortRating:
+		return "ORDER BY " + ratingSortKeyExpr() + ", w.id"
 	default:
 		return "ORDER BY p.search_key, w.id"
 	}
 }
 
 // sortKeyExpr reports the column a seek cursor compares against: the
-// preferred-title search key for title sort, the matching timestamp
-// column otherwise, so the cursor value and the seek clause always use
-// the same ordering.
+// preferred-title search key for title sort, the rating sort key for
+// rating sort, the matching timestamp column otherwise, so the cursor
+// value and the seek clause always use the same ordering.
 func sortKeyExpr(sort SortMode) string {
 	switch sort {
 	case SortCreatedAt:
 		return "w.created_at"
 	case SortUpdatedAt:
 		return "w.updated_at"
+	case SortRating:
+		return ratingSortKeyExpr()
 	default:
 		return "p.search_key"
 	}
@@ -477,6 +530,9 @@ func matchedEditionIDs(key string, w Work, editions []Edition, q LibraryQuery) [
 		if len(q.Tags) > 0 && !tagMatches(q, w, e) {
 			continue
 		}
+		if q.MinRating != nil && !ratingMatches(q, e) {
+			continue
+		}
 		matched := key == "" || workMatch
 		if !matched {
 			for _, t := range e.Titles {
@@ -539,6 +595,15 @@ func intentionMatches(q LibraryQuery, e Edition) bool {
 		}
 	}
 	return false
+}
+
+// ratingMatches reports whether an edition's current rating satisfies the
+// minimum-rating dimension: an absent or cleared rating never matches.
+func ratingMatches(q LibraryQuery, e Edition) bool {
+	if e.Rating == nil || e.Rating.Value == nil {
+		return false
+	}
+	return *e.Rating.Value >= *q.MinRating
 }
 
 // tagMatches reports whether the tag predicate is satisfied by the work's

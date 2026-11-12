@@ -24,12 +24,13 @@ const (
 	SortTitle     LibrarySort = "title"
 	SortCreatedAt LibrarySort = "created_at"
 	SortUpdatedAt LibrarySort = "updated_at"
+	SortRating    LibrarySort = "rating"
 )
 
 // Valid reports whether the sort is a defined v1 value.
 func (s LibrarySort) Valid() bool {
 	switch s {
-	case SortTitle, SortCreatedAt, SortUpdatedAt:
+	case SortTitle, SortCreatedAt, SortUpdatedAt, SortRating:
 		return true
 	}
 	return false
@@ -53,12 +54,15 @@ type LibraryFilter struct {
 	// Intentions is the intention dimension, where none selects editions
 	// without a recorded intention; Tags holds tag names that are
 	// normalized before matching, satisfied by a work tag or the matching
-	// edition's own tag.
+	// edition's own tag; MinRating is the minimum-rating dimension, where
+	// the current rating of the matching edition must be at least the
+	// value (an absent or cleared rating never matches).
 	Publications       []domain.Publication
 	Consumptions       []domain.Consumption
 	UnknownConsumption bool
 	Intentions         []domain.Intention
 	Tags               []string
+	MinRating          *int
 	Sort               LibrarySort
 	Limit              int
 	Cursor             *string
@@ -89,7 +93,7 @@ type libraryCursorPayload struct {
 
 // filterFingerprint is the canonical identity of the non-cursor part of a
 // listing request; a cursor from a different request is rejected.
-func filterFingerprint(query string, kinds []domain.EditionKind, publications []domain.Publication, consumptions []domain.Consumption, unknownConsumption bool, intentions []domain.Intention, tags []string) string {
+func filterFingerprint(query string, kinds []domain.EditionKind, publications []domain.Publication, consumptions []domain.Consumption, unknownConsumption bool, intentions []domain.Intention, tags []string, minRating *int) string {
 	ks := make([]string, 0, len(kinds))
 	for _, k := range kinds {
 		ks = append(ks, string(k))
@@ -120,6 +124,7 @@ func filterFingerprint(query string, kinds []domain.EditionKind, publications []
 		"unknown_cons": unknownConsumption,
 		"intentions":   is,
 		"tags":         ts,
+		"min_rating":   minRating,
 	})
 	if err != nil {
 		return ""
@@ -208,7 +213,10 @@ func (s *Service) SearchLibrary(ctx context.Context, f LibraryFilter) (ListPaylo
 		}
 		tagNames = append(tagNames, name)
 	}
-	qHash := filterFingerprint(query, f.Kinds, f.Publications, f.Consumptions, f.UnknownConsumption, f.Intentions, tagNames)
+	if f.MinRating != nil && (*f.MinRating < 1 || *f.MinRating > 10) {
+		return ListPayload{}, invalidArgument("minimum rating must be between 1 and 10", base)
+	}
+	qHash := filterFingerprint(query, f.Kinds, f.Publications, f.Consumptions, f.UnknownConsumption, f.Intentions, tagNames, f.MinRating)
 	var afterKey, afterID string
 	if f.Cursor != nil {
 		c, err := parseLibraryCursor(*f.Cursor, srt, limit, qHash)
@@ -225,6 +233,7 @@ func (s *Service) SearchLibrary(ctx context.Context, f LibraryFilter) (ListPaylo
 		UnknownConsumption: f.UnknownConsumption,
 		Intentions:         f.Intentions,
 		Tags:               tagNames,
+		MinRating:          f.MinRating,
 		Sort:               storeSort(srt),
 		Limit:              limit + 1,
 		AfterKey:           afterKey,
@@ -255,6 +264,8 @@ func storeSort(s LibrarySort) store.SortMode {
 		return store.SortCreatedAt
 	case SortUpdatedAt:
 		return store.SortUpdatedAt
+	case SortRating:
+		return store.SortRating
 	default:
 		return store.SortTitle
 	}
@@ -376,6 +387,23 @@ func tagsViewFrom(names []string) []string {
 		return []string{}
 	}
 	return names
+}
+
+// ratingViewFrom presents the current rating observation; an explicit
+// clear (like the absence of any observation) is the absence of a rating
+// state, never zero or an invented value.
+func ratingViewFrom(o *store.RatingObservation) *RatingObservation {
+	if o == nil || o.Value == nil {
+		return nil
+	}
+	return &RatingObservation{
+		Value:        o.Value,
+		Comment:      o.Comment,
+		ObservedAt:   o.ObservedAt,
+		RecordedAt:   o.RecordedAt,
+		Actor:        Actor{Principal: o.Actor.Principal, Origin: domain.ActorOrigin(o.Actor.Origin), Identity: o.Actor.Identity},
+		SupersedesID: o.SupersedesID,
+	}
 }
 
 // notesViewFrom presents the target's active notes, each at its latest
@@ -665,6 +693,7 @@ func editionViewFrom(e store.Edition) EditionView {
 	}
 	view.Consumption = consumptionViewFrom(e.Consumption)
 	view.Intention = intentionViewFrom(e.Intention)
+	view.Rating = ratingViewFrom(e.Rating)
 	view.Tags = tagsViewFrom(e.Tags)
 	view.Notes = notesViewFrom(e.Notes)
 	view.Progress = progressViewFrom(e.Progress)
