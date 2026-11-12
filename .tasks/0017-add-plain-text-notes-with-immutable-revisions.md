@@ -1,6 +1,6 @@
 # Task 0017 - Add plain-text notes with immutable revisions
 
-State: doing
+State: done
 Owner: opencode-media-20261110
 Mode: mvp
 Lane: application
