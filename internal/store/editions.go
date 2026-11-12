@@ -57,6 +57,7 @@ type Edition struct {
 	Tags        []string
 	Notes       []NoteInfo
 	Rating      *RatingObservation
+	References  []ReferenceInfo
 }
 
 // EditionTitle is one edition title row, active or retired.
@@ -161,7 +162,8 @@ func (d *Database) AddEdition(ctx context.Context, now time.Time, workID string,
 // GetEdition returns one edition with its active titles, current
 // publication observation, current consumption observation, the live
 // current progress of every unit, its active tag names, its active notes
-// at their latest revision and its current rating observation.
+// at their latest revision, its current rating observation and its active
+// sourced references.
 func (d *Database) GetEdition(ctx context.Context, editionID string) (Edition, error) {
 	var (
 		e          Edition
@@ -263,6 +265,10 @@ func (d *Database) GetEdition(ctx context.Context, editionID string) (Edition, e
 		return Edition{}, err
 	}
 	e.Rating, err = d.currentRating(ctx, editionID)
+	if err != nil {
+		return Edition{}, err
+	}
+	e.References, err = d.currentReferences(ctx, editionID)
 	if err != nil {
 		return Edition{}, err
 	}

@@ -179,7 +179,8 @@ func mapStoreError(err error, req MutationBase) *AppError {
 		return NewAppError(ErrLocked, "the database is locked by another process")
 	case errors.Is(err, store.ErrWorkNotFound), errors.Is(err, store.ErrEditionNotFound), errors.Is(err, store.ErrConsumptionNotFound),
 		errors.Is(err, store.ErrProgressNotFound), errors.Is(err, store.ErrIntentionNotFound), errors.Is(err, store.ErrTagNotFound),
-		errors.Is(err, store.ErrNoteNotFound), errors.Is(err, store.ErrRatingNotFound):
+		errors.Is(err, store.ErrNoteNotFound), errors.Is(err, store.ErrRatingNotFound),
+		errors.Is(err, store.ErrReferenceNotFound):
 		return &AppError{Code: ErrNotFound, Message: err.Error(), RequestID: req.RequestID, Actor: req.Actor.Principal}
 	case errors.Is(err, store.ErrRevisionMismatch):
 		return &AppError{Code: ErrConflict, Message: "record changed; reload before retrying", RequestID: req.RequestID, Actor: req.Actor.Principal}

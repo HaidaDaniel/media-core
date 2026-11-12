@@ -39,6 +39,7 @@ commands:
   tag      attach or detach a tag on a work or edition
   note     add, revise or retract a plain-text note on a work or edition
   rate     set, change, clear or correct an edition rating (1-10)
+  reference attach or retire a sourced external reference on an edition
   serve    reserved: HTTP API + embedded UI (not implemented yet)
   mcp      reserved: MCP stdio (not implemented yet)
 

@@ -389,6 +389,26 @@ func tagsViewFrom(names []string) []string {
 	return names
 }
 
+// referencesViewFrom presents the active sourced references as a non-nil
+// collection; retired references are absent, never deleted.
+func referencesViewFrom(refs []store.ReferenceInfo) []ExternalReference {
+	out := make([]ExternalReference, 0, len(refs))
+	for _, r := range refs {
+		out = append(out, ExternalReference{
+			ID:            r.ID,
+			Provider:      r.Provider,
+			ExternalID:    r.ExternalID,
+			URL:           r.URL,
+			Role:          r.Role,
+			Authoritative: r.Authoritative,
+			Language:      r.Language,
+			Provenance:    r.Provenance,
+			RetiredAt:     r.RetiredAt,
+		})
+	}
+	return out
+}
+
 // ratingViewFrom presents the current rating observation; an explicit
 // clear (like the absence of any observation) is the absence of a rating
 // state, never zero or an invented value.
@@ -695,6 +715,7 @@ func editionViewFrom(e store.Edition) EditionView {
 	view.Intention = intentionViewFrom(e.Intention)
 	view.Rating = ratingViewFrom(e.Rating)
 	view.Tags = tagsViewFrom(e.Tags)
+	view.References = referencesViewFrom(e.References)
 	view.Notes = notesViewFrom(e.Notes)
 	view.Progress = progressViewFrom(e.Progress)
 	return view
