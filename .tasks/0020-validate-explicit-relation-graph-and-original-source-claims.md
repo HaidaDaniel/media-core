@@ -1,6 +1,6 @@
 # Task 0020 - Validate explicit relation graph and original-source claims
 
-State: doing
+State: done
 Owner: opencode-media-20261110
 Mode: mvp
 Lane: application
