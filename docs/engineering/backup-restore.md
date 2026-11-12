@@ -1,8 +1,8 @@
 # Backup and restore
 
-This document freezes the snapshot archive contract. Task 0022 implements
-the backup side; the restore side is implemented by task 0023 against this
-same contract.
+This document freezes the snapshot archive contract: task 0022 implements
+the backup side and task 0023 the restore side, both against this
+contract.
 
 ## Archive layout
 
@@ -82,10 +82,27 @@ no state directory contents beyond the measured database file metadata.
 
 ## Restore contract
 
-Restore (task 0023) runs under the **exclusive** maintenance lock and
-accepts an archive only when: the layout is exactly the two files; the
-manifest format is `media-core-snapshot-v1`; `db.size` and `db.sha256`
-match the packaged file; `PRAGMA integrity_check` on the file returns ok;
-and the schema ledger version is acceptable to the restoring build. The
-restored database replaces the state database atomically; a failed
-restore leaves the prior state intact with a distinguishable error.
+Restore (task 0023) accepts an archive only when, in order: the archive
+path is a directory (not a symlink) holding exactly the two regular files
+`media-core.db` and `manifest.json`; the manifest parses, carries the
+format `media-core-snapshot-v1`, names the database file, and holds a
+positive schema; the packaged file's size and SHA-256 match the manifest;
+`PRAGMA integrity_check` on the file returns ok; the file's schema ledger
+matches the manifest's schema; and the ledger sits exactly at the
+restoring build's current schema — an older or newer backup is rejected
+with the distinct schema boundary error. All of this happens before the
+destination is touched.
+
+The replacement then runs under the **exclusive** lifetime maintenance
+lock, so any active shared-lock holder — a running serve, MCP or CLI
+handle — blocks it with the locked error. A destination that already
+contains a database requires an explicit force; without it the restore
+fails as a conflict and leaves the destination byte-identical. The
+validated snapshot is staged in a temporary file inside the destination
+state directory (same filesystem) and replaces the database file with one
+atomic rename, after the old database's WAL sidecars are removed. The
+destination state directory is never cleared: only the database file and
+its sidecars are replaced, so an owner secret or any other state file is
+retained. A failure at any point — validation, staging, locking or
+publishing — leaves the previous database usable with a distinguishable
+error and no staging debris.

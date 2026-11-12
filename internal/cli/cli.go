@@ -45,6 +45,7 @@ commands:
   related  traverse related works or editions in both directions, bounded
   activity recent personal activity and complete work/edition history
   backup   create a consistent snapshot archive with an integrity manifest
+  restore  restore a validated archive into an isolated or forced state dir
   serve    reserved: HTTP API + embedded UI (not implemented yet)
   mcp      reserved: MCP stdio (not implemented yet)
 
