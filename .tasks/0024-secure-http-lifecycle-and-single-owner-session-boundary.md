@@ -1,7 +1,7 @@
 # Task 0024 - Secure HTTP lifecycle and single-owner session boundary
 
-State: todo
-Owner: none
+State: doing
+Owner: opencode-media-20261110
 Mode: mvp
 Lane: http
 Scope: http
@@ -23,6 +23,7 @@ Create loopback serve mode with real session/CSRF/Origin/Host protections before
 - docs/application-contract.md
 
 ## Files allowed to edit
+
 - internal/httpapi/server.go
 - internal/httpapi/security.go
 - internal/httpapi/session.go
@@ -30,10 +31,11 @@ Create loopback serve mode with real session/CSRF/Origin/Host protections before
 - internal/httpapi/security_test.go
 - internal/httpapi/session_test.go
 - internal/cli/owner.go
+- internal/cli/owner_test.go
+- internal/cli/cli.go
 - internal/runtime/runtime.go
 - docs/engineering/configuration.md
 - docs/progress.md
-
 - .tasks/0024-secure-http-lifecycle-and-single-owner-session-boundary.md
 
 ## Files forbidden to edit
@@ -72,6 +74,7 @@ Create loopback serve mode with real session/CSRF/Origin/Host protections before
 - `{"id":"focused","type":"automated","required":true,"environment":"local","profile":"report","command":"go test ./internal/httpapi ./internal/cli -run \"Test(HTTPServer|Session|Security|Owner)\""}`
 
 ## Documentation updates
+
 - Update docs/progress.md on lifecycle changes.
 
 ## Notes
@@ -81,3 +84,4 @@ Create loopback serve mode with real session/CSRF/Origin/Host protections before
 - Before editing, read existing allowed source files supplied by completed dependencies. Missing paths are new files owned by this task, not existing context.
 - Only listed paths plus this task file may change. Do not edit other task contracts or generated agent instructions; task lifecycle is managed by APK.
 - Keep contract behavior fixed; if a counterexample requires expanding scope, update this task before source edits. No actual host deployment, push or publication is authorized.
+- Scope amendment (2026-11-12): the owner command joins the CLI usage text, so internal/cli/cli.go joins the allowed list; internal/cli/owner_test.go carries the owner-command tests.
