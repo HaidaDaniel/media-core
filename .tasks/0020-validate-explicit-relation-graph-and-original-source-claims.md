@@ -78,8 +78,6 @@ Implement scoped, provenance-bearing relations/origin assertions with proposal a
 
 - Update docs/progress.md on lifecycle changes.
 
-Scope amendment (2026-11-12): the relation/origin lifecycle touches the wiring files, which join the allowed list: store/migrations_test.go pins the embedded migration set's shape (pin moves to 11 for 0011_relations.sql), app/mutation.go maps the new relation/origin store errors to the stable wire codes, and cli/cli.go lists the link/origin/related commands in the usage text.
-
 ## Notes
 
 - Milestone: M4. See docs/implementation-plan.md for requirements and graph.
@@ -87,3 +85,4 @@ Scope amendment (2026-11-12): the relation/origin lifecycle touches the wiring f
 - Before editing, read existing allowed source files supplied by completed dependencies. Missing paths are new files owned by this task, not existing context.
 - Only listed paths plus this task file may change. Do not edit other task contracts or generated agent instructions; task lifecycle is managed by APK.
 - Keep contract behavior fixed; if a counterexample requires expanding scope, update this task before source edits. No actual host deployment, push or publication is authorized.
+- Scope amendment (2026-11-12): the relation/origin lifecycle touches the wiring files, which join the allowed list: store/migrations_test.go pins the embedded migration set's shape (pin moves to 11 for 0011_relations.sql), app/mutation.go maps the new relation/origin store errors to the stable wire codes, and cli/cli.go lists the link/origin/related commands in the usage text.
