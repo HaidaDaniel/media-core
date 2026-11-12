@@ -180,12 +180,17 @@ func mapStoreError(err error, req MutationBase) *AppError {
 	case errors.Is(err, store.ErrWorkNotFound), errors.Is(err, store.ErrEditionNotFound), errors.Is(err, store.ErrConsumptionNotFound),
 		errors.Is(err, store.ErrProgressNotFound), errors.Is(err, store.ErrIntentionNotFound), errors.Is(err, store.ErrTagNotFound),
 		errors.Is(err, store.ErrNoteNotFound), errors.Is(err, store.ErrRatingNotFound),
-		errors.Is(err, store.ErrReferenceNotFound):
+		errors.Is(err, store.ErrReferenceNotFound), errors.Is(err, store.ErrRelationNotFound),
+		errors.Is(err, store.ErrOriginNotFound):
 		return &AppError{Code: ErrNotFound, Message: err.Error(), RequestID: req.RequestID, Actor: req.Actor.Principal}
 	case errors.Is(err, store.ErrRevisionMismatch):
 		return &AppError{Code: ErrConflict, Message: "record changed; reload before retrying", RequestID: req.RequestID, Actor: req.Actor.Principal}
 	case errors.Is(err, store.ErrSupersedeConflict):
 		return &AppError{Code: ErrConflict, Message: "the named observation was already corrected; reload before retrying", RequestID: req.RequestID, Actor: req.Actor.Principal}
+	case errors.Is(err, store.ErrRelationCycle):
+		return &AppError{Code: ErrCycleDetected, Message: err.Error(), RequestID: req.RequestID, Actor: req.Actor.Principal}
+	case errors.Is(err, store.ErrRelationConflict), errors.Is(err, store.ErrOriginConflict):
+		return &AppError{Code: ErrConflict, Message: err.Error(), RequestID: req.RequestID, Actor: req.Actor.Principal}
 	case errors.Is(err, store.ErrIdentityConflict):
 		return &AppError{Code: ErrIdentityConflict, Message: err.Error(), RequestID: req.RequestID, Actor: req.Actor.Principal}
 	case errors.Is(err, store.ErrStaleDecision):
@@ -196,7 +201,8 @@ func mapStoreError(err error, req MutationBase) *AppError {
 		errors.Is(err, store.ErrInvalidConsumption), errors.Is(err, store.ErrInvalidProgress),
 		errors.Is(err, store.ErrInvalidIntention), errors.Is(err, store.ErrInvalidTag),
 		errors.Is(err, store.ErrInvalidNote), errors.Is(err, store.ErrInvalidRating),
-		errors.Is(err, store.ErrInvalidReference),
+		errors.Is(err, store.ErrInvalidReference), errors.Is(err, store.ErrInvalidRelation),
+		errors.Is(err, store.ErrInvalidOrigin),
 		errors.Is(err, store.ErrInvalidURL), errors.Is(err, store.ErrNoTitle):
 		return &AppError{Code: ErrInvalidArgument, Message: err.Error(), RequestID: req.RequestID, Actor: req.Actor.Principal}
 	default:

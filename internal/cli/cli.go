@@ -40,6 +40,9 @@ commands:
   note     add, revise or retract a plain-text note on a work or edition
   rate     set, change, clear or correct an edition rating (1-10)
   reference attach or retire a sourced external reference on an edition
+  link     propose, confirm or revoke a typed relation between works or editions
+  origin   assert, confirm or revoke an explicit origin claim on an edition
+  related  traverse related works or editions in both directions, bounded
   serve    reserved: HTTP API + embedded UI (not implemented yet)
   mcp      reserved: MCP stdio (not implemented yet)
 
