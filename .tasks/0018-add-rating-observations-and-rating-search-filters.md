@@ -37,6 +37,7 @@ Implement edition 1–10 ratings with retained changes and explicit clearing/cor
 - internal/app/library_test.go
 - internal/app/mutation.go
 - internal/cli/ratings.go
+- internal/cli/ratings_test.go
 - internal/cli/library.go
 - internal/cli/library_test.go
 - internal/cli/cli.go
@@ -91,3 +92,4 @@ Implement edition 1–10 ratings with retained changes and explicit clearing/cor
 - Only listed paths plus this task file may change. Do not edit other task contracts or generated agent instructions; task lifecycle is managed by APK.
 - Keep contract behavior fixed; if a counterexample requires expanding scope, update this task before source edits. No actual host deployment, push or publication is authorized.
 - Scope amendment (2026-11-12): the application contract requires the minimum-rating filter and the rating sort ("Sort: title, updated_at, rating, created_at; missing ratings last"), so the rating dimension joins the shared library surface: store/editions.go carries the current rating observation, app/library.go gains the filter/sort dimension and the rating view mapping, app/mutation.go maps the rating errors, and the CLI list command gains the --rating flag and the rating sort value. The 0013 frozen tests that pinned "rating" as an unknown sort (app/library_test.go, cli/library_test.go) flip to the new contract. store/migrations_test.go pins the embedded migration set's shape.
+- Scope amendment (2026-11-12, second): add internal/cli/ratings_test.go, which carries the rating command's test suite.
