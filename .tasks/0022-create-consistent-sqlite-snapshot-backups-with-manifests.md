@@ -27,6 +27,7 @@ Publish a consistent database archive with integrity metadata while normal write
 - internal/backup/archive.go
 - internal/backup/archive_test.go
 - internal/app/backup.go
+- internal/app/backup_test.go
 - internal/cli/backup.go
 - internal/cli/backup_test.go
 - internal/cli/cli.go
@@ -82,3 +83,4 @@ Publish a consistent database archive with integrity metadata while normal write
 - Only listed paths plus this task file may change. Do not edit other task contracts or generated agent instructions; task lifecycle is managed by APK.
 - Keep contract behavior fixed; if a counterexample requires expanding scope, update this task before source edits. No actual host deployment, push or publication is authorized.
 - Scope amendment (2026-11-12): the backup command joins the CLI usage text, so cli/cli.go joins the allowed list; the command itself registers in internal/cli/backup.go like the other capability commands.
+- Scope amendment (2026-11-12, second): add internal/app/backup_test.go, which carries the service-level backup tests.
