@@ -29,9 +29,10 @@ type EditionInput struct {
 }
 
 // Edition is a persisted edition line with its active titles, current
-// publication observation and current consumption observation (nil when
-// none was recorded; presentation of an explicit unknown is an
-// application concern).
+// publication observation, current consumption observation (nil when none
+// was recorded; presentation of an explicit unknown is an application
+// concern) and the live current progress observation of every unit (empty
+// when no unit has one).
 type Edition struct {
 	ID          string
 	WorkID      string
@@ -45,6 +46,7 @@ type Edition struct {
 	Titles      []EditionTitle
 	Publication *PublicationObservation
 	Consumption *ConsumptionObservation
+	Progress    []ProgressObservation
 }
 
 // EditionTitle is one edition title row, active or retired.
@@ -146,8 +148,9 @@ func (d *Database) AddEdition(ctx context.Context, now time.Time, workID string,
 	return d.GetEdition(ctx, editionID)
 }
 
-// GetEdition returns one edition with its active titles and current
-// publication observation.
+// GetEdition returns one edition with its active titles, current
+// publication observation, current consumption observation and the live
+// current progress of every unit.
 func (d *Database) GetEdition(ctx context.Context, editionID string) (Edition, error) {
 	var (
 		e          Edition
@@ -229,7 +232,14 @@ func (d *Database) GetEdition(ctx context.Context, editionID string) (Edition, e
 		return Edition{}, err
 	}
 	e.Consumption, err = d.currentConsumption(ctx, editionID)
-	return e, err
+	if err != nil {
+		return Edition{}, err
+	}
+	e.Progress, err = d.currentProgress(ctx, editionID)
+	if err != nil {
+		return Edition{}, err
+	}
+	return e, nil
 }
 
 // ListEditions returns the editions of one work in creation order for

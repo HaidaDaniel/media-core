@@ -1,7 +1,7 @@
 # Task 0015 - Record edition progress by unit with correction history
 
-State: todo
-Owner: none
+State: doing
+Owner: opencode-media-20261110
 Mode: mvp
 Lane: application
 Scope: application
@@ -24,6 +24,7 @@ Persist exact numeric progress observations and current values without erasing h
 - docs/application-contract.md
 
 ## Files allowed to edit
+
 - internal/app/progress.go
 - internal/app/progress_test.go
 - internal/store/progress.go
@@ -31,8 +32,12 @@ Persist exact numeric progress observations and current values without erasing h
 - internal/store/migrations/0006_progress.sql
 - internal/cli/progress.go
 - internal/runtime/runtime.go
+- internal/store/editions.go
+- internal/store/migrations_test.go
+- internal/app/library.go
+- internal/app/mutation.go
+- internal/cli/cli.go
 - docs/progress.md
-
 - .tasks/0015-record-edition-progress-by-unit-with-correction-history.md
 
 ## Files forbidden to edit
@@ -71,6 +76,7 @@ Persist exact numeric progress observations and current values without erasing h
 - `{"id":"focused","type":"automated","required":true,"environment":"local","profile":"report","command":"go test ./internal/app ./internal/store ./internal/cli -run \"TestProgress\""}`
 
 ## Documentation updates
+
 - Update docs/progress.md on lifecycle changes.
 
 ## Notes

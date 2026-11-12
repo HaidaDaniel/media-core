@@ -34,6 +34,7 @@ commands:
   title    add, retire or prefer a work or edition title
   edition  update edition metadata; archive or unarchive an edition
   status   set an edition's personal consumption status
+  progress record or retract edition reading progress by unit
   serve    reserved: HTTP API + embedded UI (not implemented yet)
   mcp      reserved: MCP stdio (not implemented yet)
 

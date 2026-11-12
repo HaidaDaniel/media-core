@@ -330,6 +330,7 @@ func (s *Service) GetEdition(ctx context.Context, editionID string) (EditionView
 		}
 	}
 	view.Consumption = consumptionViewFrom(e.Consumption)
+	view.Progress = progressViewFrom(e.Progress)
 	return view, nil
 }
 
@@ -615,6 +616,7 @@ func editionViewFrom(e store.Edition) EditionView {
 		}
 	}
 	view.Consumption = consumptionViewFrom(e.Consumption)
+	view.Progress = progressViewFrom(e.Progress)
 	return view
 }
 
