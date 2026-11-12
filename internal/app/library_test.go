@@ -104,6 +104,50 @@ func TestLibrarySearchAliases(t *testing.T) {
 	}
 }
 
+// TestLibrarySearchQueryFilterCorrelation proves the query is correlated
+// with the edition-qualified filters: a work is listed only when one
+// edition satisfies both, or the query hits a work title and some edition
+// satisfies the filter.
+func TestLibrarySearchQueryFilterCorrelation(t *testing.T) {
+	s := newTestService(t)
+	ctx := context.Background()
+	w, err := s.db.CreateWork(ctx, s.now(), []store.TitleInput{{Text: "Correlated Story", Kind: domain.TitleOriginal, Provenance: "manual"}})
+	if err != nil {
+		t.Fatalf("CreateWork: %v", err)
+	}
+	manga := addEdition(t, s, w.ID, domain.KindManga, "MangaOnly Title")
+	fresh, err := s.db.GetWork(ctx, w.ID)
+	if err != nil {
+		t.Fatalf("GetWork: %v", err)
+	}
+	anime := addEdition(t, s, fresh.ID, domain.KindAnime, "AnimeOnly Title")
+	if _, err := s.db.RecordPublication(ctx, s.now(), manga.ID, manga.Revision, store.PublicationInput{Value: domain.PublicationCompleted, Source: appStr("manual"), Provenance: "manual"}); err != nil {
+		t.Fatalf("RecordPublication manga: %v", err)
+	}
+	if _, err := s.db.RecordPublication(ctx, s.now(), anime.ID, anime.Revision, store.PublicationInput{Value: domain.PublicationOngoing, Source: appStr("manual"), Provenance: "manual"}); err != nil {
+		t.Fatalf("RecordPublication anime: %v", err)
+	}
+
+	// The query matches only the anime title; the kind filter is satisfied
+	// only by the manga edition. No single edition satisfies both.
+	cards := listCards(t, s, LibraryFilter{Query: strPtr("animeonly"), Kinds: []domain.EditionKind{domain.KindManga}, Sort: SortTitle})
+	if len(cards) != 0 {
+		t.Fatalf("cross-edition query+kind = %+v, want nothing", cards)
+	}
+	cards = listCards(t, s, LibraryFilter{Query: strPtr("animeonly"), Publications: []domain.Publication{domain.PublicationCompleted}, Sort: SortTitle})
+	if len(cards) != 0 {
+		t.Fatalf("cross-edition query+publication = %+v, want nothing", cards)
+	}
+	cards = listCards(t, s, LibraryFilter{Query: strPtr("animeonly"), Kinds: []domain.EditionKind{domain.KindAnime}, Sort: SortTitle})
+	if len(cards) != 1 || len(cards[0].MatchedEditionIDs) != 1 || cards[0].MatchedEditionIDs[0] != anime.ID {
+		t.Fatalf("same-edition query+kind = %+v, want the work through the anime edition", cards)
+	}
+	cards = listCards(t, s, LibraryFilter{Query: strPtr("correlated"), Kinds: []domain.EditionKind{domain.KindManga}, Sort: SortTitle})
+	if len(cards) != 1 || len(cards[0].MatchedEditionIDs) != 1 || cards[0].MatchedEditionIDs[0] != manga.ID {
+		t.Fatalf("work-title query+kind = %+v, want the work through the manga edition", cards)
+	}
+}
+
 // TestLibrarySearchCursorBinding proves a cursor is bound to the sort,
 // limit and filter of the listing that issued it.
 func TestLibrarySearchCursorBinding(t *testing.T) {

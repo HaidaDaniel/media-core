@@ -267,6 +267,73 @@ func TestLibrarySearchPublicationFilter(t *testing.T) {
 	}
 }
 
+// TestLibrarySearchQueryFilterCorrelation proves the query and the
+// edition-qualified filters are correlated: a work is listed only when one
+// edition satisfies both, or the query hits a work title and some edition
+// satisfies the filter.
+func TestLibrarySearchQueryFilterCorrelation(t *testing.T) {
+	db := openMigrated(t, t.TempDir())
+	defer db.Close()
+	now := libraryNow()
+	ctx := ctx(t)
+	w := mustWork(t, db, now, "Correlated Story")
+	manga, w := mustEdition(t, db, now, w, domain.KindManga, "MangaOnly Title")
+	anime, w := mustEdition(t, db, now, w, domain.KindAnime, "AnimeOnly Title")
+	if _, err := db.RecordPublication(ctx, now, manga.ID, manga.Revision, PublicationInput{Value: domain.PublicationCompleted, Source: strPtr("manual"), Provenance: "manual"}); err != nil {
+		t.Fatalf("RecordPublication manga: %v", err)
+	}
+	if _, err := db.RecordPublication(ctx, now, anime.ID, anime.Revision, PublicationInput{Value: domain.PublicationOngoing, Source: strPtr("manual"), Provenance: "manual"}); err != nil {
+		t.Fatalf("RecordPublication anime: %v", err)
+	}
+
+	// The query matches only the anime title; the kind filter is satisfied
+	// only by the manga edition. No single edition satisfies both, so the
+	// work must not be listed.
+	cards, total, err := db.SearchLibrary(ctx, LibraryQuery{Query: "animeonly", Kinds: []domain.EditionKind{domain.KindManga}, Sort: SortTitle, Limit: 10})
+	if err != nil {
+		t.Fatalf("SearchLibrary: %v", err)
+	}
+	if total != 0 || len(cards) != 0 {
+		t.Fatalf("cross-edition query+kind: total=%d cards=%+v, want nothing", total, cards)
+	}
+	// The symmetric case: the publication filter lives on the manga edition,
+	// the query on the anime title.
+	cards, total, err = db.SearchLibrary(ctx, LibraryQuery{Query: "animeonly", Publications: []domain.Publication{domain.PublicationCompleted}, Sort: SortTitle, Limit: 10})
+	if err != nil {
+		t.Fatalf("SearchLibrary: %v", err)
+	}
+	if total != 0 || len(cards) != 0 {
+		t.Fatalf("cross-edition query+publication: total=%d cards=%+v, want nothing", total, cards)
+	}
+	// The same query with the matching kind lists the work through the
+	// anime edition only.
+	cards, total, err = db.SearchLibrary(ctx, LibraryQuery{Query: "animeonly", Kinds: []domain.EditionKind{domain.KindAnime}, Sort: SortTitle, Limit: 10})
+	if err != nil {
+		t.Fatalf("SearchLibrary: %v", err)
+	}
+	if total != 1 || len(cards) != 1 || len(cards[0].MatchedEditionIDs) != 1 || cards[0].MatchedEditionIDs[0] != anime.ID {
+		t.Fatalf("same-edition query+kind: total=%d cards=%+v, want the work through the anime edition", total, cards)
+	}
+	// A work-title match counts for the filter: the work is listed and the
+	// matched editions are the ones satisfying the filter.
+	cards, total, err = db.SearchLibrary(ctx, LibraryQuery{Query: "correlated", Kinds: []domain.EditionKind{domain.KindManga}, Sort: SortTitle, Limit: 10})
+	if err != nil {
+		t.Fatalf("SearchLibrary: %v", err)
+	}
+	if total != 1 || len(cards) != 1 || len(cards[0].MatchedEditionIDs) != 1 || cards[0].MatchedEditionIDs[0] != manga.ID {
+		t.Fatalf("work-title query+kind: total=%d cards=%+v, want the work through the manga edition", total, cards)
+	}
+	// The query matches a work title and the filter is satisfied by another
+	// edition: still listed, matched through the filter-satisfying edition.
+	cards, total, err = db.SearchLibrary(ctx, LibraryQuery{Query: "correlated", Publications: []domain.Publication{domain.PublicationOngoing}, Sort: SortTitle, Limit: 10})
+	if err != nil {
+		t.Fatalf("SearchLibrary: %v", err)
+	}
+	if total != 1 || len(cards) != 1 || len(cards[0].MatchedEditionIDs) != 1 || cards[0].MatchedEditionIDs[0] != anime.ID {
+		t.Fatalf("work-title query+publication: total=%d cards=%+v, want the work through the ongoing anime edition", total, cards)
+	}
+}
+
 // TestLibrarySearchSorts proves the three sort modes with the stable ID
 // tie-breaker.
 func TestLibrarySearchSorts(t *testing.T) {

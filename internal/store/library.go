@@ -77,41 +77,67 @@ type WorkCard struct {
 // libraryWhere builds the shared search predicate: the normalized query
 // match, the edition-qualified filters and, when seeking, the cursor
 // condition. The work ID tie-breaker keeps every sort stable.
+//
+// The query and the filters are correlated: a work matches when the query
+// hits a work title and some edition satisfies the filters, or when one
+// single edition satisfies both the filters and the query. States of
+// unrelated editions are never combined.
 func libraryWhere(q LibraryQuery, key string, seek bool) (string, []any) {
 	conds := []string{"1=1"}
 	var args []any
+	filter, filterArgs := editionFilter(q)
 	if key != "" {
 		pattern := "%" + escapeLike(key) + "%"
-		conds = append(conds, `(
-			EXISTS (SELECT 1 FROM work_titles t
-				WHERE t.work_id = w.id AND t.retired_at IS NULL AND t.search_key LIKE ? ESCAPE '\')
-			OR EXISTS (SELECT 1 FROM edition_titles t
+		workTitleMatch := `EXISTS (SELECT 1 FROM work_titles t
+			WHERE t.work_id = w.id AND t.retired_at IS NULL AND t.search_key LIKE ? ESCAPE '\')`
+		if filter != "" {
+			correlated := `EXISTS (SELECT 1 FROM editions e
+				JOIN edition_titles t ON t.edition_id = e.id
+				WHERE e.work_id = w.id AND ` + filter +
+				` AND t.retired_at IS NULL AND t.search_key LIKE ? ESCAPE '\')`
+			conds = append(conds, "("+workTitleMatch+
+				" AND EXISTS (SELECT 1 FROM editions e WHERE e.work_id = w.id AND "+filter+")) OR "+correlated)
+			args = append(args, pattern)
+			args = append(args, filterArgs...)
+			args = append(args, filterArgs...)
+			args = append(args, pattern)
+		} else {
+			editionTitleMatch := `EXISTS (SELECT 1 FROM edition_titles t
 				JOIN editions e ON e.id = t.edition_id
-				WHERE e.work_id = w.id AND t.retired_at IS NULL AND t.search_key LIKE ? ESCAPE '\')
-		)`)
-		args = append(args, pattern, pattern)
-	}
-	if len(q.Kinds) > 0 || len(q.Publications) > 0 {
-		sub := "SELECT 1 FROM editions e WHERE e.work_id = w.id"
-		if len(q.Kinds) > 0 {
-			sub += fmt.Sprintf(" AND e.kind IN (%s)", placeholders(len(q.Kinds)))
-			for _, k := range q.Kinds {
-				args = append(args, string(k))
-			}
+				WHERE e.work_id = w.id AND t.retired_at IS NULL AND t.search_key LIKE ? ESCAPE '\')`
+			conds = append(conds, "("+workTitleMatch+" OR "+editionTitleMatch+")")
+			args = append(args, pattern, pattern)
 		}
-		if len(q.Publications) > 0 {
-			sub += " AND " + currentPublicationIn(len(q.Publications))
-			for _, p := range q.Publications {
-				args = append(args, string(p))
-			}
-		}
-		conds = append(conds, "EXISTS ("+sub+")")
+	} else if filter != "" {
+		conds = append(conds, "EXISTS (SELECT 1 FROM editions e WHERE e.work_id = w.id AND "+filter+")")
+		args = append(args, filterArgs...)
 	}
 	if seek && q.AfterID != "" {
 		conds = append(conds, seekClause(q.Sort))
 		args = append(args, q.AfterKey, q.AfterID)
 	}
 	return "WHERE " + strings.Join(conds, " AND "), args
+}
+
+// editionFilter reports the conditions one edition must satisfy for the
+// query's kind and publication dimensions, plus the bound arguments. Every
+// dimension must hold for the same edition.
+func editionFilter(q LibraryQuery) (string, []any) {
+	var parts []string
+	var args []any
+	if len(q.Kinds) > 0 {
+		parts = append(parts, fmt.Sprintf("e.kind IN (%s)", placeholders(len(q.Kinds))))
+		for _, k := range q.Kinds {
+			args = append(args, string(k))
+		}
+	}
+	if len(q.Publications) > 0 {
+		parts = append(parts, "("+currentPublicationIn(len(q.Publications))+")")
+		for _, p := range q.Publications {
+			args = append(args, string(p))
+		}
+	}
+	return strings.Join(parts, " AND "), args
 }
 
 // currentPublicationIn reports editions whose current (last non-superseded)
