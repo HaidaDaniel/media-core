@@ -35,6 +35,8 @@ type EditionInput struct {
 // presentation of an explicit none is an application concern) and the live
 // current progress observation of every unit (empty when no unit has one).
 // Tags lists the normalized names of the edition's active tag assignments.
+// Notes lists the edition's active notes at their latest revision;
+// retracted notes are absent, never deleted.
 type Edition struct {
 	ID          string
 	WorkID      string
@@ -51,6 +53,7 @@ type Edition struct {
 	Intention   *IntentionObservation
 	Progress    []ProgressObservation
 	Tags        []string
+	Notes       []NoteInfo
 }
 
 // EditionTitle is one edition title row, active or retired.
@@ -153,8 +156,9 @@ func (d *Database) AddEdition(ctx context.Context, now time.Time, workID string,
 }
 
 // GetEdition returns one edition with its active titles, current
-// publication observation, current consumption observation and the live
-// current progress of every unit.
+// publication observation, current consumption observation, the live
+// current progress of every unit, its active tag names and its active
+// notes at their latest revision.
 func (d *Database) GetEdition(ctx context.Context, editionID string) (Edition, error) {
 	var (
 		e          Edition
@@ -248,6 +252,10 @@ func (d *Database) GetEdition(ctx context.Context, editionID string) (Edition, e
 		return Edition{}, err
 	}
 	e.Tags, err = d.currentEditionTags(ctx, editionID)
+	if err != nil {
+		return Edition{}, err
+	}
+	e.Notes, err = d.currentNotes(ctx, d.db, "edition_id", editionID)
 	if err != nil {
 		return Edition{}, err
 	}

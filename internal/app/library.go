@@ -333,37 +333,7 @@ func (s *Service) GetEdition(ctx context.Context, editionID string) (EditionView
 	if err != nil {
 		return EditionView{}, mapStoreError(err, base)
 	}
-	view := EditionView{
-		ID:         e.ID,
-		WorkID:     e.WorkID,
-		Kind:       e.Kind,
-		Language:   e.Language,
-		OtherLabel: e.OtherLabel,
-		Revision:   e.Revision,
-		Titles:     []Title{},
-		Progress:   ProgressByUnit{},
-		Tags:       []string{},
-		References: []ExternalReference{},
-		Notes:      []Note{},
-	}
-	for _, t := range e.Titles {
-		view.Titles = append(view.Titles, Title{ID: t.ID, Text: t.Text, Language: t.Language, Kind: t.Kind, Preferred: t.Preferred, Provenance: t.Provenance})
-	}
-	if e.Publication != nil {
-		view.Publication = &PublicationState{
-			Value:        e.Publication.Value,
-			Source:       e.Publication.Source,
-			ObservedAt:   e.Publication.ObservedAt,
-			RecordedAt:   e.Publication.RecordedAt,
-			Provenance:   e.Publication.Provenance,
-			SupersedesID: e.Publication.SupersedesID,
-		}
-	}
-	view.Consumption = consumptionViewFrom(e.Consumption)
-	view.Intention = intentionViewFrom(e.Intention)
-	view.Tags = tagsViewFrom(e.Tags)
-	view.Progress = progressViewFrom(e.Progress)
-	return view, nil
+	return editionViewFrom(e), nil
 }
 
 // consumptionViewFrom presents the current consumption observation; an
@@ -406,6 +376,27 @@ func tagsViewFrom(names []string) []string {
 		return []string{}
 	}
 	return names
+}
+
+// notesViewFrom presents the target's active notes, each at its latest
+// revision: a retracted note is absent from the view, never rendered as a
+// value, while its revisions stay in history.
+func notesViewFrom(notes []store.NoteInfo) []Note {
+	view := []Note{}
+	for _, n := range notes {
+		view = append(view, Note{
+			ID:         n.ID,
+			TargetID:   n.TargetID,
+			Text:       n.Text,
+			Spoiler:    n.Spoiler,
+			Quote:      n.Quote,
+			Location:   n.Location,
+			Revision:   n.Revision,
+			RecordedAt: n.RecordedAt,
+			Actor:      Actor{Principal: n.Actor.Principal, Origin: domain.ActorOrigin(n.Actor.Origin), Identity: n.Actor.Identity},
+		})
+	}
+	return view
 }
 
 // TitleMutationRequest is one explicit title correction on a work or an
@@ -675,6 +666,7 @@ func editionViewFrom(e store.Edition) EditionView {
 	view.Consumption = consumptionViewFrom(e.Consumption)
 	view.Intention = intentionViewFrom(e.Intention)
 	view.Tags = tagsViewFrom(e.Tags)
+	view.Notes = notesViewFrom(e.Notes)
 	view.Progress = progressViewFrom(e.Progress)
 	return view
 }
