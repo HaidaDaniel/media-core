@@ -179,6 +179,21 @@ func orderClause(sort SortMode) string {
 	}
 }
 
+// sortKeyExpr reports the column a seek cursor compares against: the
+// preferred-title search key for title sort, the matching timestamp
+// column otherwise, so the cursor value and the seek clause always use
+// the same ordering.
+func sortKeyExpr(sort SortMode) string {
+	switch sort {
+	case SortCreatedAt:
+		return "w.created_at"
+	case SortUpdatedAt:
+		return "w.updated_at"
+	default:
+		return "p.search_key"
+	}
+}
+
 func placeholders(n int) string {
 	return strings.TrimSuffix(strings.Repeat("?,", n), ",")
 }
@@ -210,7 +225,7 @@ func (d *Database) SearchLibrary(ctx context.Context, q LibraryQuery) ([]WorkCar
 	}
 
 	where, args = libraryWhere(q, key, true)
-	rows, err := d.db.QueryContext(ctx, "SELECT w.id, w.revision, w.created_at, w.updated_at, w.archived_at, p.search_key "+workCardFrom+where+" "+orderClause(q.Sort)+" LIMIT ?", append(args, q.Limit)...)
+	rows, err := d.db.QueryContext(ctx, "SELECT w.id, w.revision, w.created_at, w.updated_at, w.archived_at, "+sortKeyExpr(q.Sort)+" "+workCardFrom+where+" "+orderClause(q.Sort)+" LIMIT ?", append(args, q.Limit)...)
 	if err != nil {
 		return nil, 0, fmt.Errorf("store: search library: %w", err)
 	}

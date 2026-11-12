@@ -451,6 +451,63 @@ func cardIDs(cards []WorkCard) []string {
 	return out
 }
 
+// TestLibrarySearchSortPagination proves seek pagination covers every work
+// for each sort mode: the cursor value and the seek clause must use the
+// same ordering (search key for title, the timestamp column otherwise).
+func TestLibrarySearchSortPagination(t *testing.T) {
+	db := openMigrated(t, t.TempDir())
+	defer db.Close()
+	base := libraryNow()
+	ctx := ctx(t)
+	ids := []string{}
+	for i, name := range []string{"W1", "W2", "W3", "W4"} {
+		ids = append(ids, mustWork(t, db, base.Add(time.Duration(i)*time.Second), name).ID)
+	}
+	serveAll := func(sort SortMode) []string {
+		served := []string{}
+		var afterKey, afterID string
+		for page := 0; page < 4; page++ {
+			cards, _, err := db.SearchLibrary(ctx, LibraryQuery{Sort: sort, Limit: 2, AfterKey: afterKey, AfterID: afterID})
+			if err != nil {
+				t.Fatalf("%s page %d: %v", sort, page+1, err)
+			}
+			for _, c := range cards {
+				served = append(served, c.ID)
+			}
+			if len(cards) == 0 {
+				break
+			}
+			last := cards[len(cards)-1]
+			afterKey, afterID = last.SortKey, last.ID
+		}
+		return served
+	}
+
+	// created_at sort: pages of two cover all four works in creation order.
+	served := serveAll(SortCreatedAt)
+	if len(served) != 4 {
+		t.Fatalf("created_at pages served %d works, want 4: %v", len(served), served)
+	}
+	for i, id := range ids {
+		if served[i] != id {
+			t.Fatalf("created_at order = %v, want the creation order %v", served, ids)
+		}
+	}
+
+	// updated_at sort: touching the oldest work moves it last, and the
+	// pages still cover the whole library.
+	if _, err := db.AddWorkTitle(ctx, base.Add(10*time.Second), ids[0], 0, TitleInput{Text: "W1 extra", Kind: domain.TitleAlias, Provenance: "manual"}); err != nil {
+		t.Fatalf("AddWorkTitle: %v", err)
+	}
+	served = serveAll(SortUpdatedAt)
+	if len(served) != 4 {
+		t.Fatalf("updated_at pages served %d works, want 4: %v", len(served), served)
+	}
+	if served[3] != ids[0] {
+		t.Fatalf("updated_at order = %v, want the touched work last", served)
+	}
+}
+
 // TestLibrarySearchQueryBound proves an empty or whitespace-only query
 // lists everything, and an invalid sort or limit is rejected.
 func TestLibrarySearchQueryBound(t *testing.T) {
