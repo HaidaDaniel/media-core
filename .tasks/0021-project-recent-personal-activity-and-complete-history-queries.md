@@ -31,6 +31,7 @@ Provide bounded recent activity/history over existing observation and revision t
 - internal/store/activity_test.go
 - internal/store/library.go
 - internal/cli/activity.go
+- internal/cli/activity_test.go
 - internal/cli/cli.go
 - internal/runtime/runtime.go
 - docs/progress.md
@@ -83,3 +84,4 @@ Provide bounded recent activity/history over existing observation and revision t
 - Only listed paths plus this task file may change. Do not edit other task contracts or generated agent instructions; task lifecycle is managed by APK.
 - Keep contract behavior fixed; if a counterexample requires expanding scope, update this task before source edits. No actual host deployment, push or publication is authorized.
 - Scope amendment (2026-11-12): the activity command joins the CLI usage text, so cli/cli.go joins the allowed list; the command itself registers in internal/cli/activity.go like the other capability commands.
+- Scope amendment (2026-11-12, second): add internal/cli/activity_test.go, which carries the activity command's test suite.
