@@ -302,6 +302,15 @@ func TestBackupRefusesOverwrite(t *testing.T) {
 	if second.Path != first.Path {
 		t.Fatalf("overwrite Path = %q, want %q", second.Path, first.Path)
 	}
+	entries, err = os.ReadDir(dest)
+	if err != nil {
+		t.Fatalf("read dest: %v", err)
+	}
+	for _, e := range entries {
+		if e.Name() != "a" {
+			t.Fatalf("destination entry %q after overwrite, want only the archive (no set-aside debris)", e.Name())
+		}
+	}
 	snap := openArchiveDB(t, filepath.Join(second.Path, DBFileName))
 	counts := mustQuery(t, snap, `SELECT COUNT(*) FROM backup_probe`)
 	if n, _ := counts[0].(int64); n != 2 {
@@ -337,6 +346,37 @@ func TestBackupFailureLeavesNoTrace(t *testing.T) {
 		}
 		if info, err := os.Lstat(dest); err != nil || info.IsDir() {
 			t.Fatalf("destination file was replaced (err %v)", err)
+		}
+	})
+	t.Run("destination inside state dir", func(t *testing.T) {
+		dir, db := initState(t)
+		mustExec(t, db, `CREATE TABLE backup_probe (id INTEGER PRIMARY KEY)`)
+		mustExec(t, db, `INSERT INTO backup_probe (id) VALUES (1)`)
+		cases := []Options{
+			{StateDir: dir, DestDir: dir, Name: "inside"},
+			{StateDir: dir, DestDir: dir, Name: store.DBFileName, Overwrite: true},
+			{StateDir: dir, DestDir: filepath.Join(dir, "nested"), Name: "x"},
+		}
+		for _, opts := range cases {
+			_, err := Create(context.Background(), opts)
+			if !errors.Is(err, ErrInvalid) {
+				t.Fatalf("Create(%+v) err = %v, want ErrInvalid", opts, err)
+			}
+		}
+		// The destructive combination (overwrite a colliding state file)
+		// must leave the source intact and openable.
+		counts := mustQuery(t, db, `SELECT COUNT(*) FROM backup_probe`)
+		if n, _ := counts[0].(int64); n != 1 {
+			t.Fatalf("source probe count = %v, want 1; the source was touched", n)
+		}
+		if _, err := os.Stat(filepath.Join(dir, store.DBFileName)); err != nil {
+			t.Fatalf("source database missing: %v", err)
+		}
+		entries, _ := os.ReadDir(dir)
+		for _, e := range entries {
+			if e.Name() == "inside" || e.Name() == "nested" {
+				t.Fatalf("archive %q published inside the state dir", e.Name())
+			}
 		}
 	})
 	t.Run("invalid options", func(t *testing.T) {

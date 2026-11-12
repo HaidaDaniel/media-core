@@ -51,14 +51,25 @@ the fields:
 
 ## Publishing and overwrite
 
+- The destination must not be the state directory or below it: an archive
+  is never published into the directory it backs up, so an overwrite can
+  never reach a state file.
 - The archive is staged in a hidden temporary directory inside the
   destination and published with a single rename: the archive appears as a
   complete directory or not at all. Every failure path removes the staging
-  directory, so no apparently complete corrupt archive and no staging
-  debris remain, and the source is untouched.
+  directory and restores any set-aside archive, so no apparently complete
+  corrupt archive and no staging debris remain, and the source is
+  untouched.
 - An existing target archive is never replaced unless the caller passes an
   explicit overwrite; the refusal is reported as a conflict and leaves the
-  existing archive byte-identical.
+  existing archive byte-identical. Overwrite sets the replaced archive
+  aside under a sibling `<name>.replaced-<timestamp>` name before
+  publishing the new one, and the set-aside copy is removed only after the
+  new archive is fully in place, so a crash at any point loses neither
+  archive; a stale set-aside name, if ever left behind, is a complete
+  prior archive.
+  A publish that loses the race to a concurrent publisher is reported as a
+  conflict.
 
 ## Exclusions
 

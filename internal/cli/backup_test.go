@@ -109,4 +109,19 @@ func TestBackupCLI(t *testing.T) {
 	if env.Error == nil || env.Error.Code != "invalid_argument" {
 		t.Fatalf("relative dest envelope = %+v, want code invalid_argument", env)
 	}
+
+	// The destructive combination (overwrite a colliding state file from
+	// inside the state dir) is refused and leaves the state usable.
+	code, out, errw = runCLI(t, "backup", "create", "--state-dir", dir, "--dest", dir, "--name", "media-core.db", "--force")
+	if code != ExitUsage {
+		t.Fatalf("in-place create: exit = %d, want %d, stderr = %q", code, ExitUsage, errw)
+	}
+	env = libEnv(t, out)
+	if env.Error == nil || env.Error.Code != "invalid_argument" {
+		t.Fatalf("in-place create envelope = %+v, want code invalid_argument", env)
+	}
+	code, out, errw = runCLI(t, "list", "--state-dir", dir)
+	if code != ExitOK {
+		t.Fatalf("state unusable after refused in-place backup: exit = %d, stderr = %q", code, errw)
+	}
 }

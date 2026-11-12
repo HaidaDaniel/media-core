@@ -101,6 +101,9 @@ func Create(ctx context.Context, opts Options) (*Result, error) {
 	if err != nil {
 		return nil, err
 	}
+	if insideStateDir(opts.StateDir, filepath.Join(opts.DestDir, name)) {
+		return nil, fmt.Errorf("%w: the archive must not be published inside the state directory", ErrInvalid)
+	}
 	if err := os.MkdirAll(opts.DestDir, 0o700); err != nil {
 		return nil, fmt.Errorf("backup: create destination: %w", err)
 	}
@@ -129,8 +132,12 @@ func Create(ctx context.Context, opts Options) (*Result, error) {
 		return nil, fmt.Errorf("backup: create staging: %w", err)
 	}
 	published := false
+	setAside := ""
 	defer func() {
 		if !published {
+			if setAside != "" {
+				_ = os.Rename(setAside, final)
+			}
 			_ = os.RemoveAll(staging)
 		}
 	}()
@@ -174,17 +181,65 @@ func Create(ctx context.Context, opts Options) (*Result, error) {
 	}
 
 	if opts.Overwrite {
-		if err := os.RemoveAll(final); err != nil {
-			return nil, fmt.Errorf("backup: remove replaced archive: %w", err)
+		if _, err := os.Lstat(final); err == nil {
+			setAside, err = setAsideName(opts.DestDir, final)
+			if err != nil {
+				return nil, err
+			}
+			if err := os.Rename(final, setAside); err != nil {
+				return nil, fmt.Errorf("backup: set aside replaced archive: %w", err)
+			}
 		}
 	} else if _, err := os.Lstat(final); err == nil {
 		return nil, fmt.Errorf("%w: %s", ErrExists, final)
 	}
 	if err := os.Rename(staging, final); err != nil {
+		if _, statErr := os.Lstat(final); statErr == nil {
+			return nil, fmt.Errorf("%w: %s", ErrExists, final)
+		}
 		return nil, fmt.Errorf("backup: publish: %w", err)
 	}
 	published = true
+	// The new archive is fully in place, so the set-aside copy of the
+	// replaced archive can go; a crash before this point loses neither.
+	if setAside != "" {
+		if err := os.RemoveAll(setAside); err != nil {
+			return nil, fmt.Errorf("backup: remove set-aside archive: %w", err)
+		}
+	}
 	return &Result{Path: final, Manifest: manifest}, nil
+}
+
+// insideStateDir reports whether path is the state directory itself or
+// below it; publishing there could let an overwrite reach a state file.
+func insideStateDir(stateDir, path string) bool {
+	stateDir = filepath.Clean(stateDir)
+	path = filepath.Clean(path)
+	if path == stateDir {
+		return true
+	}
+	return strings.HasPrefix(path, stateDir+string(filepath.Separator))
+}
+
+// setAsideName chooses a free sibling name for the archive being replaced,
+// so a crash between the set-aside and the publish loses neither archive.
+func setAsideName(dest, final string) (string, error) {
+	stamp := time.Now().UTC().Format("20060102T150405.000000")
+	for i := 0; ; i++ {
+		var name string
+		if i == 0 {
+			name = filepath.Base(final) + ".replaced-" + stamp
+		} else {
+			name = fmt.Sprintf("%s.replaced-%s-%d", filepath.Base(final), stamp, i)
+		}
+		cand := filepath.Join(dest, name)
+		if _, err := os.Lstat(cand); err != nil {
+			if os.IsNotExist(err) {
+				return cand, nil
+			}
+			return "", fmt.Errorf("backup: stat set-aside name: %w", err)
+		}
+	}
 }
 
 // verifySourceFile rejects a missing, symlinked or non-regular source
