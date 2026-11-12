@@ -1,7 +1,7 @@
 # Task 0016 - Store intentions and simple audited tag assignments
 
-State: todo
-Owner: none
+State: doing
+Owner: opencode-media-20261110
 Mode: mvp
 Lane: application
 Scope: application
@@ -24,19 +24,28 @@ Add saved/planned/interested intentions and simple work/edition tags with query 
 - docs/application-contract.md
 
 ## Files allowed to edit
+
 - internal/app/intention.go
 - internal/app/tags.go
 - internal/app/intention_test.go
 - internal/app/tags_test.go
+- internal/app/library.go
+- internal/app/mutation.go
 - internal/store/intention.go
 - internal/store/tags.go
 - internal/store/library.go
+- internal/store/editions.go
+- internal/store/works.go
 - internal/store/migrations/0007_intention_tags.sql
+- internal/store/migrations_test.go
 - internal/cli/intention.go
 - internal/cli/tags.go
+- internal/cli/library.go
+- internal/cli/cli.go
+- internal/cli/intention_test.go
+- internal/cli/tags_test.go
 - internal/runtime/runtime.go
 - docs/progress.md
-
 - .tasks/0016-store-intentions-and-simple-audited-tag-assignments.md
 
 ## Files forbidden to edit
@@ -75,6 +84,7 @@ Add saved/planned/interested intentions and simple work/edition tags with query 
 - `{"id":"focused","type":"automated","required":true,"environment":"local","profile":"report","command":"go test ./internal/app ./internal/store ./internal/cli -run \"Test(Intention|Tag)\""}`
 
 ## Documentation updates
+
 - Update docs/progress.md on lifecycle changes.
 
 ## Notes

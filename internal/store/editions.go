@@ -31,8 +31,10 @@ type EditionInput struct {
 // Edition is a persisted edition line with its active titles, current
 // publication observation, current consumption observation (nil when none
 // was recorded; presentation of an explicit unknown is an application
-// concern) and the live current progress observation of every unit (empty
-// when no unit has one).
+// concern), current intention observation (nil when none was recorded;
+// presentation of an explicit none is an application concern) and the live
+// current progress observation of every unit (empty when no unit has one).
+// Tags lists the normalized names of the edition's active tag assignments.
 type Edition struct {
 	ID          string
 	WorkID      string
@@ -46,7 +48,9 @@ type Edition struct {
 	Titles      []EditionTitle
 	Publication *PublicationObservation
 	Consumption *ConsumptionObservation
+	Intention   *IntentionObservation
 	Progress    []ProgressObservation
+	Tags        []string
 }
 
 // EditionTitle is one edition title row, active or retired.
@@ -235,7 +239,15 @@ func (d *Database) GetEdition(ctx context.Context, editionID string) (Edition, e
 	if err != nil {
 		return Edition{}, err
 	}
+	e.Intention, err = d.currentIntention(ctx, editionID)
+	if err != nil {
+		return Edition{}, err
+	}
 	e.Progress, err = d.currentProgress(ctx, editionID)
+	if err != nil {
+		return Edition{}, err
+	}
+	e.Tags, err = d.currentEditionTags(ctx, editionID)
 	if err != nil {
 		return Edition{}, err
 	}

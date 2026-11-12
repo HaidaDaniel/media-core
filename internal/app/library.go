@@ -49,10 +49,16 @@ type LibraryFilter struct {
 	Kinds []domain.EditionKind
 	// Publications is the publication dimension; Consumptions and
 	// UnknownConsumption are the consumption dimension, where unknown
-	// selects editions whose current effective consumption is unknown.
+	// selects editions whose current effective consumption is unknown;
+	// Intentions is the intention dimension, where none selects editions
+	// without a recorded intention; Tags holds tag names that are
+	// normalized before matching, satisfied by a work tag or the matching
+	// edition's own tag.
 	Publications       []domain.Publication
 	Consumptions       []domain.Consumption
 	UnknownConsumption bool
+	Intentions         []domain.Intention
+	Tags               []string
 	Sort               LibrarySort
 	Limit              int
 	Cursor             *string
@@ -83,7 +89,7 @@ type libraryCursorPayload struct {
 
 // filterFingerprint is the canonical identity of the non-cursor part of a
 // listing request; a cursor from a different request is rejected.
-func filterFingerprint(query string, kinds []domain.EditionKind, publications []domain.Publication, consumptions []domain.Consumption, unknownConsumption bool) string {
+func filterFingerprint(query string, kinds []domain.EditionKind, publications []domain.Publication, consumptions []domain.Consumption, unknownConsumption bool, intentions []domain.Intention, tags []string) string {
 	ks := make([]string, 0, len(kinds))
 	for _, k := range kinds {
 		ks = append(ks, string(k))
@@ -99,12 +105,21 @@ func filterFingerprint(query string, kinds []domain.EditionKind, publications []
 		cs = append(cs, string(c))
 	}
 	sort.Strings(cs)
+	is := make([]string, 0, len(intentions))
+	for _, i := range intentions {
+		is = append(is, string(i))
+	}
+	sort.Strings(is)
+	ts := append([]string(nil), tags...)
+	sort.Strings(ts)
 	b, err := json.Marshal(map[string]any{
 		"query":        domain.SearchKey(query),
 		"kinds":        ks,
 		"publications": ps,
 		"consumptions": cs,
 		"unknown_cons": unknownConsumption,
+		"intentions":   is,
+		"tags":         ts,
 	})
 	if err != nil {
 		return ""
@@ -180,7 +195,20 @@ func (s *Service) SearchLibrary(ctx context.Context, f LibraryFilter) (ListPaylo
 			return ListPayload{}, invalidArgument("unknown consumption "+string(c), base)
 		}
 	}
-	qHash := filterFingerprint(query, f.Kinds, f.Publications, f.Consumptions, f.UnknownConsumption)
+	for _, i := range f.Intentions {
+		if !i.Valid() {
+			return ListPayload{}, invalidArgument("unknown intention "+string(i), base)
+		}
+	}
+	tagNames := make([]string, 0, len(f.Tags))
+	for _, t := range f.Tags {
+		name, err := store.NormalizeTagName(t)
+		if err != nil {
+			return ListPayload{}, invalidArgument(err.Error(), base)
+		}
+		tagNames = append(tagNames, name)
+	}
+	qHash := filterFingerprint(query, f.Kinds, f.Publications, f.Consumptions, f.UnknownConsumption, f.Intentions, tagNames)
 	var afterKey, afterID string
 	if f.Cursor != nil {
 		c, err := parseLibraryCursor(*f.Cursor, srt, limit, qHash)
@@ -195,6 +223,8 @@ func (s *Service) SearchLibrary(ctx context.Context, f LibraryFilter) (ListPaylo
 		Publications:       f.Publications,
 		Consumptions:       f.Consumptions,
 		UnknownConsumption: f.UnknownConsumption,
+		Intentions:         f.Intentions,
+		Tags:               tagNames,
 		Sort:               storeSort(srt),
 		Limit:              limit + 1,
 		AfterKey:           afterKey,
@@ -330,6 +360,8 @@ func (s *Service) GetEdition(ctx context.Context, editionID string) (EditionView
 		}
 	}
 	view.Consumption = consumptionViewFrom(e.Consumption)
+	view.Intention = intentionViewFrom(e.Intention)
+	view.Tags = tagsViewFrom(e.Tags)
 	view.Progress = progressViewFrom(e.Progress)
 	return view, nil
 }
@@ -349,6 +381,31 @@ func consumptionViewFrom(o *store.ConsumptionObservation) *ConsumptionState {
 		Actor:        Actor{Principal: o.Actor.Principal, Origin: domain.ActorOrigin(o.Actor.Origin), Identity: o.Actor.Identity},
 		SupersedesID: o.SupersedesID,
 	}
+}
+
+// intentionViewFrom presents the current intention observation; an explicit
+// retraction to none (like the absence of any observation) is the absence
+// of a recorded intention, never an invented value.
+func intentionViewFrom(o *store.IntentionObservation) *IntentionState {
+	if o == nil || o.Value == store.IntentionNone {
+		return nil
+	}
+	return &IntentionState{
+		Value:        domain.Intention(o.Value),
+		Reason:       o.Reason,
+		ObservedAt:   o.ObservedAt,
+		RecordedAt:   o.RecordedAt,
+		Actor:        Actor{Principal: o.Actor.Principal, Origin: domain.ActorOrigin(o.Actor.Origin), Identity: o.Actor.Identity},
+		SupersedesID: o.SupersedesID,
+	}
+}
+
+// tagsViewFrom presents the active tag names as a non-nil collection.
+func tagsViewFrom(names []string) []string {
+	if names == nil {
+		return []string{}
+	}
+	return names
 }
 
 // TitleMutationRequest is one explicit title correction on a work or an
@@ -616,6 +673,8 @@ func editionViewFrom(e store.Edition) EditionView {
 		}
 	}
 	view.Consumption = consumptionViewFrom(e.Consumption)
+	view.Intention = intentionViewFrom(e.Intention)
+	view.Tags = tagsViewFrom(e.Tags)
 	view.Progress = progressViewFrom(e.Progress)
 	return view
 }

@@ -31,7 +31,8 @@ type TitleInput struct {
 	Provenance string
 }
 
-// Work is a persisted story grouping with its active titles.
+// Work is a persisted story grouping with its active titles. Tags lists
+// the normalized names of the work's active tag assignments.
 type Work struct {
 	ID         string
 	Revision   int64
@@ -39,6 +40,7 @@ type Work struct {
 	UpdatedAt  time.Time
 	ArchivedAt *time.Time
 	Titles     []WorkTitle
+	Tags       []string
 }
 
 // WorkTitle is one work title row, active or retired. SearchKey is the
@@ -223,7 +225,15 @@ func (d *Database) GetWork(ctx context.Context, workID string) (Work, error) {
 		}
 		w.Titles = append(w.Titles, t)
 	}
-	return w, rows.Err()
+	if err := rows.Err(); err != nil {
+		return Work{}, err
+	}
+	rows.Close()
+	w.Tags, err = d.currentWorkTags(ctx, workID)
+	if err != nil {
+		return Work{}, err
+	}
+	return w, nil
 }
 
 // ListWorks returns every work ordered by the normalized preferred title,

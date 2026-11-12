@@ -40,10 +40,12 @@ const (
 )
 
 // LibraryQuery is one bounded library search. Query is raw text; it is
-// normalized before matching. Kinds and Publications are edition-qualified
-// filters: a work qualifies through editions that satisfy every supplied
-// dimension, never by combining unrelated editions. Later filter dimensions
-// (consumption, intention, tags, rating) join the same predicate list.
+// normalized before matching. Kinds, Publications, Consumptions and
+// Intentions are edition-qualified filters: a work qualifies through
+// editions that satisfy every supplied dimension, never by combining
+// unrelated editions. The tag dimension is satisfied by a work tag or by
+// the matching edition's own tag. Later filter dimensions (rating) join the
+// same predicate list.
 type LibraryQuery struct {
 	Query        string
 	Kinds        []domain.EditionKind
@@ -54,8 +56,17 @@ type LibraryQuery struct {
 	// dimension.
 	Consumptions       []domain.Consumption
 	UnknownConsumption bool
-	Sort               SortMode
-	Limit              int
+	// Intentions is the intention dimension: the current effective
+	// intention of the same qualifying edition. The value none selects
+	// editions without a recorded intention (no live observation, or an
+	// explicit retraction to none); supplied values are ORed within the
+	// dimension.
+	Intentions []domain.Intention
+	// Tags holds normalized tag names; a work tag or the qualifying
+	// edition's tag satisfies the dimension.
+	Tags  []string
+	Sort  SortMode
+	Limit int
 	// AfterKey and AfterID seek past the last served row of the previous
 	// page; AfterID empty means the first page.
 	AfterKey string
@@ -159,6 +170,46 @@ func editionFilter(q LibraryQuery) (string, []any) {
 			args = append(args, string(c))
 		}
 	}
+	if len(q.Intentions) > 0 {
+		var others []domain.Intention
+		none := false
+		for _, i := range q.Intentions {
+			if i == domain.IntentionNone {
+				none = true
+			} else {
+				others = append(others, i)
+			}
+		}
+		var part string
+		switch {
+		case len(others) > 0 && none:
+			part = "(" + currentIntentionIn(len(others)) + " OR " + currentIntentionNone() + ")"
+		case len(others) > 0:
+			part = "(" + currentIntentionIn(len(others)) + ")"
+		default:
+			part = "(" + currentIntentionNone() + ")"
+		}
+		parts = append(parts, part)
+		for _, i := range others {
+			args = append(args, string(i))
+		}
+	}
+	if len(q.Tags) > 0 {
+		// A work tag or the matching edition's own tag satisfies the tag
+		// predicate.
+		parts = append(parts, "( EXISTS (SELECT 1 FROM tag_assignments ta "+
+			"JOIN tags tg ON tg.id = ta.tag_id "+
+			"WHERE ta.work_id = w.id AND ta.detached_at IS NULL AND tg.name IN ("+placeholders(len(q.Tags))+")) "+
+			"OR EXISTS (SELECT 1 FROM tag_assignments ta2 "+
+			"JOIN tags tg2 ON tg2.id = ta2.tag_id "+
+			"WHERE ta2.edition_id = e.id AND ta2.detached_at IS NULL AND tg2.name IN ("+placeholders(len(q.Tags))+")) )")
+		for _, t := range q.Tags {
+			args = append(args, t)
+		}
+		for _, t := range q.Tags {
+			args = append(args, t)
+		}
+	}
 	return strings.Join(parts, " AND "), args
 }
 
@@ -199,6 +250,48 @@ func currentConsumptionUnknown() string {
 				SELECT 1 FROM consumption_observations n
 				WHERE n.edition_id = e.id
 				  AND NOT EXISTS (SELECT 1 FROM consumption_observations s2 WHERE s2.supersedes_id = n.id)
+				  AND (n.observed_at, n.recorded_at, n.id) > (o.observed_at, o.recorded_at, o.id)
+			  )
+		)
+	)`
+}
+
+// currentIntentionIn reports editions whose current (last non-superseded)
+// intention observation is one of the given values.
+func currentIntentionIn(n int) string {
+	return fmt.Sprintf(`EXISTS (
+		SELECT 1 FROM intention_observations o
+		WHERE o.edition_id = e.id
+		  AND o.value IN (%s)
+		  AND NOT EXISTS (SELECT 1 FROM intention_observations s WHERE s.supersedes_id = o.id)
+		  AND NOT EXISTS (
+			SELECT 1 FROM intention_observations n
+			WHERE n.edition_id = e.id
+			  AND NOT EXISTS (SELECT 1 FROM intention_observations s2 WHERE s2.supersedes_id = n.id)
+			  AND (n.observed_at, n.recorded_at, n.id) > (o.observed_at, o.recorded_at, o.id)
+		  )
+	)`, placeholders(n))
+}
+
+// currentIntentionNone reports editions without a recorded intention: no
+// live observation at all, or the last live observation is an explicit
+// retraction to none.
+func currentIntentionNone() string {
+	return `(
+		NOT EXISTS (
+			SELECT 1 FROM intention_observations o
+			WHERE o.edition_id = e.id
+			  AND NOT EXISTS (SELECT 1 FROM intention_observations s WHERE s.supersedes_id = o.id)
+		)
+		OR EXISTS (
+			SELECT 1 FROM intention_observations o
+			WHERE o.edition_id = e.id
+			  AND o.value = '` + IntentionNone + `'
+			  AND NOT EXISTS (SELECT 1 FROM intention_observations s WHERE s.supersedes_id = o.id)
+			  AND NOT EXISTS (
+				SELECT 1 FROM intention_observations n
+				WHERE n.edition_id = e.id
+				  AND NOT EXISTS (SELECT 1 FROM intention_observations s2 WHERE s2.supersedes_id = n.id)
 				  AND (n.observed_at, n.recorded_at, n.id) > (o.observed_at, o.recorded_at, o.id)
 			  )
 		)
@@ -378,6 +471,12 @@ func matchedEditionIDs(key string, w Work, editions []Edition, q LibraryQuery) [
 		if (len(q.Consumptions) > 0 || q.UnknownConsumption) && !consumptionMatches(q, e) {
 			continue
 		}
+		if len(q.Intentions) > 0 && !intentionMatches(q, e) {
+			continue
+		}
+		if len(q.Tags) > 0 && !tagMatches(q, w, e) {
+			continue
+		}
 		matched := key == "" || workMatch
 		if !matched {
 			for _, t := range e.Titles {
@@ -423,6 +522,44 @@ func consumptionMatches(q LibraryQuery, e Edition) bool {
 	}
 	for _, c := range q.Consumptions {
 		if string(c) == value {
+			return true
+		}
+	}
+	return false
+}
+
+// intentionMatches reports whether an edition's current effective intention
+// satisfies the query's intention dimension: no recorded intention (no live
+// observation, or an explicit retraction) is the value none and matches
+// only a supplied none, a known value only one of the supplied values.
+func intentionMatches(q LibraryQuery, e Edition) bool {
+	for _, i := range q.Intentions {
+		if string(i) == currentIntentionValue(e.Intention) {
+			return true
+		}
+	}
+	return false
+}
+
+// tagMatches reports whether the tag predicate is satisfied by the work's
+// active tags or by the edition's own active tags.
+func tagMatches(q LibraryQuery, w Work, e Edition) bool {
+	for _, t := range w.Tags {
+		if containsTag(q.Tags, t) {
+			return true
+		}
+	}
+	for _, t := range e.Tags {
+		if containsTag(q.Tags, t) {
+			return true
+		}
+	}
+	return false
+}
+
+func containsTag(tags []string, name string) bool {
+	for _, t := range tags {
+		if t == name {
 			return true
 		}
 	}

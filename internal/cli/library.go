@@ -88,6 +88,8 @@ type listArgs struct {
 	publications []domain.Publication
 	consumptions []domain.Consumption
 	unknownCons  bool
+	intentions   []domain.Intention
+	tags         []string
 	sort         app.LibrarySort
 	limit        int
 	cursor       *string
@@ -148,6 +150,22 @@ func parseListArgs(args []string) (*listArgs, error) {
 				}
 				a.consumptions = append(a.consumptions, c)
 			}
+		case "--intention":
+			v, err := needValue()
+			if err != nil {
+				return nil, err
+			}
+			i := domain.Intention(v)
+			if !i.Valid() {
+				return nil, fmt.Errorf("media-core list: unknown intention %q (none, interested, saved, planned, not_interested)", v)
+			}
+			a.intentions = append(a.intentions, i)
+		case "--tag":
+			v, err := needValue()
+			if err != nil {
+				return nil, err
+			}
+			a.tags = append(a.tags, v)
 		case "--sort":
 			v, err := needValue()
 			if err != nil {
@@ -198,6 +216,8 @@ func runList(args []string, out io.Writer) error {
 		Publications:       a.publications,
 		Consumptions:       a.consumptions,
 		UnknownConsumption: a.unknownCons,
+		Intentions:         a.intentions,
+		Tags:               a.tags,
 		Sort:               a.sort,
 		Limit:              a.limit,
 		Cursor:             a.cursor,
