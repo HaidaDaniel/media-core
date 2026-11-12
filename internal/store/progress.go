@@ -72,7 +72,7 @@ func ParseProgressDecimal(s string) (int64, bool) {
 	if dot := strings.IndexByte(s, '.'); dot >= 0 {
 		intPart = s[:dot]
 		f := s[dot+1:]
-		if len(f) > 3 {
+		if len(f) == 0 || len(f) > 3 {
 			return 0, false
 		}
 		for _, c := range f {
