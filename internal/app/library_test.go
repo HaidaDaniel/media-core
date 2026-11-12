@@ -182,18 +182,19 @@ func TestLibrarySearchCursorBinding(t *testing.T) {
 			t.Fatalf("%s: code = %s, want invalid_argument", name, ae.Code)
 		}
 	}
-	// The cursor points at the probe row (Delta in title order), so the
-	// second page resumes after it and holds only Gamma.
+	// The cursor seeks after the last served row (Beta), so the second
+	// page holds the remaining two works and the pages cover the total.
 	second, err := s.SearchLibrary(context.Background(), base())
 	if err != nil {
 		t.Fatalf("second page: %v", err)
 	}
-	if second.Total != 4 || len(second.Items) != 1 {
-		t.Fatalf("second page = %+v, want one item and total 4", second)
+	if second.Total != 4 || len(second.Items) != 2 {
+		t.Fatalf("second page = %+v, want two items and total 4", second)
 	}
-	gamma := second.Items[0].(WorkCard)
-	if gamma.WorkID != ids[2] {
-		t.Fatalf("second page work = %s, want gamma %s", gamma.WorkID, ids[2])
+	delta := second.Items[0].(WorkCard)
+	gamma := second.Items[1].(WorkCard)
+	if delta.WorkID != ids[3] || gamma.WorkID != ids[2] {
+		t.Fatalf("second page = %v, %v, want delta %s then gamma %s", delta.WorkID, gamma.WorkID, ids[3], ids[2])
 	}
 	if second.NextCursor != nil {
 		t.Fatalf("second page cursor = %v, want none", second.NextCursor)

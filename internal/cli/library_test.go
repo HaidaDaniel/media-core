@@ -84,7 +84,7 @@ func addWorkID(t *testing.T, dir, title string) string {
 func TestCatalogListCLI(t *testing.T) {
 	dir := initLibState(t)
 	workA := addWorkID(t, dir, "Alpha Story")
-	addWorkID(t, dir, "Beta Story")
+	workB := addWorkID(t, dir, "Beta Story")
 	workC := addWorkID(t, dir, "Gamma Story")
 
 	code, out, errw := runCLI(t, "list", "--state-dir", dir, "--limit", "1")
@@ -103,10 +103,19 @@ func TestCatalogListCLI(t *testing.T) {
 	if code != ExitOK {
 		t.Fatalf("list page 2: exit = %d, stderr = %q", code, errw)
 	}
-	// The cursor points at the probe row (Beta), so page 2 holds only Gamma.
+	// The cursor seeks after the last served row, so the pages cover the
+	// total without skipping a work.
 	page2 := listEnv(t, out)
-	if page2.Total != 3 || len(page2.Items) != 1 || page2.Items[0]["work_id"] != workC {
-		t.Fatalf("page 2 = %+v, want the gamma work only", page2)
+	if page2.Total != 3 || len(page2.Items) != 1 || page2.Items[0]["work_id"] != workB || page2.NextCursor == nil {
+		t.Fatalf("page 2 = %+v, want the beta work and a cursor", page2)
+	}
+	code, out, errw = runCLI(t, "list", "--state-dir", dir, "--limit", "1", "--cursor", *page2.NextCursor)
+	if code != ExitOK {
+		t.Fatalf("list page 3: exit = %d, stderr = %q", code, errw)
+	}
+	page3 := listEnv(t, out)
+	if page3.Total != 3 || len(page3.Items) != 1 || page3.Items[0]["work_id"] != workC || page3.NextCursor != nil {
+		t.Fatalf("page 3 = %+v, want the gamma work and no further cursor", page3)
 	}
 }
 

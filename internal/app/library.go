@@ -186,7 +186,10 @@ func (s *Service) SearchLibrary(ctx context.Context, f LibraryFilter) (ListPaylo
 	}
 	var next *string
 	if len(cards) > limit {
-		last := cards[limit]
+		// A probe row beyond the page proves more rows exist; the cursor
+		// seeks after the last served row, never after the probe, so no
+		// work is skipped at a page boundary.
+		last := cards[limit-1]
 		next = strPtr(issueLibraryCursor(srt, limit, qHash, last.SortKey, last.Work.ID))
 		cards = cards[:limit]
 	}
