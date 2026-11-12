@@ -294,9 +294,9 @@ type activityQueryAdapter struct {
 	seekI string
 }
 
-func (a activityQueryAdapter) typeFilter() []ActivityType     { return a.types }
-func (a activityQueryAdapter) entityScope() (string, string)  { return a.kind, a.id }
-func (a activityQueryAdapter) seekPoint() (string, string)    { return a.seekR, a.seekI }
+func (a activityQueryAdapter) typeFilter() []ActivityType    { return a.types }
+func (a activityQueryAdapter) entityScope() (string, string) { return a.kind, a.id }
+func (a activityQueryAdapter) seekPoint() (string, string)   { return a.seekR, a.seekI }
 
 // activityCounts reports the total of one projection request before
 // pagination.

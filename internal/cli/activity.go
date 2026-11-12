@@ -19,12 +19,12 @@ const activityUsage = "usage: media-core activity recent [--type <t>] [--limit <
 // activityArgs is one recent-activity or entity-history request.
 type activityArgs struct {
 	libCommand
-	verb    string
-	entity  string
-	target  string
-	typ     string
-	limit   int
-	cursor  *string
+	verb   string
+	entity string
+	target string
+	typ    string
+	limit  int
+	cursor *string
 }
 
 func parseActivityArgs(args []string) (*activityArgs, error) {
