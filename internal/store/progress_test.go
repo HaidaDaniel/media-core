@@ -200,6 +200,8 @@ func TestProgressInvalidValues(t *testing.T) {
 		{Unit: domain.UnitPercent, Position: "50", Total: strPtr("100")},
 		{Unit: domain.UnitChapter, Position: "42", Total: strPtr("0")},
 		{Unit: domain.UnitChapter, Position: "42", Total: strPtr("41")},
+		{Unit: domain.UnitChapter, Position: "1.5", Total: strPtr("1.05")},
+		{Unit: domain.UnitChapter, Position: "1.5", Total: strPtr("1.499")},
 		{Unit: domain.UnitChapter, Position: "42", Total: strPtr("1.2345")},
 		{Unit: "scene", Position: "1"},
 		{Unit: domain.UnitChapter, Position: ""},
@@ -230,6 +232,19 @@ func TestProgressInvalidValues(t *testing.T) {
 	}
 	if len(got) != 3 || got[domain.UnitPercent] != "100" || got[domain.UnitPage] != "0" || got[domain.UnitChapter] != "1000000000" {
 		t.Fatalf("boundary units = %v, want percent 100, page 0 and chapter 1000000000 live", got)
+	}
+	// Fractional parts scale to milli-units when compared: an equal
+	// decimal in a different form is accepted.
+	e = mustRecordProgress(t, db, now.Add(6*time.Second), e, e.Revision, ProgressInput{Unit: domain.UnitVolume, Position: "1.5", Total: strPtr("1.50")})
+	if e.Progress == nil {
+		t.Fatalf("progress = nil, want live units")
+	}
+	vol := map[domain.ProgressUnit]*ProgressObservation{}
+	for i := range e.Progress {
+		vol[e.Progress[i].Unit] = &e.Progress[i]
+	}
+	if vol[domain.UnitVolume] == nil || vol[domain.UnitVolume].Position == nil || *vol[domain.UnitVolume].Position != "1.5" || vol[domain.UnitVolume].Total == nil || *vol[domain.UnitVolume].Total != "1.50" {
+		t.Fatalf("volume = %+v, want 1.5 with total 1.50 accepted", vol[domain.UnitVolume])
 	}
 }
 

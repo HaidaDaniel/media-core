@@ -81,6 +81,9 @@ func ParseProgressDecimal(s string) (int64, bool) {
 			}
 			frac = frac*10 + int(c-'0')
 		}
+		for i := 0; i < 3-len(f); i++ {
+			frac *= 10
+		}
 	}
 	if intPart == "" || (len(intPart) > 1 && intPart[0] == '0') {
 		return 0, false
