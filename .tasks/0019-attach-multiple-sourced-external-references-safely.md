@@ -1,7 +1,7 @@
 # Task 0019 - Attach multiple sourced external references safely
 
-State: todo
-Owner: none
+State: doing
+Owner: opencode-media-20261110
 Mode: mvp
 Lane: application
 Scope: application
@@ -24,15 +24,21 @@ Promote identity reservations into multiple edition references with roles and pr
 - docs/application-contract.md
 
 ## Files allowed to edit
+
 - internal/app/references.go
 - internal/app/references_test.go
 - internal/store/references.go
 - internal/store/references_test.go
 - internal/store/migrations/0010_references.sql
+- internal/store/editions.go
+- internal/store/migrations_test.go
+- internal/app/library.go
+- internal/app/mutation.go
 - internal/cli/references.go
+- internal/cli/references_test.go
+- internal/cli/cli.go
 - internal/runtime/runtime.go
 - docs/progress.md
-
 - .tasks/0019-attach-multiple-sourced-external-references-safely.md
 
 ## Files forbidden to edit
@@ -71,6 +77,7 @@ Promote identity reservations into multiple edition references with roles and pr
 - `{"id":"focused","type":"automated","required":true,"environment":"local","profile":"report","command":"go test ./internal/app ./internal/store ./internal/cli -run \"TestReference\""}`
 
 ## Documentation updates
+
 - Update docs/progress.md on lifecycle changes.
 
 ## Notes
@@ -80,3 +87,4 @@ Promote identity reservations into multiple edition references with roles and pr
 - Before editing, read existing allowed source files supplied by completed dependencies. Missing paths are new files owned by this task, not existing context.
 - Only listed paths plus this task file may change. Do not edit other task contracts or generated agent instructions; task lifecycle is managed by APK.
 - Keep contract behavior fixed; if a counterexample requires expanding scope, update this task before source edits. No actual host deployment, push or publication is authorized.
+- Scope amendment (2026-11-12): the edition view carries references, so the wiring files join the allowed list: store/editions.go carries the active references on the edition, store/migrations_test.go pins the embedded migration set's shape (pin moves to 10), app/library.go renders the frozen reference view, app/mutation.go maps the new reference not-found error, cli/references_test.go carries the reference command's test suite and cli/cli.go lists the reference command in the usage.
