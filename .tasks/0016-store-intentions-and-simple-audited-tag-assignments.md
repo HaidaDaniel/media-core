@@ -1,6 +1,6 @@
 # Task 0016 - Store intentions and simple audited tag assignments
 
-State: doing
+State: done
 Owner: opencode-media-20261110
 Mode: mvp
 Lane: application
