@@ -379,6 +379,48 @@ func TestBackupFailureLeavesNoTrace(t *testing.T) {
 			}
 		}
 	})
+	t.Run("symlinked destination into state dir", func(t *testing.T) {
+		dir, db := initState(t)
+		mustExec(t, db, `CREATE TABLE backup_probe (id INTEGER PRIMARY KEY)`)
+		mustExec(t, db, `INSERT INTO backup_probe (id) VALUES (1)`)
+		link := filepath.Join(t.TempDir(), "link")
+		if err := os.Symlink(dir, link); err != nil {
+			t.Fatalf("symlink: %v", err)
+		}
+		cases := []Options{
+			{StateDir: dir, DestDir: link, Name: store.DBFileName, Overwrite: true},
+			{StateDir: dir, DestDir: filepath.Join(link, "sub"), Name: "x"},
+		}
+		for _, opts := range cases {
+			_, err := Create(context.Background(), opts)
+			if !errors.Is(err, ErrInvalid) {
+				t.Fatalf("Create(%+v) err = %v, want ErrInvalid", opts, err)
+			}
+		}
+		// The destructive combination must leave the source intact.
+		counts := mustQuery(t, db, `SELECT COUNT(*) FROM backup_probe`)
+		if n, _ := counts[0].(int64); n != 1 {
+			t.Fatalf("source probe count = %v, want 1; the source was touched", n)
+		}
+	})
+	t.Run("symlinked destination outside state dir", func(t *testing.T) {
+		dir, _ := initState(t)
+		target := filepath.Join(t.TempDir(), "real")
+		if err := os.MkdirAll(target, 0o700); err != nil {
+			t.Fatalf("mkdir target: %v", err)
+		}
+		link := filepath.Join(t.TempDir(), "link")
+		if err := os.Symlink(target, link); err != nil {
+			t.Fatalf("symlink: %v", err)
+		}
+		res, err := Create(context.Background(), Options{StateDir: dir, DestDir: link, Name: "via-link"})
+		if err != nil {
+			t.Fatalf("Create through a legitimate link: %v", err)
+		}
+		if !strings.HasPrefix(res.Path, target) {
+			t.Fatalf("archive published at %q, want under %q", res.Path, target)
+		}
+	})
 	t.Run("invalid options", func(t *testing.T) {
 		dir, _ := initState(t)
 		cases := []Options{

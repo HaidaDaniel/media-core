@@ -53,7 +53,9 @@ the fields:
 
 - The destination must not be the state directory or below it: an archive
   is never published into the directory it backs up, so an overwrite can
-  never reach a state file.
+  never reach a state file. The destination is resolved through symlinks
+  before the check, so a link cannot redirect the publish into the state
+  directory.
 - The archive is staged in a hidden temporary directory inside the
   destination and published with a single rename: the archive appears as a
   complete directory or not at all. Every failure path removes the staging

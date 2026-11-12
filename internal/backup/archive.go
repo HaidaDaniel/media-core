@@ -101,13 +101,21 @@ func Create(ctx context.Context, opts Options) (*Result, error) {
 	if err != nil {
 		return nil, err
 	}
-	if insideStateDir(opts.StateDir, filepath.Join(opts.DestDir, name)) {
+	destDir, err := resolveSymlinks(opts.DestDir)
+	if err != nil {
+		return nil, err
+	}
+	stateDir := opts.StateDir
+	if resolved, err := filepath.EvalSymlinks(stateDir); err == nil {
+		stateDir = resolved
+	}
+	final := filepath.Join(destDir, name)
+	if insideStateDir(stateDir, final) {
 		return nil, fmt.Errorf("%w: the archive must not be published inside the state directory", ErrInvalid)
 	}
-	if err := os.MkdirAll(opts.DestDir, 0o700); err != nil {
+	if err := os.MkdirAll(destDir, 0o700); err != nil {
 		return nil, fmt.Errorf("backup: create destination: %w", err)
 	}
-	final := filepath.Join(opts.DestDir, name)
 	if _, err := os.Lstat(final); err == nil {
 		if !opts.Overwrite {
 			return nil, fmt.Errorf("%w: %s", ErrExists, final)
@@ -127,7 +135,7 @@ func Create(ctx context.Context, opts Options) (*Result, error) {
 		return nil, err
 	}
 
-	staging, err := os.MkdirTemp(opts.DestDir, ".staging-")
+	staging, err := os.MkdirTemp(destDir, ".staging-")
 	if err != nil {
 		return nil, fmt.Errorf("backup: create staging: %w", err)
 	}
@@ -182,7 +190,7 @@ func Create(ctx context.Context, opts Options) (*Result, error) {
 
 	if opts.Overwrite {
 		if _, err := os.Lstat(final); err == nil {
-			setAside, err = setAsideName(opts.DestDir, final)
+			setAside, err = setAsideName(destDir, final)
 			if err != nil {
 				return nil, err
 			}
@@ -208,6 +216,32 @@ func Create(ctx context.Context, opts Options) (*Result, error) {
 		}
 	}
 	return &Result{Path: final, Manifest: manifest}, nil
+}
+
+// resolveSymlinks resolves the destination through its symlinks so a link
+// cannot redirect the publish into the state directory. A missing final
+// component (the normal case for a fresh destination) is resolved against
+// its longest existing prefix.
+func resolveSymlinks(path string) (string, error) {
+	if resolved, err := filepath.EvalSymlinks(path); err == nil {
+		return resolved, nil
+	} else if !os.IsNotExist(err) {
+		return "", fmt.Errorf("%w: destination %q", ErrInvalid, path)
+	}
+	var tail []string
+	for p := path; p != "/" && p != ""; p = filepath.Dir(p) {
+		if _, err := os.Lstat(p); err == nil {
+			prefix, err := filepath.EvalSymlinks(p)
+			if err != nil {
+				return "", fmt.Errorf("%w: destination %q", ErrInvalid, path)
+			}
+			return filepath.Join(append([]string{prefix}, tail...)...), nil
+		} else if !os.IsNotExist(err) {
+			return "", fmt.Errorf("%w: destination %q", ErrInvalid, path)
+		}
+		tail = append([]string{filepath.Base(p)}, tail...)
+	}
+	return path, nil
 }
 
 // insideStateDir reports whether path is the state directory itself or

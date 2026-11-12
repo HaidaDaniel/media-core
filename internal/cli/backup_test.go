@@ -124,4 +124,23 @@ func TestBackupCLI(t *testing.T) {
 	if code != ExitOK {
 		t.Fatalf("state unusable after refused in-place backup: exit = %d, stderr = %q", code, errw)
 	}
+
+	// A symlinked destination pointing into the state dir is the same
+	// destructive combination and must be refused too.
+	link := filepath.Join(t.TempDir(), "link")
+	if err := os.Symlink(dir, link); err != nil {
+		t.Fatalf("symlink: %v", err)
+	}
+	code, out, errw = runCLI(t, "backup", "create", "--state-dir", dir, "--dest", link, "--name", "media-core.db", "--force")
+	if code != ExitUsage {
+		t.Fatalf("symlinked in-place create: exit = %d, want %d, stderr = %q", code, ExitUsage, errw)
+	}
+	env = libEnv(t, out)
+	if env.Error == nil || env.Error.Code != "invalid_argument" {
+		t.Fatalf("symlinked in-place create envelope = %+v, want code invalid_argument", env)
+	}
+	code, out, errw = runCLI(t, "list", "--state-dir", dir)
+	if code != ExitOK {
+		t.Fatalf("state unusable after refused symlinked backup: exit = %d, stderr = %q", code, errw)
+	}
 }
