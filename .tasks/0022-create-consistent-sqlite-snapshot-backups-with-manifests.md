@@ -1,7 +1,7 @@
 # Task 0022 - Create consistent SQLite snapshot backups with manifests
 
-State: todo
-Owner: none
+State: doing
+Owner: opencode-media-20261110
 Mode: mvp
 Lane: reliability
 Scope: reliability
@@ -23,15 +23,16 @@ Publish a consistent database archive with integrity metadata while normal write
 - docs/product/requirements.md
 
 ## Files allowed to edit
+
 - internal/backup/archive.go
 - internal/backup/archive_test.go
 - internal/app/backup.go
 - internal/cli/backup.go
 - internal/cli/backup_test.go
+- internal/cli/cli.go
 - internal/runtime/runtime.go
 - docs/engineering/backup-restore.md
 - docs/progress.md
-
 - .tasks/0022-create-consistent-sqlite-snapshot-backups-with-manifests.md
 
 ## Files forbidden to edit
@@ -70,6 +71,7 @@ Publish a consistent database archive with integrity metadata while normal write
 - `{"id":"focused","type":"automated","required":true,"environment":"local","profile":"report","command":"go test ./internal/backup ./internal/app ./internal/cli -run \"TestBackup\""}`
 
 ## Documentation updates
+
 - Update docs/progress.md on lifecycle changes.
 
 ## Notes
@@ -79,3 +81,4 @@ Publish a consistent database archive with integrity metadata while normal write
 - Before editing, read existing allowed source files supplied by completed dependencies. Missing paths are new files owned by this task, not existing context.
 - Only listed paths plus this task file may change. Do not edit other task contracts or generated agent instructions; task lifecycle is managed by APK.
 - Keep contract behavior fixed; if a counterexample requires expanding scope, update this task before source edits. No actual host deployment, push or publication is authorized.
+- Scope amendment (2026-11-12): the backup command joins the CLI usage text, so cli/cli.go joins the allowed list; the command itself registers in internal/cli/backup.go like the other capability commands.

@@ -44,6 +44,7 @@ commands:
   origin   assert, confirm or revoke an explicit origin claim on an edition
   related  traverse related works or editions in both directions, bounded
   activity recent personal activity and complete work/edition history
+  backup   create a consistent snapshot archive with an integrity manifest
   serve    reserved: HTTP API + embedded UI (not implemented yet)
   mcp      reserved: MCP stdio (not implemented yet)
 
