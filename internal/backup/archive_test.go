@@ -403,6 +403,18 @@ func TestBackupFailureLeavesNoTrace(t *testing.T) {
 			t.Fatalf("source probe count = %v, want 1; the source was touched", n)
 		}
 	})
+	t.Run("trailing slash destination", func(t *testing.T) {
+		dir, _ := initState(t)
+		base := t.TempDir()
+		dest := filepath.Join(base, "dest") + string(os.PathSeparator)
+		res, err := Create(context.Background(), Options{StateDir: dir, DestDir: dest, Name: "slash"})
+		if err != nil {
+			t.Fatalf("Create with trailing slash: %v", err)
+		}
+		if want := filepath.Join(base, "dest", "slash"); res.Path != want {
+			t.Fatalf("Path = %q, want %q; the missing-tail loop duplicated a component", res.Path, want)
+		}
+	})
 	t.Run("symlinked destination outside state dir", func(t *testing.T) {
 		dir, _ := initState(t)
 		target := filepath.Join(t.TempDir(), "real")

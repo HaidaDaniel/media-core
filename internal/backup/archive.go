@@ -223,6 +223,7 @@ func Create(ctx context.Context, opts Options) (*Result, error) {
 // component (the normal case for a fresh destination) is resolved against
 // its longest existing prefix.
 func resolveSymlinks(path string) (string, error) {
+	path = filepath.Clean(path)
 	if resolved, err := filepath.EvalSymlinks(path); err == nil {
 		return resolved, nil
 	} else if !os.IsNotExist(err) {
