@@ -95,8 +95,8 @@ func libraryWhere(q LibraryQuery, key string, seek bool) (string, []any) {
 				JOIN edition_titles t ON t.edition_id = e.id
 				WHERE e.work_id = w.id AND ` + filter +
 				` AND t.retired_at IS NULL AND t.search_key LIKE ? ESCAPE '\')`
-			conds = append(conds, "("+workTitleMatch+
-				" AND EXISTS (SELECT 1 FROM editions e WHERE e.work_id = w.id AND "+filter+")) OR "+correlated)
+			conds = append(conds, "(("+workTitleMatch+
+				" AND EXISTS (SELECT 1 FROM editions e WHERE e.work_id = w.id AND "+filter+")) OR "+correlated+")")
 			args = append(args, pattern)
 			args = append(args, filterArgs...)
 			args = append(args, filterArgs...)

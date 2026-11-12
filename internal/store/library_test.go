@@ -334,6 +334,51 @@ func TestLibrarySearchQueryFilterCorrelation(t *testing.T) {
 	}
 }
 
+// TestLibrarySearchQueryFilterPagination proves the correlated query and
+// filter predicate paginates correctly: the seek condition applies to the
+// whole disjunction, so later pages never re-serve a work from the
+// work-title branch or skip a correlated work.
+func TestLibrarySearchQueryFilterPagination(t *testing.T) {
+	db := openMigrated(t, t.TempDir())
+	defer db.Close()
+	now := libraryNow()
+	ctx := ctx(t)
+	// Work-title branch: the work title matches, the anime edition does not.
+	alpha := mustWork(t, db, now, "Alpha Story")
+	mustEdition(t, db, now, alpha, domain.KindAnime, "Alpha Anime Line")
+	// Correlated branch: only the anime edition title matches.
+	beta := mustWork(t, db, now, "Beta")
+	mustEdition(t, db, now, beta, domain.KindAnime, "Beta Story Anime")
+	// Work-title branch again, after the correlated work.
+	gamma := mustWork(t, db, now, "Gamma Story")
+	mustEdition(t, db, now, gamma, domain.KindAnime, "Gamma Anime Line")
+
+	query := LibraryQuery{Query: "story", Kinds: []domain.EditionKind{domain.KindAnime}, Sort: SortTitle, Limit: 1}
+	page1, total, err := db.SearchLibrary(ctx, query)
+	if err != nil {
+		t.Fatalf("page 1: %v", err)
+	}
+	if total != 3 || len(page1) != 1 || page1[0].ID != alpha.ID {
+		t.Fatalf("page 1 = %v (total %d), want the alpha work only", page1, total)
+	}
+	after := page1[0]
+	page2, _, err := db.SearchLibrary(ctx, LibraryQuery{Query: query.Query, Kinds: query.Kinds, Sort: query.Sort, Limit: 1, AfterKey: after.SortKey, AfterID: after.ID})
+	if err != nil {
+		t.Fatalf("page 2: %v", err)
+	}
+	if len(page2) != 1 || page2[0].ID != beta.ID {
+		t.Fatalf("page 2 = %v, want the correlated beta work only (no re-served work-title work)", page2)
+	}
+	after = page2[0]
+	page3, _, err := db.SearchLibrary(ctx, LibraryQuery{Query: query.Query, Kinds: query.Kinds, Sort: query.Sort, Limit: 1, AfterKey: after.SortKey, AfterID: after.ID})
+	if err != nil {
+		t.Fatalf("page 3: %v", err)
+	}
+	if len(page3) != 1 || page3[0].ID != gamma.ID {
+		t.Fatalf("page 3 = %v, want the gamma work only", page3)
+	}
+}
+
 // TestLibrarySearchSorts proves the three sort modes with the stable ID
 // tie-breaker.
 func TestLibrarySearchSorts(t *testing.T) {
