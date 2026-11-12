@@ -1,7 +1,7 @@
 # Task 0021 - Project recent personal activity and complete history queries
 
-State: todo
-Owner: none
+State: doing
+Owner: opencode-media-20261110
 Mode: mvp
 Lane: application
 Scope: application
@@ -24,15 +24,16 @@ Provide bounded recent activity/history over existing observation and revision t
 - docs/application-contract.md
 
 ## Files allowed to edit
+
 - internal/app/activity.go
 - internal/app/activity_test.go
 - internal/store/activity.go
 - internal/store/activity_test.go
 - internal/store/library.go
 - internal/cli/activity.go
+- internal/cli/cli.go
 - internal/runtime/runtime.go
 - docs/progress.md
-
 - .tasks/0021-project-recent-personal-activity-and-complete-history-queries.md
 
 ## Files forbidden to edit
@@ -71,6 +72,7 @@ Provide bounded recent activity/history over existing observation and revision t
 - `{"id":"focused","type":"automated","required":true,"environment":"local","profile":"report","command":"go test ./internal/app ./internal/store ./internal/cli -run \"Test(Activity|HistoryView|LibraryFacets)\""}`
 
 ## Documentation updates
+
 - Update docs/progress.md on lifecycle changes.
 
 ## Notes
@@ -80,3 +82,4 @@ Provide bounded recent activity/history over existing observation and revision t
 - Before editing, read existing allowed source files supplied by completed dependencies. Missing paths are new files owned by this task, not existing context.
 - Only listed paths plus this task file may change. Do not edit other task contracts or generated agent instructions; task lifecycle is managed by APK.
 - Keep contract behavior fixed; if a counterexample requires expanding scope, update this task before source edits. No actual host deployment, push or publication is authorized.
+- Scope amendment (2026-11-12): the activity command joins the CLI usage text, so cli/cli.go joins the allowed list; the command itself registers in internal/cli/activity.go like the other capability commands.
