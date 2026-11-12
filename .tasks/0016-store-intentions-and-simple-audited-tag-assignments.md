@@ -33,6 +33,8 @@ Add saved/planned/interested intentions and simple work/edition tags with query 
 - internal/app/mutation.go
 - internal/store/intention.go
 - internal/store/tags.go
+- internal/store/intention_test.go
+- internal/store/tags_test.go
 - internal/store/library.go
 - internal/store/editions.go
 - internal/store/works.go
