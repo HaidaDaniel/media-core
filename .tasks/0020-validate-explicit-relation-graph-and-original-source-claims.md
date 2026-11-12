@@ -1,7 +1,7 @@
 # Task 0020 - Validate explicit relation graph and original-source claims
 
-State: todo
-Owner: none
+State: doing
+Owner: opencode-media-20261110
 Mode: mvp
 Lane: application
 Scope: application
@@ -24,6 +24,7 @@ Implement scoped, provenance-bearing relations/origin assertions with proposal a
 - docs/application-contract.md
 
 ## Files allowed to edit
+
 - internal/domain/relation.go
 - internal/app/relations.go
 - internal/app/relations_test.go
@@ -32,8 +33,10 @@ Implement scoped, provenance-bearing relations/origin assertions with proposal a
 - internal/store/migrations/0011_relations.sql
 - internal/cli/relations.go
 - internal/runtime/runtime.go
+- internal/store/migrations_test.go
+- internal/app/mutation.go
+- internal/cli/cli.go
 - docs/progress.md
-
 - .tasks/0020-validate-explicit-relation-graph-and-original-source-claims.md
 
 ## Files forbidden to edit
@@ -72,7 +75,10 @@ Implement scoped, provenance-bearing relations/origin assertions with proposal a
 - `{"id":"focused","type":"automated","required":true,"environment":"local","profile":"report","command":"go test ./internal/domain ./internal/app ./internal/store ./internal/cli -run \"Test(Relation|Origin)\""}`
 
 ## Documentation updates
+
 - Update docs/progress.md on lifecycle changes.
+
+Scope amendment (2026-11-12): the relation/origin lifecycle touches the wiring files, which join the allowed list: store/migrations_test.go pins the embedded migration set's shape (pin moves to 11 for 0011_relations.sql), app/mutation.go maps the new relation/origin store errors to the stable wire codes, and cli/cli.go lists the link/origin/related commands in the usage text.
 
 ## Notes
 
