@@ -46,7 +46,8 @@ commands:
   activity recent personal activity and complete work/edition history
   backup   create a consistent snapshot archive with an integrity manifest
   restore  restore a validated archive into an isolated or forced state dir
-  serve    reserved: HTTP API + embedded UI (not implemented yet)
+  owner    generate or show the owner secret for HTTP session login
+  serve    run the HTTP server (loopback by default) with session login
   mcp      reserved: MCP stdio (not implemented yet)
 
 Run "media-core version" to print the build identity.

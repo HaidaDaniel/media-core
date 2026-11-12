@@ -2,11 +2,16 @@
 package runtime
 
 import (
+	"context"
 	"fmt"
 	"io"
+	"os"
+	"os/signal"
+	"syscall"
 
 	"github.com/HaidaDaniel/media-core/internal/buildinfo"
 	"github.com/HaidaDaniel/media-core/internal/config"
+	"github.com/HaidaDaniel/media-core/internal/httpapi"
 	"github.com/HaidaDaniel/media-core/internal/store"
 )
 
@@ -74,8 +79,9 @@ func (e ErrUnsupported) Error() string {
 }
 
 // Dispatch runs one mode. version reports the build identity without state
-// access; registered capability commands run under their own rules; reserved
-// or unknown commands fail before any state directory or server is created.
+// access; serve runs the resident HTTP lifecycle; registered capability
+// commands run under their own rules; reserved or unknown commands fail
+// before any state directory or server is created.
 func Dispatch(args []string, out io.Writer) error {
 	if len(args) < 1 {
 		return ErrMissingCommand
@@ -84,12 +90,79 @@ func Dispatch(args []string, out io.Writer) error {
 	case "version":
 		fmt.Fprintln(out, buildinfo.Get().Render())
 		return nil
-	case "serve", "mcp":
-		return ErrReserved{Command: args[0]}
+	case "serve":
+		return runServe(args[1:], out)
+	case "mcp":
+		return ErrReserved{Command: "mcp"}
 	default:
 		if h, ok := commandHandlers[args[0]]; ok {
 			return h(args[1:], out)
 		}
 		return ErrUnsupported{Command: args[0]}
 	}
+}
+
+// runServe runs the resident HTTP lifecycle. Configuration is resolved
+// first, so a non-loopback bind without the explicit remote trio (allow
+// remote, https public origin, TLS certificate and key) fails before any
+// listener is created. The server then serves until SIGINT or SIGTERM,
+// stops accepting connections, drains in-flight requests for up to 10
+// seconds, and returns. This milestone opens no database: the session
+// boundary is transport-only and sessions live in memory, so a restart
+// invalidates them.
+func runServe(args []string, out io.Writer) error {
+	// Exit codes per docs/application-contract.md: 2 invalid input, 1
+	// config or runtime failure.
+	opts, err := parseServeArgs(args)
+	if err != nil {
+		return &ExitCodeError{Exit: 2, Err: err}
+	}
+	cfg, err := ResolveConfig(opts)
+	if err != nil {
+		return &ExitCodeError{Exit: 1, Err: err}
+	}
+	srv, err := httpapi.New(cfg)
+	if err != nil {
+		return &ExitCodeError{Exit: 1, Err: err}
+	}
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+	if err := srv.Serve(ctx); err != nil {
+		return &ExitCodeError{Exit: 1, Err: err}
+	}
+	fmt.Fprintln(out, "serve: stopped")
+	return nil
+}
+
+// parseServeArgs maps serve flags onto explicit configuration options; the
+// loopback default and the remote trio come from config resolution.
+func parseServeArgs(args []string) (config.Options, error) {
+	const serveUsage = "usage: media-core serve [--state-dir <dir>] [--listen <addr>] [--allow-remote] [--public-origin <url>] [--tls-cert <file>] [--tls-key <file>]"
+	var opts config.Options
+	for i := 0; i < len(args); i++ {
+		switch args[i] {
+		case "--state-dir", "--listen", "--public-origin", "--tls-cert", "--tls-key":
+			if i+1 >= len(args) {
+				return opts, fmt.Errorf("media-core serve: %s requires a value", args[i])
+			}
+			i++
+			switch args[i-1] {
+			case "--state-dir":
+				opts.StateDir = args[i]
+			case "--listen":
+				opts.ListenAddr = args[i]
+			case "--public-origin":
+				opts.PublicOrigin = args[i]
+			case "--tls-cert":
+				opts.TLSCertFile = args[i]
+			case "--tls-key":
+				opts.TLSKeyFile = args[i]
+			}
+		case "--allow-remote":
+			opts.AllowRemote = true
+		default:
+			return opts, fmt.Errorf("media-core serve: unknown argument %q (%s)", args[i], serveUsage)
+		}
+	}
+	return opts, nil
 }

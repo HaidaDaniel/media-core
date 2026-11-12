@@ -24,7 +24,7 @@ func TestDispatchMissing(t *testing.T) {
 }
 
 func TestDispatchReserved(t *testing.T) {
-	for _, command := range []string{"serve", "mcp"} {
+	for _, command := range []string{"mcp"} {
 		var out bytes.Buffer
 		err := Dispatch([]string{command}, &out)
 		var reserved ErrReserved
@@ -34,6 +34,24 @@ func TestDispatchReserved(t *testing.T) {
 		if out.Len() != 0 {
 			t.Errorf("Dispatch(%s) wrote %q to out", command, out.String())
 		}
+	}
+}
+
+func TestDispatchServeFailsBeforeListen(t *testing.T) {
+	// Unknown serve flags fail fast without binding.
+	err := Dispatch([]string{"serve", "--bogus"}, &bytes.Buffer{})
+	if err == nil {
+		t.Fatal("Dispatch(serve --bogus) = nil, want a flag error")
+	}
+	// A non-loopback bind without the remote trio fails before any
+	// listener is created.
+	err = Dispatch([]string{"serve", "--listen", "0.0.0.0:18787"}, &bytes.Buffer{})
+	if err == nil {
+		t.Fatal("Dispatch(serve --listen 0.0.0.0:18787) = nil, want the remote trio error")
+	}
+	var exitErr *ExitCodeError
+	if !errors.As(err, &exitErr) || exitErr.Exit != 1 {
+		t.Errorf("Dispatch(serve --listen 0.0.0.0:18787) = %v, want exit code 1", err)
 	}
 }
 

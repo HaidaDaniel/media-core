@@ -64,7 +64,7 @@ func TestRunUnsupported(t *testing.T) {
 }
 
 func TestRunReserved(t *testing.T) {
-	for _, command := range []string{"serve", "mcp"} {
+	for _, command := range []string{"mcp"} {
 		var out, errBuf bytes.Buffer
 		if code := Run([]string{command}, &out, &errBuf); code != ExitError {
 			t.Fatalf("Run(%s) exit = %d, want %d", command, code, ExitError)
@@ -75,6 +75,24 @@ func TestRunReserved(t *testing.T) {
 		if out.Len() != 0 {
 			t.Errorf("Run(%s) stdout %q should be empty", command, out.String())
 		}
+	}
+}
+
+func TestRunServeFailsBeforeListen(t *testing.T) {
+	// Unknown serve flags fail with usage before any listener is created.
+	var out, errBuf bytes.Buffer
+	if code := Run([]string{"serve", "--bogus"}, &out, &errBuf); code != ExitUsage {
+		t.Fatalf("Run(serve --bogus) exit = %d, want %d (stderr %q)", code, ExitUsage, errBuf.String())
+	}
+	// A non-loopback bind without the remote trio fails with a config
+	// error before any listener is created.
+	out.Reset()
+	errBuf.Reset()
+	if code := Run([]string{"serve", "--listen", "0.0.0.0:18787"}, &out, &errBuf); code != ExitError {
+		t.Fatalf("Run(serve --listen 0.0.0.0:18787) exit = %d, want %d (stderr %q)", code, ExitError, errBuf.String())
+	}
+	if out.Len() != 0 {
+		t.Errorf("Run(serve --listen 0.0.0.0:18787) stdout %q should be empty", out.String())
 	}
 }
 

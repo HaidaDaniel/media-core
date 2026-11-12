@@ -36,9 +36,53 @@ values.
   explicit: allow-remote, a public origin that is an https URL with a host
   and no credentials, and TLS certificate and key file paths. Missing any
   of them is a validation error. Actually binding the listener and
-  enforcing the TLS files happens in the `serve` lifecycle (task 0024).
+  enforcing the TLS files happens in the `serve` lifecycle.
 - The public origin must use https; credentials in the origin are
   rejected.
+
+## Serve lifecycle (task 0024)
+
+- `media-core serve` runs the resident HTTP lifecycle: resolve
+  configuration (a non-loopback bind without the full remote trio fails
+  here, before any listener exists), build the server (TLS certificate and
+  key must load, again before any listener), bind, and serve until SIGINT
+  or SIGTERM.
+- Graceful shutdown: on a signal the server stops accepting connections,
+  drains in-flight requests for up to 10 seconds, closes the listener, and
+  exits 0. A process restart invalidates every session because sessions
+  live in memory only.
+- This milestone opens no database; the server exposes only the
+  `/api/v1/session` routes (login, inspection, logout) behind the security
+  boundary. Every other route is a JSON 404, so there is no
+  unauthenticated writable endpoint.
+- Security boundary: every response carries a self-only CSP (no inline or
+  eval), `nosniff`, `frame-ancestors 'none'`/`DENY`, and
+  `Referrer-Policy: no-referrer`; no CORS headers are sent. The `Host`
+  header must match the configured listener (loopback) or the public
+  origin host (remote); unsafe requests (POST/PUT/PATCH/DELETE) require an
+  exact `Origin` match, and a missing Origin is never treated as a
+  non-browser bypass. Authenticated mutations require the per-session
+  `X-CSRF-Token` header. Request bodies are limited to 1 MiB.
+- Login is rate limited; the session cookie is `HttpOnly`,
+  `SameSite=Strict`, `Path=/`, `Secure` on TLS (local loopback HTTP is the
+  sole exception), and bounded by the 12-hour absolute expiry. Idle
+  sessions expire after 30 minutes; a new login rotates the single
+  session.
+
+## Owner secret
+
+- `media-core owner generate` creates a 256-bit owner secret in the state
+  directory as `owner-secret` (mode 0600) and prints its hex encoding to
+  stdout; generation is idempotent and never replaces an existing secret.
+  `media-core owner show` prints the existing hex encoding and fails when
+  the file is absent.
+- The secret value is printed only to the local operator's stdout and is
+  never written to logs, diagnostics, or envelopes; the server compares it
+  in constant time and reports a missing file distinctly from a wrong
+  secret.
+- Note: the original design had `init` generate the secret; `init` is
+  owned by an earlier task, so generation lives in the explicit `owner`
+  command instead.
 
 ## Secrets
 
@@ -47,7 +91,7 @@ values.
   the secret value.
 - TLS key material is not part of the resolved configuration; only the TLS
   certificate and key **file paths** are held and rendered, and enforcing
-  those files happens in the `serve` lifecycle (task 0024).
+  those files happens in the `serve` lifecycle.
 - Diagnostics render state directory, listener, public origin, allow-remote
   flag, and TLS file paths only.
 
