@@ -45,12 +45,17 @@ const (
 // optional; an empty filter lists the whole library. The cursor is opaque
 // and bound to the sort, limit and filter fingerprint.
 type LibraryFilter struct {
-	Query        *string
-	Kinds        []domain.EditionKind
-	Publications []domain.Publication
-	Sort         LibrarySort
-	Limit        int
-	Cursor       *string
+	Query *string
+	Kinds []domain.EditionKind
+	// Publications is the publication dimension; Consumptions and
+	// UnknownConsumption are the consumption dimension, where unknown
+	// selects editions whose current effective consumption is unknown.
+	Publications       []domain.Publication
+	Consumptions       []domain.Consumption
+	UnknownConsumption bool
+	Sort               LibrarySort
+	Limit              int
+	Cursor             *string
 }
 
 // WorkCard is one search result: the work with its active titles and
@@ -78,7 +83,7 @@ type libraryCursorPayload struct {
 
 // filterFingerprint is the canonical identity of the non-cursor part of a
 // listing request; a cursor from a different request is rejected.
-func filterFingerprint(query string, kinds []domain.EditionKind, publications []domain.Publication) string {
+func filterFingerprint(query string, kinds []domain.EditionKind, publications []domain.Publication, consumptions []domain.Consumption, unknownConsumption bool) string {
 	ks := make([]string, 0, len(kinds))
 	for _, k := range kinds {
 		ks = append(ks, string(k))
@@ -89,10 +94,17 @@ func filterFingerprint(query string, kinds []domain.EditionKind, publications []
 		ps = append(ps, string(p))
 	}
 	sort.Strings(ps)
+	cs := make([]string, 0, len(consumptions))
+	for _, c := range consumptions {
+		cs = append(cs, string(c))
+	}
+	sort.Strings(cs)
 	b, err := json.Marshal(map[string]any{
 		"query":        domain.SearchKey(query),
 		"kinds":        ks,
 		"publications": ps,
+		"consumptions": cs,
+		"unknown_cons": unknownConsumption,
 	})
 	if err != nil {
 		return ""
@@ -163,7 +175,12 @@ func (s *Service) SearchLibrary(ctx context.Context, f LibraryFilter) (ListPaylo
 			return ListPayload{}, invalidArgument("unknown publication "+string(p), base)
 		}
 	}
-	qHash := filterFingerprint(query, f.Kinds, f.Publications)
+	for _, c := range f.Consumptions {
+		if !c.Valid() {
+			return ListPayload{}, invalidArgument("unknown consumption "+string(c), base)
+		}
+	}
+	qHash := filterFingerprint(query, f.Kinds, f.Publications, f.Consumptions, f.UnknownConsumption)
 	var afterKey, afterID string
 	if f.Cursor != nil {
 		c, err := parseLibraryCursor(*f.Cursor, srt, limit, qHash)
@@ -173,13 +190,15 @@ func (s *Service) SearchLibrary(ctx context.Context, f LibraryFilter) (ListPaylo
 		afterKey, afterID = c.Key, c.ID
 	}
 	cards, total, err := s.db.SearchLibrary(ctx, store.LibraryQuery{
-		Query:        query,
-		Kinds:        f.Kinds,
-		Publications: f.Publications,
-		Sort:         storeSort(srt),
-		Limit:        limit + 1,
-		AfterKey:     afterKey,
-		AfterID:      afterID,
+		Query:              query,
+		Kinds:              f.Kinds,
+		Publications:       f.Publications,
+		Consumptions:       f.Consumptions,
+		UnknownConsumption: f.UnknownConsumption,
+		Sort:               storeSort(srt),
+		Limit:              limit + 1,
+		AfterKey:           afterKey,
+		AfterID:            afterID,
 	})
 	if err != nil {
 		return ListPayload{}, mapStoreError(err, base)
@@ -310,7 +329,25 @@ func (s *Service) GetEdition(ctx context.Context, editionID string) (EditionView
 			SupersedesID: e.Publication.SupersedesID,
 		}
 	}
+	view.Consumption = consumptionViewFrom(e.Consumption)
 	return view, nil
+}
+
+// consumptionViewFrom presents the current consumption observation; an
+// explicit retraction to unknown (like the absence of any observation) is
+// the absence of a consumption state, never an invented value.
+func consumptionViewFrom(o *store.ConsumptionObservation) *ConsumptionState {
+	if o == nil || o.Value == store.ConsumptionUnknown {
+		return nil
+	}
+	return &ConsumptionState{
+		Value:        domain.Consumption(o.Value),
+		Reason:       o.Reason,
+		ObservedAt:   o.ObservedAt,
+		RecordedAt:   o.RecordedAt,
+		Actor:        Actor{Principal: o.Actor.Principal, Origin: domain.ActorOrigin(o.Actor.Origin), Identity: o.Actor.Identity},
+		SupersedesID: o.SupersedesID,
+	}
 }
 
 // TitleMutationRequest is one explicit title correction on a work or an
@@ -577,6 +614,7 @@ func editionViewFrom(e store.Edition) EditionView {
 			SupersedesID: e.Publication.SupersedesID,
 		}
 	}
+	view.Consumption = consumptionViewFrom(e.Consumption)
 	return view
 }
 

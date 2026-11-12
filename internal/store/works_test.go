@@ -212,7 +212,7 @@ func TestWorkTitleRetirementHistory(t *testing.T) {
 	if err != nil {
 		t.Fatalf("retired row missing: %v", err)
 	}
-	if want := now.Add(time.Second).Format(time.RFC3339); retiredAt != want {
+	if want := now.Add(time.Second).Format("2006-01-02T15:04:05.000Z"); retiredAt != want {
 		t.Fatalf("retired_at = %q, want %q", retiredAt, want)
 	}
 	// Retiring the already-retired title again is not found.

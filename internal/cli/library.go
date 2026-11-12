@@ -86,6 +86,8 @@ type listArgs struct {
 	query        *string
 	kinds        []domain.EditionKind
 	publications []domain.Publication
+	consumptions []domain.Consumption
+	unknownCons  bool
 	sort         app.LibrarySort
 	limit        int
 	cursor       *string
@@ -132,6 +134,20 @@ func parseListArgs(args []string) (*listArgs, error) {
 				return nil, fmt.Errorf("media-core list: unknown publication %q", v)
 			}
 			a.publications = append(a.publications, p)
+		case "--consumption":
+			v, err := needValue()
+			if err != nil {
+				return nil, err
+			}
+			if v == "unknown" {
+				a.unknownCons = true
+			} else {
+				c := domain.Consumption(v)
+				if !c.Valid() {
+					return nil, fmt.Errorf("media-core list: unknown consumption %q", v)
+				}
+				a.consumptions = append(a.consumptions, c)
+			}
 		case "--sort":
 			v, err := needValue()
 			if err != nil {
@@ -177,12 +193,14 @@ func runList(args []string, out io.Writer) error {
 	}
 	defer db.Close()
 	payload, err := svc.SearchLibrary(context.Background(), app.LibraryFilter{
-		Query:        a.query,
-		Kinds:        a.kinds,
-		Publications: a.publications,
-		Sort:         a.sort,
-		Limit:        a.limit,
-		Cursor:       a.cursor,
+		Query:              a.query,
+		Kinds:              a.kinds,
+		Publications:       a.publications,
+		Consumptions:       a.consumptions,
+		UnknownConsumption: a.unknownCons,
+		Sort:               a.sort,
+		Limit:              a.limit,
+		Cursor:             a.cursor,
 	})
 	if err != nil {
 		return writeEnvelope(out, nil, libTyped(err))

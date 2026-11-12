@@ -89,7 +89,12 @@ func (d *Database) beginImmediate(ctx context.Context) (*sql.Tx, error) {
 // instantUTC renders an instant as UTC RFC3339 with second precision; the
 // fixed precision keeps stored timestamps lexicographically sortable.
 
-func instantUTC(t time.Time) string { return t.UTC().Format(time.RFC3339) }
+// instantUTC renders one UTC instant as fixed-width millisecond RFC3339 so
+// that stored strings keep chronological lexicographic order and two
+// observations recorded within the same second stay distinguishable; the
+// (observed_at, recorded_at, id) ordering of current-state selection must
+// reflect the real order of operations.
+func instantUTC(t time.Time) string { return t.UTC().Format("2006-01-02T15:04:05.000Z") }
 
 func parseInstant(s string) (time.Time, error) {
 	return time.Parse(time.RFC3339, s)

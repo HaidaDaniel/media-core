@@ -518,12 +518,15 @@ func TestPublicationIndependentOfPersonalState(t *testing.T) {
 		t.Fatalf("edition identity changed: %+v", e)
 	}
 	// A publication completed must not be readable as a personal state:
-	// the store exposes no consumption data at all on the edition.
-	var consumptionTables int
-	if err := db.DB().QueryRow(`SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name LIKE '%consumption%'`).Scan(&consumptionTables); err != nil {
-		t.Fatalf("inspect schema: %v", err)
+	// the observation records no consumption data on the edition.
+	var consumptionRows int
+	if err := db.DB().QueryRow(`SELECT COUNT(*) FROM consumption_observations WHERE edition_id = ?`, e.ID).Scan(&consumptionRows); err != nil {
+		t.Fatalf("inspect consumption: %v", err)
 	}
-	if consumptionTables != 0 {
-		t.Fatalf("consumption tables exist in the schema: %d, publication state must not imply personal state", consumptionTables)
+	if consumptionRows != 0 {
+		t.Fatalf("consumption observations = %d, want 0 (publication state must not imply personal state)", consumptionRows)
+	}
+	if e.Consumption != nil {
+		t.Fatalf("edition consumption = %+v, want nil (publication state must not imply personal state)", e.Consumption)
 	}
 }

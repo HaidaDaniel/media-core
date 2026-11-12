@@ -28,9 +28,10 @@ type EditionInput struct {
 	Titles     []TitleInput
 }
 
-// Edition is a persisted edition line with its active titles and current
-// publication observation (nil when none was recorded; presentation of an
-// explicit unknown is an application concern).
+// Edition is a persisted edition line with its active titles, current
+// publication observation and current consumption observation (nil when
+// none was recorded; presentation of an explicit unknown is an
+// application concern).
 type Edition struct {
 	ID          string
 	WorkID      string
@@ -43,6 +44,7 @@ type Edition struct {
 	ArchivedAt  *time.Time
 	Titles      []EditionTitle
 	Publication *PublicationObservation
+	Consumption *ConsumptionObservation
 }
 
 // EditionTitle is one edition title row, active or retired.
@@ -223,6 +225,10 @@ func (d *Database) GetEdition(ctx context.Context, editionID string) (Edition, e
 		return Edition{}, err
 	}
 	e.Publication, err = d.currentPublication(ctx, editionID)
+	if err != nil {
+		return Edition{}, err
+	}
+	e.Consumption, err = d.currentConsumption(ctx, editionID)
 	return e, err
 }
 

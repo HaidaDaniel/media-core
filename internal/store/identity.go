@@ -270,6 +270,10 @@ type JournalInput struct {
 	RequestHash string
 	ResultJSON  string
 	Actor       string
+	// Origin and Identity carry the full acting identity for observations
+	// recorded from the attempt; the ledger itself stores the principal.
+	Origin   string
+	Identity string
 }
 
 // entryResultJSON is the created-entry result recorded in the journal and
@@ -572,7 +576,7 @@ func (d *Database) AttemptEntry(ctx context.Context, now time.Time, a EntryAttem
 		if err != nil {
 			return EntryResult{}, fmt.Errorf("store: read work for edition: %w", err)
 		}
-		edition, err = createEditionTx(ctx, tx, *a.WorkID, *a.Kind, a.Language, a.OtherLabel, a.Titles, nowS)
+		edition, err = createEditionTx(ctx, tx, *a.WorkID, *a.Kind, a.Language, a.OtherLabel, a.Titles, journalActor(&a), nowS)
 		if err != nil {
 			return EntryResult{}, err
 		}
@@ -617,7 +621,7 @@ func (d *Database) AttemptEntry(ctx context.Context, now time.Time, a EntryAttem
 			}
 		}
 		if a.Kind != nil {
-			edition, err = createEditionTx(ctx, tx, workID, *a.Kind, a.Language, a.OtherLabel, a.Titles, nowS)
+			edition, err = createEditionTx(ctx, tx, workID, *a.Kind, a.Language, a.OtherLabel, a.Titles, journalActor(&a), nowS)
 			if err != nil {
 				return EntryResult{}, err
 			}
@@ -679,8 +683,9 @@ func (d *Database) AttemptEntry(ctx context.Context, now time.Time, a EntryAttem
 }
 
 // createEditionTx inserts one edition with its titles under a work inside
-// the caller's transaction; the edition starts at revision 0.
-func createEditionTx(ctx context.Context, tx *sql.Tx, workID string, kind domain.EditionKind, language, otherLabel *string, titles []TitleInput, nowS string) (*Edition, error) {
+// the caller's transaction; the edition starts at revision 0. A manually
+// created edition also starts with the not_started consumption default.
+func createEditionTx(ctx context.Context, tx *sql.Tx, workID string, kind domain.EditionKind, language, otherLabel *string, titles []TitleInput, actor ConsumptionActor, nowS string) (*Edition, error) {
 	editionID, err := domain.NewUUID()
 	if err != nil {
 		return nil, err
@@ -713,5 +718,17 @@ func createEditionTx(ctx context.Context, tx *sql.Tx, workID string, kind domain
 			return nil, fmt.Errorf("store: insert edition title: %w", err)
 		}
 	}
+	if err := insertDefaultConsumptionTx(ctx, tx, editionID, actor, nowS); err != nil {
+		return nil, err
+	}
 	return &Edition{ID: editionID, WorkID: workID, Kind: kind, Language: language, OtherLabel: otherLabel}, nil
+}
+
+// journalActor reports the acting identity of an entry attempt from its
+// journal input; a store call without a journal carries no actor.
+func journalActor(a *EntryAttempt) ConsumptionActor {
+	if a.Journal != nil && a.Journal.Actor != "" {
+		return ConsumptionActor{Principal: a.Journal.Actor, Origin: a.Journal.Origin, Identity: a.Journal.Identity}
+	}
+	return ConsumptionActor{}
 }

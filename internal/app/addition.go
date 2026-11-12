@@ -444,6 +444,8 @@ func (s *Service) createEntry(ctx context.Context, req AdditionRequest, dec *sto
 			Operation:   "create_library_entry",
 			RequestHash: hash,
 			Actor:       req.Actor.Principal,
+			Origin:      string(req.Actor.Origin),
+			Identity:    req.Actor.Identity,
 		},
 		WorkID:            workID,
 		Decision:          dec,

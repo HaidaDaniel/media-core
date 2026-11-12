@@ -1,7 +1,7 @@
 # Task 0014 - Record personal consumption status with recoverable history
 
-State: todo
-Owner: none
+State: doing
+Owner: opencode-media-20261110
 Mode: mvp
 Lane: application
 Scope: application
@@ -24,6 +24,7 @@ Implement independent consumption state updates, correction/retraction and statu
 - docs/application-contract.md
 
 ## Files allowed to edit
+
 - internal/app/consumption.go
 - internal/app/consumption_test.go
 - internal/store/consumption.go
@@ -33,8 +34,18 @@ Implement independent consumption state updates, correction/retraction and statu
 - internal/cli/consumption.go
 - internal/runtime/runtime.go
 - docs/progress.md
-
 - .tasks/0014-record-personal-consumption-status-with-recoverable-history.md
+- internal/store/editions.go
+- internal/store/identity.go
+- internal/store/migrations_test.go
+- internal/app/library.go
+- internal/app/mutation.go
+- internal/cli/cli.go
+- internal/cli/library.go
+- internal/store/editions_test.go
+- internal/app/addition.go
+- internal/store/works.go
+- internal/store/works_test.go
 
 ## Files forbidden to edit
 
@@ -72,6 +83,7 @@ Implement independent consumption state updates, correction/retraction and statu
 - `{"id":"focused","type":"automated","required":true,"environment":"local","profile":"report","command":"go test ./internal/app ./internal/store ./internal/cli -run \"Test(Consumption|Status)\""}`
 
 ## Documentation updates
+
 - Update docs/progress.md on lifecycle changes.
 
 ## Notes

@@ -48,8 +48,14 @@ type LibraryQuery struct {
 	Query        string
 	Kinds        []domain.EditionKind
 	Publications []domain.Publication
-	Sort         SortMode
-	Limit        int
+	// Consumptions and UnknownConsumption are the consumption dimension:
+	// the current effective value of the same qualifying edition. Supplied
+	// values are ORed within the dimension, ANDed with every other
+	// dimension.
+	Consumptions       []domain.Consumption
+	UnknownConsumption bool
+	Sort               SortMode
+	Limit              int
 	// AfterKey and AfterID seek past the last served row of the previous
 	// page; AfterID empty means the first page.
 	AfterKey string
@@ -120,8 +126,9 @@ func libraryWhere(q LibraryQuery, key string, seek bool) (string, []any) {
 }
 
 // editionFilter reports the conditions one edition must satisfy for the
-// query's kind and publication dimensions, plus the bound arguments. Every
-// dimension must hold for the same edition.
+// query's kind, publication and consumption dimensions, plus the bound
+// arguments. Every dimension must hold for the same edition; supplied
+// values are ORed within one dimension.
 func editionFilter(q LibraryQuery) (string, []any) {
 	var parts []string
 	var args []any
@@ -137,7 +144,65 @@ func editionFilter(q LibraryQuery) (string, []any) {
 			args = append(args, string(p))
 		}
 	}
+	if len(q.Consumptions) > 0 || q.UnknownConsumption {
+		var part string
+		switch {
+		case len(q.Consumptions) > 0 && q.UnknownConsumption:
+			part = "(" + currentConsumptionIn(len(q.Consumptions)) + " OR " + currentConsumptionUnknown() + ")"
+		case len(q.Consumptions) > 0:
+			part = "(" + currentConsumptionIn(len(q.Consumptions)) + ")"
+		default:
+			part = "(" + currentConsumptionUnknown() + ")"
+		}
+		parts = append(parts, part)
+		for _, c := range q.Consumptions {
+			args = append(args, string(c))
+		}
+	}
 	return strings.Join(parts, " AND "), args
+}
+
+// currentConsumptionIn reports editions whose current (last non-superseded)
+// consumption observation is one of the given values.
+func currentConsumptionIn(n int) string {
+	return fmt.Sprintf(`EXISTS (
+		SELECT 1 FROM consumption_observations o
+		WHERE o.edition_id = e.id
+		  AND o.value IN (%s)
+		  AND NOT EXISTS (SELECT 1 FROM consumption_observations s WHERE s.supersedes_id = o.id)
+		  AND NOT EXISTS (
+			SELECT 1 FROM consumption_observations n
+			WHERE n.edition_id = e.id
+			  AND NOT EXISTS (SELECT 1 FROM consumption_observations s2 WHERE s2.supersedes_id = n.id)
+			  AND (n.observed_at, n.recorded_at, n.id) > (o.observed_at, o.recorded_at, o.id)
+		  )
+	)`, placeholders(n))
+}
+
+// currentConsumptionUnknown reports editions whose current effective
+// consumption is unknown: no live observation at all (unknown historical
+// consumption), or the last live observation is an explicit retraction to
+// unknown.
+func currentConsumptionUnknown() string {
+	return `(
+		NOT EXISTS (
+			SELECT 1 FROM consumption_observations o
+			WHERE o.edition_id = e.id
+			  AND NOT EXISTS (SELECT 1 FROM consumption_observations s WHERE s.supersedes_id = o.id)
+		)
+		OR EXISTS (
+			SELECT 1 FROM consumption_observations o
+			WHERE o.edition_id = e.id
+			  AND o.value = '` + ConsumptionUnknown + `'
+			  AND NOT EXISTS (SELECT 1 FROM consumption_observations s WHERE s.supersedes_id = o.id)
+			  AND NOT EXISTS (
+				SELECT 1 FROM consumption_observations n
+				WHERE n.edition_id = e.id
+				  AND NOT EXISTS (SELECT 1 FROM consumption_observations s2 WHERE s2.supersedes_id = n.id)
+				  AND (n.observed_at, n.recorded_at, n.id) > (o.observed_at, o.recorded_at, o.id)
+			  )
+		)
+	)`
 }
 
 // currentPublicationIn reports editions whose current (last non-superseded)
@@ -310,6 +375,9 @@ func matchedEditionIDs(key string, w Work, editions []Edition, q LibraryQuery) [
 		if len(q.Publications) > 0 && (e.Publication == nil || !containsPublication(q.Publications, e.Publication.Value)) {
 			continue
 		}
+		if (len(q.Consumptions) > 0 || q.UnknownConsumption) && !consumptionMatches(q, e) {
+			continue
+		}
 		matched := key == "" || workMatch
 		if !matched {
 			for _, t := range e.Titles {
@@ -338,6 +406,23 @@ func containsKind(kinds []domain.EditionKind, k domain.EditionKind) bool {
 func containsPublication(values []domain.Publication, p domain.Publication) bool {
 	for _, v := range values {
 		if v == p {
+			return true
+		}
+	}
+	return false
+}
+
+// consumptionMatches reports whether an edition's current effective
+// consumption satisfies the query's consumption dimension: unknown (no live
+// observation, or an explicit retraction) matches only the unknown
+// selection, a known value only one of the supplied values.
+func consumptionMatches(q LibraryQuery, e Edition) bool {
+	value := currentConsumptionValue(e.Consumption)
+	if value == ConsumptionUnknown {
+		return q.UnknownConsumption
+	}
+	for _, c := range q.Consumptions {
+		if string(c) == value {
 			return true
 		}
 	}
