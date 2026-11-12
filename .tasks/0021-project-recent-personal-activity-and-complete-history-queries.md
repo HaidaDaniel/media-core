@@ -1,6 +1,6 @@
 # Task 0021 - Project recent personal activity and complete history queries
 
-State: doing
+State: done
 Owner: opencode-media-20261110
 Mode: mvp
 Lane: application
