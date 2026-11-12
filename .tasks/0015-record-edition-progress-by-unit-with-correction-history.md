@@ -31,6 +31,7 @@ Persist exact numeric progress observations and current values without erasing h
 - internal/store/progress_test.go
 - internal/store/migrations/0006_progress.sql
 - internal/cli/progress.go
+- internal/cli/progress_test.go
 - internal/runtime/runtime.go
 - internal/store/editions.go
 - internal/store/migrations_test.go
