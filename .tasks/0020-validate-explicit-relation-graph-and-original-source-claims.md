@@ -32,6 +32,7 @@ Implement scoped, provenance-bearing relations/origin assertions with proposal a
 - internal/store/relations_test.go
 - internal/store/migrations/0011_relations.sql
 - internal/cli/relations.go
+- internal/cli/relations_test.go
 - internal/runtime/runtime.go
 - internal/store/migrations_test.go
 - internal/app/mutation.go
@@ -86,3 +87,4 @@ Implement scoped, provenance-bearing relations/origin assertions with proposal a
 - Only listed paths plus this task file may change. Do not edit other task contracts or generated agent instructions; task lifecycle is managed by APK.
 - Keep contract behavior fixed; if a counterexample requires expanding scope, update this task before source edits. No actual host deployment, push or publication is authorized.
 - Scope amendment (2026-11-12): the relation/origin lifecycle touches the wiring files, which join the allowed list: store/migrations_test.go pins the embedded migration set's shape (pin moves to 11 for 0011_relations.sql), app/mutation.go maps the new relation/origin store errors to the stable wire codes, and cli/cli.go lists the link/origin/related commands in the usage text.
+- Scope amendment (2026-11-12, second): add internal/cli/relations_test.go, which carries the link/origin/related command test suite.
