@@ -324,9 +324,11 @@ func TestRelationServiceWorkScope(t *testing.T) {
 	if len(view.Confirmed) != 1 || view.Confirmed[0].ConfirmedBy == nil {
 		t.Fatalf("view = %+v, want the confirmed sequel", view)
 	}
-	// A symmetric related edge returns the view of the canonical from work.
+	// A symmetric related edge returns the view of the canonical from
+	// work; when that is w1 the confirmed sequel edge shows there too.
+	relFrom := canonicalFrom(w1.ID, w3.ID)
 	view = mustAddRelationView(t, s, AddRelationRequest{
-		MutationBase: mustBase(t, "req-wrel-3", workRevision(t, s, canonicalFrom(w1.ID, w3.ID))),
+		MutationBase: mustBase(t, "req-wrel-3", workRevision(t, s, relFrom)),
 		Scope:        domain.ScopeWork,
 		Type:         domain.RelationRelated,
 		FromID:       w3.ID,
@@ -334,8 +336,12 @@ func TestRelationServiceWorkScope(t *testing.T) {
 		State:        domain.ClaimConfirmed,
 		Provenance:   "manual",
 	})
-	if len(view.Confirmed) != 1 {
-		t.Fatalf("view = %+v, want the related edge", view)
+	wantConfirmed := 1
+	if relFrom == w1.ID {
+		wantConfirmed = 2
+	}
+	if len(view.Confirmed) != wantConfirmed {
+		t.Fatalf("view = %+v, want %d confirmed edge(s)", view, wantConfirmed)
 	}
 	// The traversal from w1 reaches w2 (sequel) and w3 (related).
 	related, err := s.Related(context.Background(), domain.ScopeWork, w1.ID, 2)

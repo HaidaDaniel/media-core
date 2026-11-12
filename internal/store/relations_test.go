@@ -401,6 +401,17 @@ func TestRelationReplacement(t *testing.T) {
 	}, editionRev(eA.ID), relationActor, nil); !errors.Is(err, ErrRelationConflict) {
 		t.Fatalf("parallel active edge: err = %v, want ErrRelationConflict", err)
 	}
+	// A direction correction: replacing the confirmed edge with the
+	// reversed direction succeeds, because the cycle check sees the
+	// post-replacement graph.
+	fourth := mustAddRelation(t, db, now.Add(6*time.Second), RelationInput{
+		Scope: domain.ScopeEdition, Type: domain.RelationAdaptationOf,
+		FromID: eB.ID, ToID: eA.ID, State: domain.ClaimConfirmed, Provenance: "corrected direction",
+		ReplacesID: &second.Relation.ID,
+	}, editionRev(eB.ID))
+	if fourth.Relation.ReplacesID == nil || *fourth.Relation.ReplacesID != second.Relation.ID {
+		t.Fatalf("direction correction = %+v, want the replacement link", fourth.Relation)
+	}
 }
 
 // TestRelationRevisionGuard proves a stale expected revision on the

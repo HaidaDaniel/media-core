@@ -478,15 +478,6 @@ func (d *Database) AddRelation(ctx context.Context, now time.Time, in RelationIn
 	if err != nil {
 		return RelationResult{}, err
 	}
-	if in.State == domain.ClaimConfirmed {
-		cycle, err := confirmedCycle(ctx, tx, in.Scope, in.Type, fromID, toID)
-		if err != nil {
-			return RelationResult{}, err
-		}
-		if cycle {
-			return RelationResult{}, fmt.Errorf("%w: %s %s -> %s loops the confirmed %s graph", ErrRelationCycle, in.Type, fromID, toID, in.Type.CycleGraph())
-		}
-	}
 	replaced := false
 	if in.ReplacesID != nil {
 		target, err := findRelationAny(ctx, tx, *in.ReplacesID)
@@ -508,6 +499,17 @@ func (d *Database) AddRelation(ctx context.Context, now time.Time, in RelationIn
 			return RelationResult{}, fmt.Errorf("store: revoke replaced relation: %w", err)
 		}
 		replaced = true
+	}
+	// The cycle check runs after the replacement revocation, so a
+	// direction correction does not trip the graph it revokes.
+	if in.State == domain.ClaimConfirmed {
+		cycle, err := confirmedCycle(ctx, tx, in.Scope, in.Type, fromID, toID)
+		if err != nil {
+			return RelationResult{}, err
+		}
+		if cycle {
+			return RelationResult{}, fmt.Errorf("%w: %s %s -> %s loops the confirmed %s graph", ErrRelationCycle, in.Type, fromID, toID, in.Type.CycleGraph())
+		}
 	}
 	existing, err := findActiveEdge(ctx, tx, in.Scope, in.Type, fromID, toID)
 	if err != nil {
@@ -741,15 +743,6 @@ func (d *Database) RelatedMedia(ctx context.Context, scope domain.RelationScope,
 	}
 	if err := rows.Err(); err != nil {
 		return nil, fmt.Errorf("store: scan relations for traversal: %w", err)
-	}
-	// Adjacency: each edge touches both endpoints; the traversal walks
-	// from a node to the other endpoint of any edge that touches it.
-	adjacent := map[string][]string{}
-	touch := func(a, b string) {
-		adjacent[a] = append(adjacent[a], b)
-	}
-	for _, e := range edges {
-		touch(e.from, e.to)
 	}
 	// Edges are reported once, at the first hop they are reached; nodes
 	// are enqueued once, so undirected cycles terminate. An edge between
