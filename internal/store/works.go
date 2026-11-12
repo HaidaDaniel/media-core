@@ -86,9 +86,6 @@ func (d *Database) beginImmediate(ctx context.Context) (*sql.Tx, error) {
 	return tx, nil
 }
 
-// instantUTC renders an instant as UTC RFC3339 with second precision; the
-// fixed precision keeps stored timestamps lexicographically sortable.
-
 // instantUTC renders one UTC instant as fixed-width millisecond RFC3339 so
 // that stored strings keep chronological lexicographic order and two
 // observations recorded within the same second stay distinguishable; the
