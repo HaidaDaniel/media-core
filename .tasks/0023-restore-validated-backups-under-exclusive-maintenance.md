@@ -27,6 +27,7 @@ Restore a current-schema backup into an isolated or explicitly replaceable state
 - internal/backup/restore.go
 - internal/backup/restore_test.go
 - internal/app/restore.go
+- internal/app/restore_test.go
 - internal/cli/restore.go
 - internal/cli/restore_test.go
 - internal/cli/cli.go
@@ -82,3 +83,4 @@ Restore a current-schema backup into an isolated or explicitly replaceable state
 - Only listed paths plus this task file may change. Do not edit other task contracts or generated agent instructions; task lifecycle is managed by APK.
 - Keep contract behavior fixed; if a counterexample requires expanding scope, update this task before source edits. No actual host deployment, push or publication is authorized.
 - Scope amendment (2026-11-12): the restore command joins the CLI usage text, so cli/cli.go joins the allowed list; the command itself registers in internal/cli/restore.go like the other capability commands.
+- Scope amendment (2026-11-12, second): add internal/app/restore_test.go, which carries the service-level restore tests.
