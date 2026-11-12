@@ -1,6 +1,6 @@
 # Task 0022 - Create consistent SQLite snapshot backups with manifests
 
-State: doing
+State: done
 Owner: opencode-media-20261110
 Mode: mvp
 Lane: reliability
