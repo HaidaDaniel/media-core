@@ -1,6 +1,6 @@
 # Task 0013 - Search and retrieve the persistent library through CLI
 
-State: doing
+State: done
 Owner: opencode-media-20261110
 Mode: mvp
 Lane: application
