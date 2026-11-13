@@ -29,6 +29,14 @@ export const CONSUMPTION_VALUES = [
 ] as const;
 export type ConsumptionValue = (typeof CONSUMPTION_VALUES)[number];
 
+// The status options of the screen: the five states plus the explicit
+// retraction value "unknown", which withdraws a mistaken state and stays in
+// history distinct from never having an observation.
+export const CONSUMPTION_STATUS_OPTIONS = [
+  ...CONSUMPTION_VALUES,
+  "unknown",
+] as const;
+
 // The edition kinds, in the library's display order.
 export const EDITION_KINDS = [
   "manga",

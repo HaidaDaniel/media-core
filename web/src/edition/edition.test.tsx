@@ -44,6 +44,14 @@ vi.mock("./editionApi", () => ({
     "completed",
     "dropped",
   ],
+  CONSUMPTION_STATUS_OPTIONS: [
+    "not_started",
+    "in_progress",
+    "paused",
+    "completed",
+    "dropped",
+    "unknown",
+  ],
   EDITION_KINDS: [
     "manga",
     "manhwa",
@@ -388,7 +396,7 @@ describe("edition detail", () => {
           historyItem({
             id: "h-1",
             type: "progress",
-            value: null,
+            value: "chapter",
             detail: null,
             label: "retracted",
             reason: "wrong unit",
@@ -414,6 +422,64 @@ describe("edition detail", () => {
     );
     // The retracted row stays in history as retracted, not deleted.
     expect(screen.getByText("retracted")).not.toBeNull();
+    // The retracted row is no longer offered for retraction.
+    expect((screen.getByLabelText("Record") as HTMLSelectElement).disabled).toBe(true);
+  });
+
+  it("offers only effective progress rows for retraction", async () => {
+    mockGetEdition.mockResolvedValueOnce(
+      edition({ progress: { chapter: record("p-48", "chapter", "48") } }),
+    );
+    mockGetEditionHistory.mockResolvedValueOnce({
+      items: [
+        // The live record: same id as the edition's current chapter record.
+        historyItem({ id: "p-48", type: "progress", value: "chapter", detail: "48/100" }),
+        historyItem({
+          id: "h-2",
+          type: "progress",
+          value: "chapter",
+          detail: "42/100",
+          label: "superseded",
+        }),
+        historyItem({
+          id: "h-1",
+          type: "progress",
+          value: "chapter",
+          detail: null,
+          label: "retracted",
+        }),
+      ],
+      next_cursor: null,
+      total: 3,
+    });
+    renderPage();
+    expect(await screen.findByText("chapter: 48/100")).not.toBeNull();
+    const select = screen.getByLabelText("Record") as HTMLSelectElement;
+    // Superseded and retracted rows are always rejected by the service, so
+    // only the live effective row is offered.
+    expect([...select.options].map((o) => o.value)).toEqual(["", "p-48"]);
+  });
+
+  it("offers the explicit unknown retraction for a mistaken status", async () => {
+    mockGetEdition.mockResolvedValueOnce(
+      edition({ consumption: { value: "completed", reason: null } }),
+    );
+    // The view renders an unknown state as the absence of a consumption.
+    mockSetConsumption.mockResolvedValueOnce(
+      edition({
+        revision: 4,
+        consumption: null,
+        publication: { value: "ongoing", source: "manual" },
+      }),
+    );
+    renderPage();
+    expect(await screen.findByText("Status: completed")).not.toBeNull();
+    fireEvent.change(screen.getByLabelText("Status"), { target: { value: "unknown" } });
+    fireEvent.click(screen.getByRole("button", { name: "Set status" }));
+    expect(await screen.findByText("Status: unknown")).not.toBeNull();
+    expect(mockSetConsumption).toHaveBeenCalledWith(
+      expect.objectContaining({ value: "unknown", expectedRevision: 3 }),
+    );
   });
 
   it("sends only the changed metadata fields", async () => {

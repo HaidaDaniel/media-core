@@ -11,7 +11,7 @@ import { Link, useParams } from "react-router-dom";
 import { ApiError } from "../api/client";
 import { getWork } from "../work/workApi";
 import {
-  CONSUMPTION_VALUES,
+  CONSUMPTION_STATUS_OPTIONS,
   EDITION_KINDS,
   PROGRESS_UNITS,
   getEdition,
@@ -102,7 +102,7 @@ export function EditionPage(): JSX.Element {
   const [progSupersedes, setProgSupersedes] = useState("");
 
   // Status form.
-  const [consValue, setConsValue] = useState<string>(CONSUMPTION_VALUES[0]);
+  const [consValue, setConsValue] = useState<string>(CONSUMPTION_STATUS_OPTIONS[0]);
   const [consReason, setConsReason] = useState("");
 
   // Retraction form: only progress observations are retractable.
@@ -169,9 +169,10 @@ export function EditionPage(): JSX.Element {
 
   // refreshHistory re-reads the first history page after a mutation; a
   // failed refresh keeps the prior history beside a distinguishable error.
-  const refreshHistory = useCallback(async (): Promise<boolean> => {
+  // The caller passes the generation captured before its mutation so a
+  // navigation in between discards this refresh.
+  const refreshHistory = useCallback(async (gen: number): Promise<boolean> => {
     if (!editionId) return false;
-    const gen = generation.current;
     try {
       const page = await getEditionHistory(editionId);
       if (generation.current !== gen) return false;
@@ -222,6 +223,7 @@ export function EditionPage(): JSX.Element {
     }
     setFieldError(null);
     setActionError(null);
+    const gen = generation.current;
     setBusy(true);
     try {
       const ed = await recordProgress({
@@ -233,14 +235,15 @@ export function EditionPage(): JSX.Element {
         supersedesId: progMode === "correct" ? correcting?.id : undefined,
         expectedRevision: edition.revision,
       });
+      if (generation.current !== gen) return;
       setEdition(ed);
       setProgPosition("");
       setProgTotal("");
       setProgSupersedes("");
       setProgMode("new");
-      await refreshHistory();
+      await refreshHistory(gen);
     } catch (e) {
-      setActionError(errorMessage(e));
+      if (generation.current === gen) setActionError(errorMessage(e));
     } finally {
       setBusy(false);
     }
@@ -250,6 +253,7 @@ export function EditionPage(): JSX.Element {
     if (edition === null) return;
     setFieldError(null);
     setActionError(null);
+    const gen = generation.current;
     setBusy(true);
     try {
       const ed = await setConsumption({
@@ -258,11 +262,12 @@ export function EditionPage(): JSX.Element {
         reason: consReason.trim() === "" ? undefined : consReason.trim(),
         expectedRevision: edition.revision,
       });
+      if (generation.current !== gen) return;
       setEdition(ed);
       setConsReason("");
-      await refreshHistory();
+      await refreshHistory(gen);
     } catch (e) {
-      setActionError(errorMessage(e));
+      if (generation.current === gen) setActionError(errorMessage(e));
     } finally {
       setBusy(false);
     }
@@ -277,6 +282,7 @@ export function EditionPage(): JSX.Element {
     }
     setFieldError(null);
     setActionError(null);
+    const gen = generation.current;
     setBusy(true);
     try {
       const ed = await retractProgress({
@@ -285,12 +291,13 @@ export function EditionPage(): JSX.Element {
         reason,
         expectedRevision: edition.revision,
       });
+      if (generation.current !== gen) return;
       setEdition(ed);
       setRetractRecord("");
       setRetractReason("");
-      await refreshHistory();
+      await refreshHistory(gen);
     } catch (e) {
-      setActionError(errorMessage(e));
+      if (generation.current === gen) setActionError(errorMessage(e));
     } finally {
       setBusy(false);
     }
@@ -310,6 +317,7 @@ export function EditionPage(): JSX.Element {
     }
     setFieldError(null);
     setActionError(null);
+    const gen = generation.current;
     setBusy(true);
     try {
       const ed = await updateEdition({
@@ -317,11 +325,12 @@ export function EditionPage(): JSX.Element {
         ...changes,
         expectedRevision: edition.revision,
       });
+      if (generation.current !== gen) return;
       setEdition(ed);
       syncMetaFrom(ed);
-      await refreshHistory();
+      await refreshHistory(gen);
     } catch (e) {
-      setActionError(errorMessage(e));
+      if (generation.current === gen) setActionError(errorMessage(e));
     } finally {
       setBusy(false);
     }
@@ -353,8 +362,11 @@ export function EditionPage(): JSX.Element {
   const publicationSource = edition.publication?.source ?? "";
   const consumptionReason = edition.consumption?.reason ?? "";
   const progressRecords = currentProgressRecords(edition);
+  // Only effective rows are retractable: the projection keeps value=unit on
+  // every progress row, but the service rejects retraction markers and
+  // already-superseded rows.
   const retractable = (history?.items ?? []).filter(
-    (item) => item.type === "progress" && item.value !== null,
+    (item) => item.type === "progress" && item.label === "effective",
   );
 
   return (
@@ -506,9 +518,9 @@ export function EditionPage(): JSX.Element {
             onChange={(e) => setConsValue(e.target.value)}
             disabled={busy}
           >
-            {CONSUMPTION_VALUES.map((value) => (
+            {CONSUMPTION_STATUS_OPTIONS.map((value) => (
               <option key={value} value={value}>
-                {value.replace(/_/g, " ")}
+                {value === "unknown" ? "unknown (retract state)" : value.replace(/_/g, " ")}
               </option>
             ))}
           </select>
