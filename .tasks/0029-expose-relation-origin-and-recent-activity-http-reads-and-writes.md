@@ -1,6 +1,6 @@
 # Task 0029 - Expose relation origin and recent-activity HTTP reads and writes
 
-State: doing
+State: done
 Owner: opencode-media-20261110
 Mode: mvp
 Lane: http
