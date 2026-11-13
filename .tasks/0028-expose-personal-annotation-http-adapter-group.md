@@ -1,7 +1,7 @@
 # Task 0028 - Expose personal annotation HTTP adapter group
 
-State: todo
-Owner: none
+State: doing
+Owner: opencode-media-20261110
 Mode: mvp
 Lane: http
 Scope: http
@@ -23,11 +23,11 @@ Adapt the existing annotation services to bounded typed HTTP routes without new 
 - docs/application-contract.md
 
 ## Files allowed to edit
+
 - internal/httpapi/annotations.go
 - internal/httpapi/annotations_test.go
 - internal/httpapi/routes.go
 - docs/progress.md
-
 - .tasks/0028-expose-personal-annotation-http-adapter-group.md
 
 ## Files forbidden to edit
@@ -66,6 +66,7 @@ Adapt the existing annotation services to bounded typed HTTP routes without new 
 - `{"id":"focused","type":"automated","required":true,"environment":"local","profile":"report","command":"go test ./internal/httpapi -run \"TestHTTPAnnotation\""}`
 
 ## Documentation updates
+
 - Update docs/progress.md on lifecycle changes.
 
 ## Notes

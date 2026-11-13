@@ -38,6 +38,15 @@ func (s *Server) registerCatalogRoutes(mux *http.ServeMux) {
 	mux.Handle("POST /api/v1/editions/{id}/consumption", write(s.handleSetConsumption))
 	mux.Handle("GET /api/v1/editions/{id}/history", read(s.handleGetHistory))
 	mux.Handle("POST /api/v1/editions/{id}/history/{record_id}/retract", write(s.handleRetractProgress))
+	mux.Handle("POST /api/v1/editions/{id}/intention", write(s.handleSetIntention))
+	mux.Handle("POST /api/v1/editions/{id}/ratings", write(s.handleSetRating))
+	mux.Handle("POST /api/v1/editions/{id}/references", write(s.handleAddReference))
+	mux.Handle("POST /api/v1/editions/{id}/references/{reference_id}/retire", write(s.handleRetireReference))
+	mux.Handle("POST /api/v1/notes", write(s.handleAddNote))
+	mux.Handle("PATCH /api/v1/notes/{id}", write(s.handleReviseNote))
+	mux.Handle("POST /api/v1/notes/{id}/retract", write(s.handleRetractNote))
+	mux.Handle("POST /api/v1/tags/assignments", write(s.handleTagAssignment))
+	mux.Handle("DELETE /api/v1/tags/assignments", write(s.handleTagAssignment))
 }
 
 // requireSession rejects a request without a live session before the
