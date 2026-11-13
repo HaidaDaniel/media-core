@@ -5,7 +5,18 @@
 // offered only when this screen's entity is the edge's canonical from entity.
 import type { JSX } from "react";
 import { Link } from "react-router-dom";
-import type { RelatedEdgeWire } from "./relationsApi";
+import type { ClaimState } from "./relationsApi";
+
+// The fields one readable row needs; the traversal edge and the full
+// relation both satisfy this (the edge adds a hop depth the row does not
+// render, and the full relation adds provenance the row may show).
+export interface RelationEdgeLike {
+  relation_id: string;
+  type: string;
+  from_id: string;
+  to_id: string;
+  state: ClaimState;
+}
 
 // The v1 relation types by scope. Work-scope rows bind works; edition-scope
 // rows bind editions. The split is the server's, not a client rule.
@@ -67,7 +78,7 @@ export function describeRelation(
 }
 
 export interface RelationRowProps {
-  edge: RelatedEdgeWire;
+  edge: RelationEdgeLike;
   scope: "work" | "edition";
   // The id of the entity this screen is about; it is one endpoint of the
   // edge, and the other endpoint is the navigation target.
@@ -78,6 +89,9 @@ export interface RelationRowProps {
   // Whether the confirm/revoke actions are offered here (the canonical from
   // entity is the current one, so its revision guards the mutation).
   actionable: boolean;
+  // The claim's provenance, when the view carries it (the full relation
+  // view from a mutation does; the traversal does not).
+  provenance?: string;
   busy?: boolean;
   onConfirm?: (relationId: string) => void;
   onRevoke?: (relationId: string) => void;
@@ -89,6 +103,7 @@ export function RelationRow({
   currentId,
   label,
   actionable,
+  provenance,
   busy = false,
   onConfirm,
   onRevoke,
@@ -107,6 +122,7 @@ export function RelationRow({
         {proposed ? "Proposed" : "Confirmed"}
       </span>
       <Link to={target}>{otherLabel}</Link>
+      {provenance !== undefined && <span className="login-hint">({provenance})</span>}
       {actionable && (
         <span className="library-actions">
           {proposed && onConfirm && (

@@ -13,6 +13,7 @@ import {
   ORIGIN_KINDS,
   RelationRow,
   WORK_RELATION_TYPES,
+  type RelationEdgeLike,
 } from "../relations/RelationRow";
 import {
   confirmRelation,
@@ -23,6 +24,7 @@ import {
   type ClaimStateInput,
   type OriginViewWire,
   type RelatedViewWire,
+  type RelationViewWire,
   workRelations,
 } from "../relations/relationsApi";
 import { getEdition, getWork, type EditionViewWire, type WorkViewWire } from "./workApi";
@@ -60,6 +62,10 @@ export function WorkPage(): JSX.Element {
   const [editionErrors, setEditionErrors] = useState<Record<string, string>>({});
   const [workRel, setWorkRel] = useState<RelatedViewWire | null>(null);
   const [workRelError, setWorkRelError] = useState<string | null>(null);
+  // The full relation view returned by a propose/confirm/revoke mutation:
+  // unlike the traversal it carries per-edge provenance, so after an action
+  // the section renders from it. It is cleared by the next full load.
+  const [workRelFull, setWorkRelFull] = useState<RelationViewWire | null>(null);
   const [editionRels, setEditionRels] = useState<Record<string, RelatedViewWire>>({});
   const [editionRelErrors, setEditionRelErrors] = useState<Record<string, string>>({});
   const [labels, setLabels] = useState<Record<string, string>>({});
@@ -142,6 +148,8 @@ export function WorkPage(): JSX.Element {
       const wRel = workRelResult.ok ? workRelResult.value : null;
       setWorkRel(wRel);
       setWorkRelError(workRelResult.ok ? null : errorMessage(workRelResult.error));
+      // A fresh traversal is the source again; the mutation view is stale.
+      setWorkRelFull(null);
       const eRels: Record<string, RelatedViewWire> = {};
       const eRelErrs: Record<string, string> = {};
       editionRelResults.forEach((r, i) => {
@@ -180,7 +188,7 @@ export function WorkPage(): JSX.Element {
     setActionError(null);
     setBusy(true);
     try {
-      await proposeRelation({
+      const view = await proposeRelation({
         scope: "work",
         type: proposeType,
         fromId: work.id,
@@ -191,7 +199,10 @@ export function WorkPage(): JSX.Element {
       });
       setProposeOther("");
       setProposeProvenance("");
+      // Reload for the fresh traversal and revision, then let the
+      // provenance-carrying mutation view render the section.
       await load();
+      setWorkRelFull(view);
     } catch (e) {
       setActionError(errorMessage(e));
     } finally {
@@ -204,12 +215,12 @@ export function WorkPage(): JSX.Element {
     setActionError(null);
     setBusy(true);
     try {
-      if (action === "confirm") {
-        await confirmRelation(relationId, work.revision);
-      } else {
-        await revokeRelation(relationId, work.revision);
-      }
+      const view =
+        action === "confirm"
+          ? await confirmRelation(relationId, work.revision)
+          : await revokeRelation(relationId, work.revision);
       await load();
+      setWorkRelFull(view);
     } catch (e) {
       setActionError(errorMessage(e));
     } finally {
@@ -242,6 +253,9 @@ export function WorkPage(): JSX.Element {
       });
       setOrigins((prev) => ({ ...prev, [selectedOriginEdition]: view }));
       setOriginProvenance("");
+      // The record bumps the edition revision, so reload to keep the
+      // next record's revision guard fresh.
+      await load();
     } catch (e) {
       setActionError(errorMessage(e));
     } finally {
@@ -273,6 +287,26 @@ export function WorkPage(): JSX.Element {
 
   const preferred = work.titles.find((t) => t.preferred) ?? work.titles[0];
   const aliases = work.titles.filter((t) => t.id !== preferred?.id);
+
+  // The rows of the "Related works" section: after a mutation the full view
+  // (which carries provenance) is preferred; otherwise the traversal.
+  const workRelationRows: (RelationEdgeLike & { provenance?: string })[] =
+    workRelFull !== null
+      ? [...workRelFull.proposed, ...workRelFull.confirmed].map((r) => ({
+          relation_id: r.id,
+          type: r.type,
+          from_id: r.from_id,
+          to_id: r.to_id,
+          state: r.state,
+          provenance: r.provenance,
+        }))
+      : (workRel?.edges ?? []).map((e) => ({
+          relation_id: e.relation_id,
+          type: e.type,
+          from_id: e.from_id,
+          to_id: e.to_id,
+          state: e.state,
+        }));
 
   return (
     <section className="placeholder">
@@ -363,16 +397,17 @@ export function WorkPage(): JSX.Element {
       </ul>
 
       <h3>Related works</h3>
-      {workRel !== null && workRel.edges.length > 0 && (
+      {workRelationRows.length > 0 && (
         <ul className="library-list">
-          {workRel.edges.map((edge) => (
+          {workRelationRows.map((row) => (
             <RelationRow
-              key={edge.relation_id}
-              edge={edge}
+              key={row.relation_id}
+              edge={row}
               scope="work"
               currentId={work.id}
               label={label}
-              actionable={edge.from_id === work.id}
+              provenance={row.provenance}
+              actionable={row.from_id === work.id}
               busy={busy}
               onConfirm={(id) => void runRelationAction("confirm", id)}
               onRevoke={(id) => void runRelationAction("revoke", id)}
@@ -380,7 +415,7 @@ export function WorkPage(): JSX.Element {
           ))}
         </ul>
       )}
-      {workRel !== null && workRel.edges.length === 0 && (
+      {workRelationRows.length === 0 && (
         <p className="login-hint">No related works.</p>
       )}
       {workRel === null && workRelError !== null && (
@@ -563,7 +598,8 @@ function OriginClaims({
   if (!view || view.claims.length === 0) {
     return (
       <p className="login-hint">
-        No origin recorded for this {editionKind} — source unknown.
+        Source: unknown (no origin claim recorded for this {editionKind} on this
+        screen yet).
       </p>
     );
   }

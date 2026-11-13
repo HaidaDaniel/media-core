@@ -233,7 +233,51 @@ describe("work detail", () => {
 
   it("shows the unknown-source default when no origin is recorded and never infers one", async () => {
     renderPage();
-    expect(await screen.findByText(/No origin recorded for this anime — source unknown\./)).not.toBeNull();
+    expect(
+      await screen.findByText(/Source: unknown \(no origin claim recorded for this anime on this screen yet\)\./),
+    ).not.toBeNull();
+  });
+
+  it("renders the provenance of a relation created from the form", async () => {
+    let workRelCalls = 0;
+    mockWorkRelations.mockImplementation(async () => {
+      workRelCalls += 1;
+      // The reload after the propose includes the newly asserted relation.
+      if (workRelCalls >= 2) {
+        return relatedView([edge("r-1", "related", "w-1", "w-2", "proposed")]);
+      }
+      return relatedView([]);
+    });
+    mockProposeRelation.mockResolvedValueOnce({
+      proposed: [
+        {
+          id: "r-1",
+          scope: "work",
+          type: "related",
+          from_id: "w-1",
+          to_id: "w-2",
+          state: "proposed",
+          provenance: "manual",
+          confidence: null,
+          replaces_id: null,
+          confirmed_by: null,
+          confirmed_at: null,
+          created_at: "2026-01-01T00:00:00Z",
+          revoked_by: null,
+          revoked_at: null,
+        },
+      ],
+      confirmed: [],
+      revoked: [],
+    });
+    renderPage();
+    expect(await screen.findByText("Anime Work")).not.toBeNull();
+    fireEvent.change(screen.getByLabelText("Other work id"), { target: { value: "w-2" } });
+    fireEvent.change(screen.getAllByLabelText("Provenance")[0], { target: { value: "manual" } });
+    fireEvent.click(screen.getByRole("button", { name: "Propose" }));
+    // After the mutation the full view renders, carrying the provenance.
+    expect(await screen.findByText("(manual)")).not.toBeNull();
+    expect(screen.getByText("This work is related to Other Work w-2")).not.toBeNull();
   });
 
   it("surfaces a cycle conflict on confirm and leaves the prior state intact", async () => {
@@ -316,5 +360,22 @@ describe("work failure contract", () => {
     expect(alert.textContent).toContain("the storage failed");
     // No consumption/intention state is fabricated for the failed edition.
     expect(screen.queryByText(/intention:/)).toBeNull();
+  });
+
+  it("keeps the prior work beside a distinguishable error when a refresh fails", async () => {
+    mockGetWork
+      .mockResolvedValueOnce(work())
+      .mockRejectedValueOnce(new ApiError("locked", 503, "the storage is locked", true));
+    mockProposeRelation.mockResolvedValueOnce({ proposed: [], confirmed: [], revoked: [] });
+    renderPage();
+    expect(await screen.findByText("Anime Work")).not.toBeNull();
+    fireEvent.change(screen.getByLabelText("Other work id"), { target: { value: "w-2" } });
+    fireEvent.change(screen.getAllByLabelText("Provenance")[0], { target: { value: "manual" } });
+    fireEvent.click(screen.getByRole("button", { name: "Propose" }));
+    // The reload after the successful propose fails, but the prior work stays
+    // visible beside the distinguishable refresh banner.
+    const alert = await screen.findByRole("alert");
+    expect(alert.textContent).toContain("could not be refreshed");
+    expect(screen.getByText("Anime Work")).not.toBeNull();
   });
 });
