@@ -261,4 +261,14 @@ describe("library states", () => {
       expect(screen.getByLabelText(name)).not.toBeNull();
     }
   });
+
+  it("offers every valid kind and consumption value in the filters", async () => {
+    renderPage("/");
+    expect(await screen.findByText("Static Bloom")).not.toBeNull();
+    const kinds = within(screen.getByLabelText("Medium")).getAllByRole("option");
+    expect(kinds.length).toBe(14); // "All" plus the 13 valid kinds
+    expect(kinds.some((o) => (o as HTMLOptionElement).value === "unknown")).toBe(true);
+    const statuses = within(screen.getByLabelText("Status")).getAllByRole("option");
+    expect(statuses.length).toBe(7); // "All" plus the five states and unknown
+  });
 });

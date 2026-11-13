@@ -28,6 +28,7 @@ const KINDS = [
   "game",
   "visual_novel",
   "other",
+  "unknown",
 ];
 const CONSUMPTIONS = [
   "not_started",
