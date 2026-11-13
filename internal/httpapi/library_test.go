@@ -255,6 +255,12 @@ func TestHTTPLibraryCursor(t *testing.T) {
 	// A cursor issued for a different sort is rejected.
 	resp, raw = catalogGet(t, srv, cookie, "/api/v1/works?limit=1&sort=created_at&cursor="+cursor)
 	expectFailure(t, resp, raw, http.StatusBadRequest, string(app.ErrInvalidArgument))
+	// A non-numeric numeric parameter is an invalid argument, never a
+	// silent default.
+	resp, raw = catalogGet(t, srv, cookie, "/api/v1/works?limit=abc")
+	expectFailure(t, resp, raw, http.StatusBadRequest, string(app.ErrInvalidArgument))
+	resp, raw = catalogGet(t, srv, cookie, "/api/v1/works?min-rating=high")
+	expectFailure(t, resp, raw, http.StatusBadRequest, string(app.ErrInvalidArgument))
 	// A malformed cursor is rejected.
 	resp, raw = catalogGet(t, srv, cookie, "/api/v1/works?cursor=garbage")
 	expectFailure(t, resp, raw, http.StatusBadRequest, string(app.ErrInvalidArgument))

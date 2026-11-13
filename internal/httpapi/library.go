@@ -10,10 +10,14 @@ import (
 )
 
 // decodeListFilter maps the /works query parameters onto the shared library
-// filter. It only decodes and type-maps; every bound, value and cursor rule
-// is enforced by the shared service after decoding, so the HTTP layer owns
-// no search rule of its own.
-func decodeListFilter(q url.Values) app.LibraryFilter {
+// filter. It only decodes and type-maps: a present but unparsable numeric
+// parameter is an invalid argument (never silently dropped), and every
+// bound, value and cursor rule is enforced by the shared service after
+// decoding, so the HTTP layer owns no search rule of its own.
+func decodeListFilter(q url.Values) (app.LibraryFilter, *app.AppError) {
+	invalid := func(param, value string) *app.AppError {
+		return app.NewAppError(app.ErrInvalidArgument, param+" is not a number: "+value)
+	}
 	f := app.LibraryFilter{}
 	if v := q.Get("query"); v != "" {
 		f.Query = &v
@@ -38,22 +42,26 @@ func decodeListFilter(q url.Values) app.LibraryFilter {
 		f.Tags = append(f.Tags, v)
 	}
 	if v := q.Get("min-rating"); v != "" {
-		if n, err := strconv.Atoi(v); err == nil {
-			f.MinRating = &n
+		n, err := strconv.Atoi(v)
+		if err != nil {
+			return f, invalid("min-rating", v)
 		}
+		f.MinRating = &n
 	}
 	if v := q.Get("sort"); v != "" {
 		f.Sort = app.LibrarySort(v)
 	}
 	if v := q.Get("limit"); v != "" {
-		if n, err := strconv.Atoi(v); err == nil {
-			f.Limit = n
+		n, err := strconv.Atoi(v)
+		if err != nil {
+			return f, invalid("limit", v)
 		}
+		f.Limit = n
 	}
 	if v := q.Get("cursor"); v != "" {
 		f.Cursor = &v
 	}
-	return f
+	return f, nil
 }
 
 // handleListWorks is GET /api/v1/works: the shared catalog search as work
@@ -64,7 +72,12 @@ func (s *Server) handleListWorks(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusNotFound, app.NewAppError(app.ErrNotFound, "no such route"))
 		return
 	}
-	payload, err := s.catalog.SearchLibrary(r.Context(), decodeListFilter(r.URL.Query()))
+	filter, appErr := decodeListFilter(r.URL.Query())
+	if appErr != nil {
+		writeError(w, http.StatusBadRequest, appErr)
+		return
+	}
+	payload, err := s.catalog.SearchLibrary(r.Context(), filter)
 	if err != nil {
 		ae := catalogTyped(err)
 		writeError(w, ae.Code.HTTPStatus(), ae)

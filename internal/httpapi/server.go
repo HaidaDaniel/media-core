@@ -37,7 +37,8 @@ type Server struct {
 
 // WithCatalog attaches the shared library service that backs the catalog
 // read routes. Without it the server is session-only and the catalog routes
-// are not registered.
+// are not registered. It must be called before Serve: the route table is
+// built once, at the first Serve, from the catalog state known then.
 func (s *Server) WithCatalog(svc *app.Service) *Server {
 	s.catalog = svc
 	return s
