@@ -1,7 +1,7 @@
 # Task 0031 - Build library list search filters and counts
 
-State: todo
-Owner: none
+State: doing
+Owner: opencode-media-20261110
 Mode: mvp
 Lane: web
 Scope: web
@@ -24,11 +24,12 @@ Build the daily library screen with matching-edition states and URL-backed searc
 - docs/application-contract.md
 
 ## Files allowed to edit
+
 - web/src/library/**
 - web/src/App.tsx
 - web/src/styles.css
+- web/src/shell/shell.test.tsx
 - docs/progress.md
-
 - .tasks/0031-build-library-list-search-filters-and-counts.md
 
 ## Files forbidden to edit
@@ -67,10 +68,12 @@ Build the daily library screen with matching-edition states and URL-backed searc
 - `{"id":"focused","type":"automated","required":true,"environment":"local","profile":"report","command":"pnpm --dir web exec tsc --noEmit && pnpm --dir web test -- --run src/library"}`
 
 ## Documentation updates
+
 - Update docs/progress.md on lifecycle changes.
 
 ## Notes
 
+- Scope amendment (2026-11-13): `web/src/shell/shell.test.tsx` is added to the allowed list because mounting the real library page at the index route (step 1) changes what the App-level routing test renders; its `../api/client` mock must gain the `get` helper the page uses. The change is test-only; no shell source file is touched.
 - Milestone: M2. See docs/implementation-plan.md for requirements and graph.
 - Unstarted implementation contract. Tests/commands above are to be created or made runnable by this task; none is claimed to pass today.
 - Before editing, read existing allowed source files supplied by completed dependencies. Missing paths are new files owned by this task, not existing context.
