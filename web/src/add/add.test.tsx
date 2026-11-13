@@ -148,25 +148,35 @@ describe("quick add outcomes", () => {
     );
   });
 
-  it("adds an edition under a candidate work once a medium is chosen", async () => {
+  it("re-resolves when the medium changes and adds the edition with the fresh token", async () => {
     const candidates = [
       { work_id: "w-2", edition_id: null, evidence: ["edition title match (manga)"] },
     ];
     mockResolve.mockResolvedValueOnce(
-      resolveOutcome({ outcome: "candidates", candidates, candidate_token: "tok" }),
+      resolveOutcome({ outcome: "candidates", candidates, candidate_token: "tok-old" }),
+    );
+    mockResolve.mockResolvedValueOnce(
+      resolveOutcome({ outcome: "candidates", candidates, candidate_token: "tok-new" }),
     );
     mockAddEdition.mockResolvedValueOnce(created("w-2", "e-7"));
     renderAdd();
     await submitTitle();
     expect(await screen.findByText(/Possible matches/)).not.toBeNull();
 
-    const addEditionButton = screen.getByRole("button", {
+    let addEditionButton = screen.getByRole("button", {
       name: "Add edition under this work",
     }) as HTMLButtonElement;
     expect(addEditionButton.disabled).toBe(true);
     fireEvent.change(screen.getByLabelText("Medium (optional; required to add an edition)"), {
       target: { value: "manga" },
     });
+    // The medium change invalidates the token's fingerprint, so the screen
+    // re-resolves before the choice is offered again.
+    await vi.waitFor(() => expect(mockResolve).toHaveBeenCalledTimes(2));
+    expect(mockResolve).toHaveBeenLastCalledWith(expect.objectContaining({ kind: "manga" }));
+    addEditionButton = screen.getByRole("button", {
+      name: "Add edition under this work",
+    }) as HTMLButtonElement;
     expect(addEditionButton.disabled).toBe(false);
 
     fireEvent.click(addEditionButton);
@@ -174,7 +184,76 @@ describe("quick add outcomes", () => {
     expect(mockAddEdition).toHaveBeenCalledWith(
       "w-2",
       expect.anything(),
-      expect.objectContaining({ candidateToken: "tok" }),
+      expect.objectContaining({ candidateToken: "tok-new" }),
+    );
+  });
+
+  it("resolves a URL-only entry to the existing record without sending a title", async () => {
+    mockResolve.mockResolvedValueOnce(resolveOutcome({ outcome: "existing", work_id: "w-6" }));
+    renderAdd();
+    fireEvent.change(screen.getByLabelText("URL"), {
+      target: { value: "https://example.com/x" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Add" }));
+
+    expect(await screen.findByText(/already exists/)).not.toBeNull();
+    expect(mockResolve).toHaveBeenCalledWith(
+      expect.objectContaining({
+        titles: [],
+        references: [{ url: "https://example.com/x" }],
+      }),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Open existing record" }));
+    expect((await screen.findByTestId("probe")).textContent).toBe("work-w-6");
+  });
+
+  it("reports the server's manual-title requirement for an unknown URL and keeps the input", async () => {
+    mockResolve.mockRejectedValueOnce(
+      new ApiError(
+        "invalid_argument",
+        400,
+        "a title is required when the identity is not known",
+        false,
+      ),
+    );
+    renderAdd();
+    fireEvent.change(screen.getByLabelText("URL"), {
+      target: { value: "https://example.com/x" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Add" }));
+
+    const alert = await screen.findByRole("alert");
+    expect(alert.textContent).toContain("title is required when the identity is not known");
+    // The reference is retained for the manual-title retry.
+    expect((screen.getByLabelText("URL") as HTMLInputElement).value).toBe(
+      "https://example.com/x",
+    );
+  });
+
+  it("sends both a URL and an external ID when both are filled", async () => {
+    mockResolve.mockResolvedValueOnce(resolveOutcome({ outcome: "ready" }));
+    mockCreateWork.mockResolvedValueOnce(created("w-8"));
+    renderAdd();
+    fireEvent.change(screen.getByLabelText("Title"), { target: { value: "T" } });
+    fireEvent.change(screen.getByLabelText("URL"), {
+      target: { value: "https://example.com/x" },
+    });
+    fireEvent.change(screen.getByLabelText("Provider (optional, with external ID)"), {
+      target: { value: "prov" },
+    });
+    fireEvent.change(screen.getByLabelText("External ID (optional, with provider)"), {
+      target: { value: "123" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Add" }));
+
+    expect(await screen.findByTestId("probe")).not.toBeNull();
+    expect(mockResolve).toHaveBeenCalledWith(
+      expect.objectContaining({
+        references: [
+          { url: "https://example.com/x" },
+          { provider: "prov", external_id: "123" },
+        ],
+      }),
     );
   });
 });

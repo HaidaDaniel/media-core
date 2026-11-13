@@ -6,7 +6,7 @@
 // additions complete with no metadata, cover or LLM). Input is retained on
 // every failure; an ambiguous create failure is retried with the same
 // idempotency key and payload so an exact replay returns the stored result.
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { JSX } from "react";
 import { useNavigate } from "react-router-dom";
 import { ApiError, newRequestID } from "../api/client";
@@ -77,16 +77,23 @@ export function QuickAddPage(): JSX.Element {
   const busy = phase.name === "resolving" || phase.name === "creating";
 
   function buildPayload(): AdditionPayload {
+    // A URL/ID-only entry sends no title so the server can still resolve a
+    // known identity; an unknown identity then reports that a title is
+    // required, which is the manual-title fallback.
+    const trimmedTitle = title.trim();
     const payload: AdditionPayload = {
-      titles: [
-        {
-          text: title.trim(),
-          language: language.trim() || null,
-          kind: "original",
-          preferred: true,
-          provenance: "manual",
-        },
-      ],
+      titles:
+        trimmedTitle === ""
+          ? []
+          : [
+              {
+                text: trimmedTitle,
+                language: language.trim() || null,
+                kind: "original",
+                preferred: true,
+                provenance: "manual",
+              },
+            ],
       references: [],
     };
     if (kind !== "") {
@@ -98,12 +105,13 @@ export function QuickAddPage(): JSX.Element {
     }
     if (url.trim() !== "") {
       payload.references.push({ url: url.trim() });
-    } else if (externalId.trim() !== "") {
-      const references: ReferenceInputWire[] = [{ external_id: externalId.trim() }];
+    }
+    if (externalId.trim() !== "") {
+      const ref: ReferenceInputWire = { external_id: externalId.trim() };
       if (provider.trim() !== "") {
-        references[0].provider = provider.trim();
+        ref.provider = provider.trim();
       }
-      payload.references = references;
+      payload.references.push(ref);
     }
     return payload;
   }
@@ -144,6 +152,7 @@ export function QuickAddPage(): JSX.Element {
   }
 
   function runResolve(): void {
+    resolvedSignature.current = signature;
     setPhase({ name: "resolving" });
     setServerError(null);
     resolveAddition(buildPayload())
@@ -167,6 +176,37 @@ export function QuickAddPage(): JSX.Element {
         setServerError(errorMessage(err));
       });
   }
+
+  // The candidate token is bound to the resolved payload's fingerprint, so a
+  // field edit in the candidates phase (medium or other label) invalidates
+  // it; re-resolve instead of letting the first choice fail with a stale
+  // token.
+  const resolvedSignature = useRef<string | null>(null);
+  const signature = [
+    title.trim(),
+    language.trim(),
+    kind,
+    otherLabel.trim(),
+    url.trim(),
+    provider.trim(),
+    externalId.trim(),
+  ].join("|");
+
+  useEffect(() => {
+    if (phase.name !== "candidates" || signature === resolvedSignature.current) {
+      return;
+    }
+    const timer = setTimeout(runResolve, 250);
+    return () => clearTimeout(timer);
+    // runResolve and resolvedSignature are stable closures of the current
+    // state; the signature captures every payload field.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [signature, phase.name]);
+
+  // While a re-resolve is pending the displayed token is stale, so the
+  // choices stay disabled instead of risking a stale-token conflict.
+  const reResolvePending =
+    phase.name === "candidates" && signature !== resolvedSignature.current;
 
   function submit(): void {
     const hasReference = url.trim() !== "" || externalId.trim() !== "";
@@ -229,8 +269,10 @@ export function QuickAddPage(): JSX.Element {
   }
 
   function candidateButtons(c: CandidateWire, token: string): JSX.Element {
+    // The server's candidate identity is work plus edition, so two candidate
+    // editions of one work are distinct items.
     return (
-      <li key={c.work_id} className="quick-add-candidate">
+      <li key={`${c.work_id}/${c.edition_id ?? ""}`} className="quick-add-candidate">
         <p className="login-hint">Work {c.work_id}</p>
         {c.evidence.map((e) => (
           <p key={e} className="login-hint">
@@ -240,14 +282,14 @@ export function QuickAddPage(): JSX.Element {
         <div className="quick-add-actions">
           <button
             type="button"
-            disabled={busy}
+            disabled={busy || reResolvePending}
             onClick={() => choose("use_existing", c.work_id, token)}
           >
             Use existing
           </button>
           <button
             type="button"
-            disabled={busy || kind === ""}
+            disabled={busy || reResolvePending || kind === ""}
             title={kind === "" ? "Choose a medium to add an edition" : undefined}
             onClick={() => choose("add_edition", c.work_id, token)}
           >
@@ -296,7 +338,7 @@ export function QuickAddPage(): JSX.Element {
           <div className="quick-add-actions">
             <button
               type="button"
-              disabled={busy || phase.result.candidate_token === null}
+              disabled={busy || reResolvePending || phase.result.candidate_token === null}
               onClick={() =>
                 phase.result.candidate_token !== null &&
                 choose("create_distinct", null, phase.result.candidate_token)
