@@ -1,6 +1,6 @@
 # Task 0031 - Build library list search filters and counts
 
-State: doing
+State: done
 Owner: opencode-media-20261110
 Mode: mvp
 Lane: web
