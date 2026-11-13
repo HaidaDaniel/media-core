@@ -1,7 +1,7 @@
 # Task 0026 - Expose quick-add and catalog correction HTTP writes
 
-State: todo
-Owner: none
+State: done
+Owner: opencode-media-20261110
 Mode: mvp
 Lane: http
 Scope: http
@@ -23,11 +23,11 @@ Expose resolve/create/add-edition and narrow catalog corrections with explicit i
 - docs/application-contract.md
 
 ## Files allowed to edit
+
 - internal/httpapi/catalog_writes.go
 - internal/httpapi/catalog_writes_test.go
 - internal/httpapi/routes.go
 - docs/progress.md
-
 - .tasks/0026-expose-quick-add-and-catalog-correction-http-writes.md
 
 ## Files forbidden to edit
@@ -66,6 +66,7 @@ Expose resolve/create/add-edition and narrow catalog corrections with explicit i
 - `{"id":"focused","type":"automated","required":true,"environment":"local","profile":"report","command":"go test ./internal/httpapi -run \"TestHTTPCatalogWrite\""}`
 
 ## Documentation updates
+
 - Update docs/progress.md on lifecycle changes.
 
 ## Notes
