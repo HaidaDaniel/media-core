@@ -24,6 +24,9 @@ vi.mock("../api/client", () => ({
   logout: (...args: unknown[]) => mockLogout(...args),
   setCSRFToken: vi.fn(),
   ApiError: ApiErrorStub,
+  get: vi.fn(() =>
+    Promise.resolve({ items: [], next_cursor: null, total: 0 }),
+  ),
 }));
 
 function navigateTo(path: string): void {
