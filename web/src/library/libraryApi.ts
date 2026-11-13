@@ -55,14 +55,24 @@ export interface ListWorksParams {
   query?: string;
   kind?: string[];
   consumption?: string[];
+  // The intention dimension; "none" matches editions without a recorded
+  // intention.
+  intention?: string[];
+  // The tag dimension, satisfied by a work tag or the qualifying edition's
+  // own tag.
+  tags?: string[];
+  // The minimum current rating of the qualifying edition; an absent or
+  // cleared rating never matches.
+  minRating?: number;
   sort: string;
   limit: number;
   cursor?: string;
 }
 
 // listWorks performs one bounded library search. The repeated parameters
-// carry the kind and consumption selections; an absent selection omits the
-// parameter entirely rather than sending an empty value.
+// carry the kind, consumption, intention and tag selections; an absent
+// selection omits the parameter entirely rather than sending an empty
+// value.
 export function listWorks(params: ListWorksParams): Promise<LibraryListWire> {
   const qs = new URLSearchParams();
   if (params.query) {
@@ -73,6 +83,15 @@ export function listWorks(params: ListWorksParams): Promise<LibraryListWire> {
   }
   for (const c of params.consumption ?? []) {
     qs.append("consumption", c);
+  }
+  for (const i of params.intention ?? []) {
+    qs.append("intention", i);
+  }
+  for (const t of params.tags ?? []) {
+    qs.append("tag", t);
+  }
+  if (params.minRating !== undefined) {
+    qs.set("min-rating", String(params.minRating));
   }
   if (params.sort) {
     qs.set("sort", params.sort);

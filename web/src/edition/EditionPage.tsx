@@ -1,20 +1,26 @@
 // The edition detail screen: the edition's identity, kind, language and
 // publication fact with its source, the parent work, per-unit progress with
 // the explicit "record new update" versus "correct mistake" actions, the
-// consumption status, the bounded observation history with retraction, and
-// the narrow metadata corrections. The frozen read is the edition view; a
-// failed load keeps the prior state intact with a distinguishable error, and
-// notes, ratings and relation forms stay out of this screen.
+// consumption status, the bounded observation history with retraction, the
+// personal annotation panels (intention, rating, tags, notes and sourced
+// references) and the narrow metadata corrections. The frozen read is the
+// full edition view; a failed load keeps the prior state intact with a
+// distinguishable error, and relation forms stay out of this screen.
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { JSX } from "react";
 import { Link, useParams } from "react-router-dom";
 import { ApiError } from "../api/client";
 import { getWork } from "../work/workApi";
+import { getAnnotatedEdition, type AnnotatedEditionView } from "../annotations/annotationsApi";
+import { IntentionPanel } from "../annotations/IntentionPanel";
+import { NotesPanel } from "../annotations/NotesPanel";
+import { RatingPanel } from "../annotations/RatingPanel";
+import { ReferencesPanel } from "../annotations/ReferencesPanel";
+import { TagsPanel } from "../annotations/TagsPanel";
 import {
   CONSUMPTION_STATUS_OPTIONS,
   EDITION_KINDS,
   PROGRESS_UNITS,
-  getEdition,
   getEditionHistory,
   recordProgress,
   retractProgress,
@@ -45,7 +51,7 @@ function formatInstant(iso: string | null): string {
 
 // The live per-unit progress records of one edition; an absent unit is
 // omitted, never zero.
-function currentProgressRecords(edition: EditionViewWire): ProgressRecordWire[] {
+function currentProgressRecords(edition: AnnotatedEditionView): ProgressRecordWire[] {
   const records: ProgressRecordWire[] = [];
   for (const unit of PROGRESS_UNITS) {
     const record = edition.progress[unit];
@@ -72,7 +78,7 @@ function historyText(item: HistoryItemWire): string {
 // The row state badge: the live per-unit record of a progress row is
 // current; every other row keeps the server's effective/superseded/
 // retracted state, so an old position is shown, never hidden or deleted.
-function historyBadge(item: HistoryItemWire, edition: EditionViewWire): string {
+function historyBadge(item: HistoryItemWire, edition: AnnotatedEditionView): string {
   if (item.type === "progress" && item.value !== null) {
     const record = currentProgressRecords(edition).find((r) => r.unit === item.value);
     if (record !== undefined && record.id === item.id) return "current";
@@ -83,7 +89,7 @@ function historyBadge(item: HistoryItemWire, edition: EditionViewWire): string {
 export function EditionPage(): JSX.Element {
   const { id: editionId = "" } = useParams<{ id: string }>();
 
-  const [edition, setEdition] = useState<EditionViewWire | null>(null);
+  const [edition, setEdition] = useState<AnnotatedEditionView | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [workTitle, setWorkTitle] = useState<string | null>(null);
   const [history, setHistory] = useState<HistoryListWire | null>(null);
@@ -118,6 +124,13 @@ export function EditionPage(): JSX.Element {
 
   const generation = useRef(0);
 
+  // The 0034 wire helpers are typed to the base edition view; the server
+  // always returns the full frozen view including the annotation fields, so
+  // the page applies their responses as the annotated view.
+  const applyView = (view: EditionViewWire) => {
+    setEdition(view as AnnotatedEditionView);
+  };
+
   const syncMetaFrom = (ed: EditionViewWire) => {
     setMetaKind(ed.kind);
     setMetaLanguage(ed.language ?? "");
@@ -133,7 +146,7 @@ export function EditionPage(): JSX.Element {
     setLoadError(null);
     setActionError(null);
     try {
-      const ed = await getEdition(editionId);
+      const ed = await getAnnotatedEdition(editionId);
       if (generation.current !== gen) return false;
       setEdition(ed);
       syncMetaFrom(ed);
@@ -184,6 +197,17 @@ export function EditionPage(): JSX.Element {
       return false;
     }
   }, [editionId]);
+
+  // The personal panels apply the server's updated edition view and refresh
+  // the first history page through the same generation guard.
+  const applyEditionUpdate = useCallback(
+    (view: AnnotatedEditionView) => {
+      const gen = generation.current;
+      setEdition(view);
+      void refreshHistory(gen);
+    },
+    [refreshHistory],
+  );
 
   const loadMoreHistory = async () => {
     const cursor = history?.next_cursor;
@@ -236,7 +260,7 @@ export function EditionPage(): JSX.Element {
         expectedRevision: edition.revision,
       });
       if (generation.current !== gen) return;
-      setEdition(ed);
+      applyView(ed);
       setProgPosition("");
       setProgTotal("");
       setProgSupersedes("");
@@ -263,7 +287,7 @@ export function EditionPage(): JSX.Element {
         expectedRevision: edition.revision,
       });
       if (generation.current !== gen) return;
-      setEdition(ed);
+      applyView(ed);
       setConsReason("");
       await refreshHistory(gen);
     } catch (e) {
@@ -292,7 +316,7 @@ export function EditionPage(): JSX.Element {
         expectedRevision: edition.revision,
       });
       if (generation.current !== gen) return;
-      setEdition(ed);
+      applyView(ed);
       setRetractRecord("");
       setRetractReason("");
       await refreshHistory(gen);
@@ -326,7 +350,7 @@ export function EditionPage(): JSX.Element {
         expectedRevision: edition.revision,
       });
       if (generation.current !== gen) return;
-      setEdition(ed);
+      applyView(ed);
       syncMetaFrom(ed);
       await refreshHistory(gen);
     } catch (e) {
@@ -613,6 +637,21 @@ export function EditionPage(): JSX.Element {
           Retract
         </button>
       </form>
+
+      <h3>Intention</h3>
+      <IntentionPanel edition={edition} onUpdated={applyEditionUpdate} />
+
+      <h3>Rating</h3>
+      <RatingPanel edition={edition} history={history?.items ?? []} onUpdated={applyEditionUpdate} />
+
+      <h3>Tags</h3>
+      <TagsPanel edition={edition} onUpdated={applyEditionUpdate} />
+
+      <h3>Notes</h3>
+      <NotesPanel edition={edition} onUpdated={applyEditionUpdate} />
+
+      <h3>References</h3>
+      <ReferencesPanel edition={edition} onUpdated={applyEditionUpdate} />
 
       <h3>Metadata</h3>
       <form

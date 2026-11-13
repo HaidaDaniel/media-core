@@ -1,7 +1,7 @@
 # Task 0035 - Build edition personal panels for notes ratings intentions and sources
 
-State: todo
-Owner: none
+State: doing
+Owner: opencode-media-20261110
 Mode: mvp
 Lane: web
 Scope: web
@@ -24,11 +24,12 @@ Compose compact personal annotation panels over the already implemented annotati
 - docs/application-contract.md
 
 ## Files allowed to edit
+
 - web/src/annotations/**
 - web/src/edition/EditionPage.tsx
+- web/src/edition/edition.test.tsx
 - web/src/library/**
 - docs/progress.md
-
 - .tasks/0035-build-edition-personal-panels-for-notes-ratings-intentions-and-sources.md
 
 ## Files forbidden to edit
@@ -43,7 +44,6 @@ Compose compact personal annotation panels over the already implemented annotati
 1. Add saved/planned intention, simple tag picker, note revision/rating and source reference controls
 2. Display prior/superseded opinions and explicit add/edit/clear/retire actions
 3. Test deferred-reading note, negative rating, source validation, conflict and input retention
-
 4. Extend library filters with intention, tags and minimum rating once their services are available
 
 ## Acceptance criteria
@@ -69,6 +69,7 @@ Compose compact personal annotation panels over the already implemented annotati
 - `{"id":"focused","type":"automated","required":true,"environment":"local","profile":"report","command":"pnpm --dir web exec tsc --noEmit && pnpm --dir web test -- --run src/annotations"}`
 
 ## Documentation updates
+
 - Update docs/progress.md on lifecycle changes.
 
 ## Notes
@@ -78,3 +79,4 @@ Compose compact personal annotation panels over the already implemented annotati
 - Before editing, read existing allowed source files supplied by completed dependencies. Missing paths are new files owned by this task, not existing context.
 - Only listed paths plus this task file may change. Do not edit other task contracts or generated agent instructions; task lifecycle is managed by APK.
 - Keep contract behavior fixed; if a counterexample requires expanding scope, update this task before source edits. No actual host deployment, push or publication is authorized.
+- Scope amendment (0035): `web/src/edition/edition.test.tsx` joins the allowed files. The 0034 test that pinned "no notes, ratings or relation controls" on the edition screen is intentionally superseded by this task's panel composition; the test is updated to assert the new panels exist and that relation controls are still unbundled. No other file contracts change.

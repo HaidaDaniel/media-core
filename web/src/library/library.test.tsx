@@ -94,6 +94,9 @@ describe("library listing", () => {
       query: "bloom",
       kind: ["manga"],
       consumption: ["completed"],
+      intention: undefined,
+      tags: undefined,
+      minRating: undefined,
       sort: "rating",
       limit: 10,
     });
@@ -131,6 +134,9 @@ describe("library listing", () => {
         query: undefined,
         kind: undefined,
         consumption: undefined,
+        intention: undefined,
+        tags: undefined,
+        minRating: undefined,
         sort: "title",
         limit: 30,
       }),
@@ -257,7 +263,16 @@ describe("library states", () => {
   it("labels every control for keyboard use", async () => {
     renderPage("/");
     expect(await screen.findByText("Static Bloom")).not.toBeNull();
-    for (const name of ["Search", "Medium", "Status", "Sort", "Page size"]) {
+    for (const name of [
+      "Search",
+      "Medium",
+      "Status",
+      "Intention",
+      "Tag",
+      "Minimum rating",
+      "Sort",
+      "Page size",
+    ]) {
       expect(screen.getByLabelText(name)).not.toBeNull();
     }
   });
@@ -270,5 +285,55 @@ describe("library states", () => {
     expect(kinds.some((o) => (o as HTMLOptionElement).value === "unknown")).toBe(true);
     const statuses = within(screen.getByLabelText("Status")).getAllByRole("option");
     expect(statuses.length).toBe(7); // "All" plus the five states and unknown
+  });
+});
+
+describe("library advanced filters", () => {
+  it("passes the intention, tag and minimum rating through to the search", async () => {
+    renderPage("/?intention=saved&tag=manga-translation-candidate&min-rating=7");
+    expect(await screen.findByText("Static Bloom")).not.toBeNull();
+    expect(mockListWorks).toHaveBeenCalledWith({
+      query: undefined,
+      kind: undefined,
+      consumption: undefined,
+      intention: ["saved"],
+      tags: ["manga-translation-candidate"],
+      minRating: 7,
+      sort: "title",
+      limit: 30,
+    });
+  });
+
+  it("keeps a typed tag in the URL after the debounce, so a refresh restores it", async () => {
+    renderPage("/");
+    expect(await screen.findByText("Static Bloom")).not.toBeNull();
+    fireEvent.change(screen.getByLabelText("Tag") as HTMLInputElement, {
+      target: { value: "manga-translation-candidate" },
+    });
+    await vi.waitFor(() =>
+      expect(mockListWorks).toHaveBeenLastCalledWith(
+        expect.objectContaining({ tags: ["manga-translation-candidate"] }),
+      ),
+    );
+    expect(screen.getByTestId("url").textContent).toBe("/?tag=manga-translation-candidate");
+  });
+
+  it("resets the advanced filters back to the whole library", async () => {
+    renderPage("/?intention=saved&tag=favorite&min-rating=4&sort=rating");
+    expect(await screen.findByText("Static Bloom")).not.toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Reset" }));
+    await vi.waitFor(() =>
+      expect(mockListWorks).toHaveBeenLastCalledWith({
+        query: undefined,
+        kind: undefined,
+        consumption: undefined,
+        intention: undefined,
+        tags: undefined,
+        minRating: undefined,
+        sort: "title",
+        limit: 30,
+      }),
+    );
+    expect(screen.getByTestId("url").textContent).toBe("/");
   });
 });

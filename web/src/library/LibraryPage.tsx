@@ -38,6 +38,8 @@ const CONSUMPTIONS = [
   "dropped",
   "unknown",
 ];
+const INTENTIONS = ["none", "interested", "saved", "planned", "not_interested"];
+const MIN_RATINGS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
 const SORTS = ["title", "created_at", "updated_at", "rating"];
 
 function errorMessage(err: unknown): string {
@@ -49,12 +51,20 @@ export function LibraryPage(): JSX.Element {
   const query = params.get("query") ?? "";
   const kind = params.get("kind") ?? "";
   const consumption = params.get("consumption") ?? "";
+  const intention = params.get("intention") ?? "";
+  const tag = params.get("tag") ?? "";
+  const minRating = MIN_RATINGS.includes(Number(params.get("min-rating")))
+    ? Number(params.get("min-rating"))
+    : undefined;
   const sort = SORTS.includes(params.get("sort") ?? "") ? (params.get("sort") as string) : "title";
   const limit = LIMITS.includes(Number(params.get("limit"))) ? Number(params.get("limit")) : DEFAULT_LIMIT;
   const view = params.get("view") === "cards" ? "cards" : "list";
-  const activeFilter = query !== "" || kind !== "" || consumption !== "";
+  const activeFilter =
+    query !== "" || kind !== "" || consumption !== "" || intention !== "" || tag !== "" ||
+    minRating !== undefined;
 
   const [text, setText] = useState(query);
+  const [tagText, setTagText] = useState(tag);
   const [items, setItems] = useState<WorkCardWire[]>([]);
   const [total, setTotal] = useState<number | null>(null);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
@@ -67,10 +77,14 @@ export function LibraryPage(): JSX.Element {
   const generation = useRef(0);
   const knownStates = useRef(new Set<string>());
 
-  // Keep the input in sync with the URL (back/forward and resets).
+  // Keep the inputs in sync with the URL (back/forward and resets).
   useEffect(() => {
     setText(query);
   }, [query]);
+
+  useEffect(() => {
+    setTagText(tag);
+  }, [tag]);
 
   // Debounce the typed search before it changes the URL.
   useEffect(() => {
@@ -89,6 +103,24 @@ export function LibraryPage(): JSX.Element {
     return () => clearTimeout(timer);
   }, [text, query, params, setParams]);
 
+  // Debounce the typed tag before it changes the URL; the server normalizes
+  // the name, the screen only carries it through.
+  useEffect(() => {
+    if (tagText === tag) {
+      return;
+    }
+    const timer = setTimeout(() => {
+      const next = new URLSearchParams(params);
+      if (tagText.trim() === "") {
+        next.delete("tag");
+      } else {
+        next.set("tag", tagText.trim());
+      }
+      setParams(next);
+    }, SEARCH_DEBOUNCE_MS);
+    return () => clearTimeout(timer);
+  }, [tagText, tag, params, setParams]);
+
   // Load the first page whenever the URL listing request changes. A newer
   // request invalidates every in-flight one, so a stale response is dropped,
   // and the prior list and count stay visible until a response succeeds.
@@ -104,6 +136,9 @@ export function LibraryPage(): JSX.Element {
       query: query || undefined,
       kind: kind ? [kind] : undefined,
       consumption: consumption ? [consumption] : undefined,
+      intention: intention ? [intention] : undefined,
+      tags: tag ? [tag] : undefined,
+      minRating,
       sort,
       limit,
     })
@@ -129,7 +164,7 @@ export function LibraryPage(): JSX.Element {
           setRefreshing(false);
         }
       });
-  }, [query, kind, consumption, sort, limit, retryTick]);
+  }, [query, kind, consumption, intention, tag, minRating, sort, limit, retryTick]);
 
   // Resolve the per-edition consumption badges for the visible cards. The
   // list payload carries no per-edition state, so the values come from the
@@ -173,6 +208,9 @@ export function LibraryPage(): JSX.Element {
       query: query || undefined,
       kind: kind ? [kind] : undefined,
       consumption: consumption ? [consumption] : undefined,
+      intention: intention ? [intention] : undefined,
+      tags: tag ? [tag] : undefined,
+      minRating,
       sort,
       limit,
       cursor,
@@ -194,7 +232,7 @@ export function LibraryPage(): JSX.Element {
           setPageLoading(false);
         }
       });
-  }, [nextCursor, query, kind, consumption, sort, limit]);
+  }, [nextCursor, query, kind, consumption, intention, tag, minRating, sort, limit]);
 
   function setParam(name: string, value: string): void {
     const next = new URLSearchParams(params);
@@ -212,6 +250,7 @@ export function LibraryPage(): JSX.Element {
       next.set("view", "cards");
     }
     setText("");
+    setTagText("");
     setParams(next);
   }
 
@@ -259,6 +298,40 @@ export function LibraryPage(): JSX.Element {
             {CONSUMPTIONS.map((c) => (
               <option key={c} value={c}>
                 {c === "unknown" ? "Unknown" : c.replace("_", " ")}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="library-field">
+          <span>Intention</span>
+          <select value={intention} onChange={(e) => setParam("intention", e.target.value)}>
+            <option value="">All</option>
+            {INTENTIONS.map((i) => (
+              <option key={i} value={i}>
+                {i === "none" ? "No intention" : i.replace("_", " ")}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="library-field">
+          <span>Tag</span>
+          <input
+            type="search"
+            value={tagText}
+            placeholder="manga-translation-candidate"
+            onChange={(e) => setTagText(e.target.value)}
+          />
+        </label>
+        <label className="library-field">
+          <span>Minimum rating</span>
+          <select
+            value={minRating === undefined ? "" : String(minRating)}
+            onChange={(e) => setParam("min-rating", e.target.value)}
+          >
+            <option value="">Any</option>
+            {MIN_RATINGS.map((n) => (
+              <option key={n} value={n}>
+                {n}/10 or more
               </option>
             ))}
           </select>

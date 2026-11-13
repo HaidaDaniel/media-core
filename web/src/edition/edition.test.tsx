@@ -3,22 +3,20 @@
 // the unknown total, stale revision and invalid field failures that keep
 // the input and the prior state intact, the status/publication separation,
 // the retraction with a required reason, the narrow metadata corrections,
-// labeled keyboard controls, and the no-bundling invariant (no notes,
-// ratings or relation forms on this screen).
+// the composed personal annotation panels (intention, rating, tags, notes,
+// references) and labeled keyboard controls, while the relation forms stay
+// out of this screen.
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { ApiError } from "../api/client";
 import { EditionPage } from "./EditionPage";
-import type {
-  EditionViewWire,
-  HistoryItemWire,
-  ProgressRecordWire,
-} from "./editionApi";
+import type { HistoryItemWire, ProgressRecordWire } from "./editionApi";
+import type { AnnotatedEditionView } from "../annotations/annotationsApi";
 import type { WorkViewWire } from "../work/workApi";
 
 const {
-  mockGetEdition,
+  mockGetAnnotatedEdition,
   mockGetEditionHistory,
   mockGetWork,
   mockRecordProgress,
@@ -26,7 +24,7 @@ const {
   mockRetractProgress,
   mockUpdateEdition,
 } = vi.hoisted(() => ({
-  mockGetEdition: vi.fn(),
+  mockGetAnnotatedEdition: vi.fn(),
   mockGetEditionHistory: vi.fn(),
   mockGetWork: vi.fn(),
   mockRecordProgress: vi.fn(),
@@ -67,12 +65,34 @@ vi.mock("./editionApi", () => ({
     "other",
     "unknown",
   ],
-  getEdition: (...args: unknown[]) => mockGetEdition(...args),
+  getEdition: (...args: unknown[]) => mockGetAnnotatedEdition(...args),
   getEditionHistory: (...args: unknown[]) => mockGetEditionHistory(...args),
   recordProgress: (...args: unknown[]) => mockRecordProgress(...args),
   setConsumption: (...args: unknown[]) => mockSetConsumption(...args),
   retractProgress: (...args: unknown[]) => mockRetractProgress(...args),
   updateEdition: (...args: unknown[]) => mockUpdateEdition(...args),
+}));
+
+vi.mock("../annotations/annotationsApi", () => ({
+  INTENTION_OPTIONS: ["none", "interested", "saved", "planned", "not_interested"],
+  REFERENCE_ROLES: [
+    "publication",
+    "metadata",
+    "translation",
+    "release_watcher",
+    "translation_project",
+    "content",
+  ],
+  getAnnotatedEdition: (...args: unknown[]) => mockGetAnnotatedEdition(...args),
+  setIntention: vi.fn(),
+  setRating: vi.fn(),
+  addReference: vi.fn(),
+  retireReference: vi.fn(),
+  addNote: vi.fn(),
+  reviseNote: vi.fn(),
+  retractNote: vi.fn(),
+  attachTag: vi.fn(),
+  detachTag: vi.fn(),
 }));
 
 vi.mock("../work/workApi", () => ({
@@ -88,7 +108,7 @@ function record(
   return { id, unit, position, total, label: null, observed_at: "2026-01-02T00:00:00Z" };
 }
 
-function edition(overrides: Partial<EditionViewWire> = {}): EditionViewWire {
+function edition(overrides: Partial<AnnotatedEditionView> = {}): AnnotatedEditionView {
   return {
     id: "e-1",
     work_id: "w-1",
@@ -109,6 +129,11 @@ function edition(overrides: Partial<EditionViewWire> = {}): EditionViewWire {
     publication: { value: "ongoing", source: "manual" },
     consumption: null,
     progress: {},
+    intention: null,
+    rating: null,
+    tags: [],
+    references: [],
+    notes: [],
     ...overrides,
   };
 }
@@ -165,7 +190,7 @@ function renderPage(): void {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  mockGetEdition.mockImplementation(async (id: string) =>
+  mockGetAnnotatedEdition.mockImplementation(async (id: string) =>
     id === "e-1"
       ? edition()
       : Promise.reject(new ApiError("not_found", 404, "no such edition", false)),
@@ -212,7 +237,7 @@ afterEach(() => {
 
 describe("edition detail", () => {
   it("fetches the edition, history and parent work on load and shows the identity", async () => {
-    mockGetEdition.mockResolvedValueOnce(
+    mockGetAnnotatedEdition.mockResolvedValueOnce(
       edition({
         consumption: { value: "in_progress", reason: null },
         progress: { chapter: record("p-42", "chapter", "42") },
@@ -225,7 +250,7 @@ describe("edition detail", () => {
     });
     renderPage();
     expect(await screen.findByText("Manga Title")).not.toBeNull();
-    expect(mockGetEdition).toHaveBeenCalledWith("e-1");
+    expect(mockGetAnnotatedEdition).toHaveBeenCalledWith("e-1");
     expect(mockGetEditionHistory).toHaveBeenCalledWith("e-1");
     expect(mockGetWork).toHaveBeenCalledWith("w-1");
     expect(
@@ -239,7 +264,7 @@ describe("edition detail", () => {
   });
 
   it("shows the unknown publication and status defaults without inventing facts", async () => {
-    mockGetEdition.mockResolvedValueOnce(
+    mockGetAnnotatedEdition.mockResolvedValueOnce(
       edition({ publication: null, consumption: null }),
     );
     renderPage();
@@ -249,7 +274,7 @@ describe("edition detail", () => {
   });
 
   it("records a new update 42→48 and keeps the prior record in history", async () => {
-    mockGetEdition.mockResolvedValueOnce(
+    mockGetAnnotatedEdition.mockResolvedValueOnce(
       edition({ progress: { chapter: record("p-42", "chapter", "42") } }),
     );
     mockGetEditionHistory
@@ -291,7 +316,7 @@ describe("edition detail", () => {
   });
 
   it("sends a mistake correction as a separate action naming the superseded record", async () => {
-    mockGetEdition.mockResolvedValueOnce(
+    mockGetAnnotatedEdition.mockResolvedValueOnce(
       edition({ progress: { chapter: record("p-42", "chapter", "42") } }),
     );
     mockRecordProgress.mockResolvedValueOnce(
@@ -314,7 +339,7 @@ describe("edition detail", () => {
   });
 
   it("keeps the input and the prior state on a stale revision conflict", async () => {
-    mockGetEdition.mockResolvedValueOnce(
+    mockGetAnnotatedEdition.mockResolvedValueOnce(
       edition({ progress: { chapter: record("p-42", "chapter", "42") } }),
     );
     mockRecordProgress.mockRejectedValueOnce(
@@ -358,7 +383,7 @@ describe("edition detail", () => {
   });
 
   it("changing the status does not touch the publication", async () => {
-    mockGetEdition.mockResolvedValueOnce(
+    mockGetAnnotatedEdition.mockResolvedValueOnce(
       edition({ consumption: { value: "not_started", reason: null } }),
     );
     mockSetConsumption.mockResolvedValueOnce(
@@ -380,7 +405,7 @@ describe("edition detail", () => {
   });
 
   it("retracts a progress record with a required reason and falls back to absence", async () => {
-    mockGetEdition.mockResolvedValueOnce(
+    mockGetAnnotatedEdition.mockResolvedValueOnce(
       edition({ progress: { chapter: record("p-42", "chapter", "42") } }),
     );
     mockGetEditionHistory
@@ -427,7 +452,7 @@ describe("edition detail", () => {
   });
 
   it("offers only effective progress rows for retraction", async () => {
-    mockGetEdition.mockResolvedValueOnce(
+    mockGetAnnotatedEdition.mockResolvedValueOnce(
       edition({ progress: { chapter: record("p-48", "chapter", "48") } }),
     );
     mockGetEditionHistory.mockResolvedValueOnce({
@@ -461,7 +486,7 @@ describe("edition detail", () => {
   });
 
   it("offers the explicit unknown retraction for a mistaken status", async () => {
-    mockGetEdition.mockResolvedValueOnce(
+    mockGetAnnotatedEdition.mockResolvedValueOnce(
       edition({ consumption: { value: "completed", reason: null } }),
     );
     // The view renders an unknown state as the absence of a consumption.
@@ -516,31 +541,39 @@ describe("edition detail", () => {
     }
   });
 
-  it("does not bundle notes, ratings or relation controls", async () => {
+  it("composes the personal annotation panels without relation controls", async () => {
     renderPage();
     expect(await screen.findByText("Manga Title")).not.toBeNull();
+    // The 0035 panels are composed on the screen: intention, rating, tags,
+    // notes and references controls all exist and are labeled.
+    expect(screen.getByLabelText("Intention")).not.toBeNull();
+    expect(screen.getByLabelText("Rating")).not.toBeNull();
+    expect(screen.getByLabelText("Tag")).not.toBeNull();
+    expect(screen.getByLabelText("Note text")).not.toBeNull();
+    expect(screen.getByLabelText("Provider")).not.toBeNull();
+    // The relation forms stay out of this screen.
     expect(screen.queryByRole("button", { name: /propose/i })).toBeNull();
-    expect(screen.queryByRole("button", { name: /rate/i })).toBeNull();
-    expect(screen.queryByLabelText(/note/i)).toBeNull();
+    expect(screen.queryByRole("button", { name: /confirm relation/i })).toBeNull();
     expect(screen.queryByLabelText(/relation/i)).toBeNull();
+    expect(screen.queryByLabelText(/origin/i)).toBeNull();
   });
 });
 
 describe("edition failure contract", () => {
   it("shows a failed first load as a distinguishable error and recovers on retry", async () => {
-    mockGetEdition.mockRejectedValueOnce(
+    mockGetAnnotatedEdition.mockRejectedValueOnce(
       new ApiError("not_found", 404, "no such edition", false),
     );
     renderPage();
     const alert = await screen.findByRole("alert");
     expect(alert.textContent).toContain("no such edition");
-    mockGetEdition.mockResolvedValue(edition());
+    mockGetAnnotatedEdition.mockResolvedValue(edition());
     fireEvent.click(screen.getByRole("button", { name: "Retry" }));
     expect(await screen.findByText("Manga Title")).not.toBeNull();
   });
 
   it("keeps the edition usable when the history fails", async () => {
-    mockGetEdition.mockResolvedValueOnce(
+    mockGetAnnotatedEdition.mockResolvedValueOnce(
       edition({ progress: { chapter: record("p-42", "chapter", "42") } }),
     );
     mockGetEditionHistory.mockRejectedValueOnce(
@@ -555,7 +588,7 @@ describe("edition failure contract", () => {
   });
 
   it("keeps the prior edition beside a distinguishable error when a refresh fails", async () => {
-    mockGetEdition.mockResolvedValueOnce(
+    mockGetAnnotatedEdition.mockResolvedValueOnce(
       edition({ progress: { chapter: record("p-42", "chapter", "42") } }),
     );
     mockGetEditionHistory
