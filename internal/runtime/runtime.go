@@ -9,6 +9,7 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/HaidaDaniel/media-core/internal/app"
 	"github.com/HaidaDaniel/media-core/internal/buildinfo"
 	"github.com/HaidaDaniel/media-core/internal/config"
 	"github.com/HaidaDaniel/media-core/internal/httpapi"
@@ -105,11 +106,12 @@ func Dispatch(args []string, out io.Writer) error {
 // runServe runs the resident HTTP lifecycle. Configuration is resolved
 // first, so a non-loopback bind without the explicit remote trio (allow
 // remote, https public origin, TLS certificate and key) fails before any
-// listener is created. The server then serves until SIGINT or SIGTERM,
-// stops accepting connections, drains in-flight requests for up to 10
-// seconds, and returns. This milestone opens no database: the session
-// boundary is transport-only and sessions live in memory, so a restart
-// invalidates them.
+// listener is created. The state database is then opened under the shared
+// lifetime maintenance lock, which enforces the schema boundary: a missing
+// or drifted schema fails before any listener exists. The server serves
+// until SIGINT or SIGTERM, stops accepting connections, drains in-flight
+// requests for up to 10 seconds, closes the database, and returns. Sessions
+// live in memory, so a restart invalidates them.
 func runServe(args []string, out io.Writer) error {
 	// Exit codes per docs/application-contract.md: 2 invalid input, 1
 	// config or runtime failure.
@@ -125,6 +127,12 @@ func runServe(args []string, out io.Writer) error {
 	if err != nil {
 		return &ExitCodeError{Exit: 1, Err: err}
 	}
+	db, err := OpenDatabase(cfg)
+	if err != nil {
+		return &ExitCodeError{Exit: 1, Err: err}
+	}
+	defer db.Close()
+	srv.WithCatalog(app.NewService(db))
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 	if err := srv.Serve(ctx); err != nil {

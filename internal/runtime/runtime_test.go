@@ -55,6 +55,23 @@ func TestDispatchServeFailsBeforeListen(t *testing.T) {
 	}
 }
 
+func TestDispatchServeUninitializedStateDir(t *testing.T) {
+	// A state directory without an initialized database fails with the
+	// schema guidance before any listener is created.
+	dir := t.TempDir()
+	err := Dispatch([]string{"serve", "--state-dir", dir}, &bytes.Buffer{})
+	if err == nil {
+		t.Fatal("Dispatch(serve on an empty state dir) = nil, want the schema error")
+	}
+	var exitErr *ExitCodeError
+	if !errors.As(err, &exitErr) || exitErr.Exit != 1 {
+		t.Fatalf("Dispatch(serve on an empty state dir) = %v, want exit code 1", err)
+	}
+	if !strings.Contains(err.Error(), "run media-core init") {
+		t.Errorf("error %q must carry the init guidance", err)
+	}
+}
+
 func TestDispatchUnsupported(t *testing.T) {
 	var out bytes.Buffer
 	err := Dispatch([]string{"frobnicate"}, &out)

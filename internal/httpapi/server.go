@@ -25,6 +25,7 @@ const drainTimeout = 10 * time.Second
 type Server struct {
 	cfg          *config.Config
 	sessions     *SessionStore
+	catalog      *app.Service
 	mux          *http.ServeMux
 	tlsConfig    *tls.Config
 	secureCookie bool
@@ -32,6 +33,14 @@ type Server struct {
 
 	mu sync.Mutex
 	ln net.Listener
+}
+
+// WithCatalog attaches the shared library service that backs the catalog
+// read routes. Without it the server is session-only and the catalog routes
+// are not registered.
+func (s *Server) WithCatalog(svc *app.Service) *Server {
+	s.catalog = svc
+	return s
 }
 
 // New builds the server for a resolved configuration. A non-loopback
@@ -61,14 +70,12 @@ func New(cfg *config.Config) (*Server, error) {
 		tlsCfg = &tls.Config{Certificates: []tls.Certificate{cert}, MinVersion: tls.VersionTLS12}
 		secure = true
 	}
-	s := &Server{
+	return &Server{
 		cfg:          cfg,
 		sessions:     NewSessionStore(secretReader(cfg.StateDir)),
 		tlsConfig:    tlsCfg,
 		secureCookie: secure,
-	}
-	s.buildMux()
-	return s, nil
+	}, nil
 }
 
 // secretReader reads the owner secret as hex on each login, so a generated
@@ -81,10 +88,13 @@ func secretReader(stateDir string) func() ([]byte, error) {
 	}
 }
 
-// buildMux wires the routes behind the security boundary.
+// buildMux wires the routes behind the security boundary. The catch-all
+// stays last: it turns every unregistered path into a JSON 404, which is
+// what keeps the API free of SPA content and unauthenticated routes.
 func (s *Server) buildMux() *http.ServeMux {
 	mux := http.NewServeMux()
 	mux.Handle("/api/v1/session", s.securityMiddleware(http.HandlerFunc(s.sessionHandler)))
+	s.registerCatalogRoutes(mux)
 	mux.Handle("/", s.securityMiddleware(http.HandlerFunc(s.notFoundHandler)))
 	s.mux = mux
 	return mux
@@ -109,6 +119,11 @@ func isLoopback(addr string) bool {
 // lifecycle; a process restart invalidates every session because sessions
 // live in memory only.
 func (s *Server) Serve(ctx context.Context) error {
+	// The mux is built at serve time, after the catalog service (when
+	// attached) is known, and only once.
+	if s.mux == nil {
+		s.buildMux()
+	}
 	var ln net.Listener
 	var err error
 	if s.tlsConfig != nil {
