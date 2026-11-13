@@ -1,6 +1,6 @@
 # Task 0025 - Expose catalog search and detail HTTP reads
 
-State: review
+State: done
 Owner: opencode-media-20261110
 Mode: mvp
 Lane: http
