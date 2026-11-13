@@ -1,6 +1,6 @@
 # Task 0030 - Bootstrap React shell typed API client and login
 
-State: doing
+State: done
 Owner: opencode-media-20261110
 Mode: mvp
 Lane: web
