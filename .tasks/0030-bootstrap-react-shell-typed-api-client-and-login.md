@@ -1,7 +1,7 @@
 # Task 0030 - Bootstrap React shell typed API client and login
 
-State: todo
-Owner: none
+State: doing
+Owner: opencode-media-20261110
 Mode: mvp
 Lane: web
 Scope: web
@@ -24,6 +24,7 @@ Create lightweight React/Vite routing shell with common fetch/session/error hand
 - docs/application-contract.md
 
 ## Files allowed to edit
+
 - web/package.json
 - web/pnpm-lock.yaml
 - web/tsconfig*.json
@@ -37,7 +38,6 @@ Create lightweight React/Vite routing shell with common fetch/session/error hand
 - web/src/shell/**
 - docs/decisions.md
 - docs/progress.md
-
 - .tasks/0030-bootstrap-react-shell-typed-api-client-and-login.md
 
 ## Files forbidden to edit
@@ -76,6 +76,7 @@ Create lightweight React/Vite routing shell with common fetch/session/error hand
 - `{"id":"focused","type":"automated","required":true,"environment":"local","profile":"report","command":"pnpm --dir web exec tsc --noEmit && pnpm --dir web test -- --run && pnpm --dir web build"}`
 
 ## Documentation updates
+
 - Update docs/progress.md on lifecycle changes.
 
 ## Notes

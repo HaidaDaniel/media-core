@@ -1,0 +1,150 @@
+/* Basic, semantic styles for the shell; responsive at 360px with no
+   overflow, and accessible focus states for keyboard navigation. */
+
+:root {
+  color-scheme: light dark;
+  --bg: #fafafa;
+  --fg: #1c1c1c;
+  --muted: #666;
+  --border: #d4d4d4;
+  --accent: #2563eb;
+  --error: #b91c1c;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #161616;
+    --fg: #ececec;
+    --muted: #9a9a9a;
+    --border: #3d3d3d;
+    --accent: #60a5fa;
+    --error: #f87171;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  line-height: 1.5;
+}
+
+a {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+a:hover,
+a:focus-visible {
+  text-decoration: underline;
+}
+
+button {
+  font: inherit;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: transparent;
+  color: inherit;
+  padding: 0.4rem 0.9rem;
+  cursor: pointer;
+}
+
+button:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+input {
+  font: inherit;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 0.4rem 0.5rem;
+  background: var(--bg);
+  color: inherit;
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Shell */
+
+.shell-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 1rem;
+  padding: 0.6rem 1rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.shell-title {
+  font-weight: 700;
+}
+
+.shell-header nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 0.9rem;
+}
+
+.shell-header nav a {
+  padding: 0.3rem 0.2rem;
+}
+
+.shell-header nav a.active {
+  font-weight: 700;
+  text-decoration: underline;
+}
+
+.shell-header .sign-out {
+  margin-left: auto;
+}
+
+.shell-content {
+  padding: 1rem;
+  max-width: 70rem;
+}
+
+.shell-loading {
+  color: var(--muted);
+}
+
+/* Login */
+
+.login-page {
+  max-width: 24rem;
+  margin: 4rem auto;
+  padding: 1rem;
+}
+
+.login-hint {
+  color: var(--muted);
+}
+
+.login-page form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  align-items: stretch;
+}
+
+.login-page button {
+  align-self: flex-start;
+}
+
+/* Forms and placeholders */
+
+.form-error {
+  color: var(--error);
+}
+
+.placeholder h2 {
+  margin-top: 0;
+}
