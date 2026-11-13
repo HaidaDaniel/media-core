@@ -1,6 +1,6 @@
 # Task 0035 - Build edition personal panels for notes ratings intentions and sources
 
-State: doing
+State: done
 Owner: opencode-media-20261110
 Mode: mvp
 Lane: web
