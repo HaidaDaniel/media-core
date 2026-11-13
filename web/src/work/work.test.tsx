@@ -324,6 +324,28 @@ describe("work detail", () => {
     );
   });
 
+  it("guards a symmetric relation with the lower-sorting work's revision", async () => {
+    // "a-1" sorts below the current work "w-1", so the canonical from entity
+    // is "a-1" and its revision must guard the mutation.
+    mockGetWork.mockImplementation(async (id: string) =>
+      id === "w-1"
+        ? work()
+        : work({ id: "a-1", revision: 5, titles: [title("Alpha Work")], editions: [] }),
+    );
+    mockProposeRelation.mockResolvedValueOnce({ proposed: [], confirmed: [], revoked: [] });
+    renderPage();
+    expect(await screen.findByText("Anime Work")).not.toBeNull();
+    fireEvent.change(screen.getByLabelText("Relation"), { target: { value: "related" } });
+    fireEvent.change(screen.getByLabelText("Other work id"), { target: { value: "a-1" } });
+    fireEvent.change(screen.getAllByLabelText("Provenance")[0], { target: { value: "manual" } });
+    fireEvent.click(screen.getByRole("button", { name: "Propose" }));
+    await waitFor(() =>
+      expect(mockProposeRelation).toHaveBeenCalledWith(
+        expect.objectContaining({ expectedRevision: 5, toId: "a-1" }),
+      ),
+    );
+  });
+
   it("labels every control for keyboard use", async () => {
     renderPage();
     expect(await screen.findByText("Anime Work")).not.toBeNull();

@@ -42,6 +42,11 @@ function preferredTitle(titles: { text: string; preferred: boolean }[]): string 
 
 // A readable one-line summary of an edition's individual progress units; an
 // absent unit is omitted, never zero.
+// The work-scope relation types stored symmetrically: their canonical from
+// entity is the lower-sorting endpoint, so the revision guard is not always
+// the current work's revision.
+const SYMMETRIC_WORK_TYPES = new Set(["same_underlying_work", "related"]);
+
 function progressSummary(progress: EditionViewWire["progress"]): string {
   const parts: string[] = [];
   for (const unit of ["chapter", "volume", "episode", "page", "percent"] as const) {
@@ -118,13 +123,16 @@ export function WorkPage(): JSX.Element {
     [],
   );
 
-  const load = useCallback(async () => {
-    if (!workId) return;
+  // load returns whether it applied its state as the latest generation; a
+  // stale load (the screen moved on) reports false so callers do not write
+  // results that belong to a previous work.
+  const load = useCallback(async (): Promise<boolean> => {
+    if (!workId) return false;
     const gen = ++generation.current;
     setWorkError(null);
     try {
       const w = await getWork(workId);
-      if (generation.current !== gen) return;
+      if (generation.current !== gen) return false;
       setWork(w);
       const editionIds = w.editions.map((e) => e.id);
       const [editionResults, workRelResult, editionRelResults] = await Promise.all([
@@ -135,7 +143,7 @@ export function WorkPage(): JSX.Element {
         ),
         Promise.allSettled(editionIds.map((id) => editionRelations(id))),
       ]);
-      if (generation.current !== gen) return;
+      if (generation.current !== gen) return false;
       const eds: Record<string, EditionViewWire> = {};
       const edErrs: Record<string, string> = {};
       editionResults.forEach((r, i) => {
@@ -160,9 +168,11 @@ export function WorkPage(): JSX.Element {
       setEditionRels(eRels);
       setEditionRelErrors(eRelErrs);
       await resolveLabels(gen, w, wRel, eRels);
+      return generation.current === gen;
     } catch (e) {
-      if (generation.current !== gen) return;
+      if (generation.current !== gen) return false;
       setWorkError(errorMessage(e));
+      return false;
     }
   }, [workId, resolveLabels]);
 
@@ -188,6 +198,14 @@ export function WorkPage(): JSX.Element {
     setActionError(null);
     setBusy(true);
     try {
+      // The server guards the canonical from entity's revision; for a
+      // symmetric type whose lower-sorting endpoint is the other work, that
+      // is the other work, so its revision must be fetched first.
+      let expectedRevision = work.revision;
+      if (SYMMETRIC_WORK_TYPES.has(proposeType) && other < work.id) {
+        const otherWork = await getWork(other);
+        expectedRevision = otherWork.revision;
+      }
       const view = await proposeRelation({
         scope: "work",
         type: proposeType,
@@ -195,14 +213,16 @@ export function WorkPage(): JSX.Element {
         toId: other,
         state: proposeState,
         provenance,
-        expectedRevision: work.revision,
+        expectedRevision,
       });
       setProposeOther("");
       setProposeProvenance("");
-      // Reload for the fresh traversal and revision, then let the
+      // Reload for the fresh traversal and revision; only if this load was
+      // still current (the screen did not move on) do we let the
       // provenance-carrying mutation view render the section.
-      await load();
-      setWorkRelFull(view);
+      if (await load()) {
+        setWorkRelFull(view);
+      }
     } catch (e) {
       setActionError(errorMessage(e));
     } finally {
@@ -219,8 +239,9 @@ export function WorkPage(): JSX.Element {
         action === "confirm"
           ? await confirmRelation(relationId, work.revision)
           : await revokeRelation(relationId, work.revision);
-      await load();
-      setWorkRelFull(view);
+      if (await load()) {
+        setWorkRelFull(view);
+      }
     } catch (e) {
       setActionError(errorMessage(e));
     } finally {
