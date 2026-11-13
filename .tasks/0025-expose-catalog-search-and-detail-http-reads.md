@@ -1,7 +1,7 @@
 # Task 0025 - Expose catalog search and detail HTTP reads
 
-State: todo
-Owner: none
+State: doing
+Owner: opencode-media-20261110
 Mode: mvp
 Lane: http
 Scope: http
@@ -23,11 +23,13 @@ Expose the three core catalog read endpoints through shared library services.
 - docs/application-contract.md
 
 ## Files allowed to edit
+
 - internal/httpapi/library.go
 - internal/httpapi/library_test.go
 - internal/httpapi/routes.go
+- internal/httpapi/server.go
+- internal/runtime/runtime.go
 - docs/progress.md
-
 - .tasks/0025-expose-catalog-search-and-detail-http-reads.md
 
 ## Files forbidden to edit
@@ -66,6 +68,7 @@ Expose the three core catalog read endpoints through shared library services.
 - `{"id":"focused","type":"automated","required":true,"environment":"local","profile":"report","command":"go test ./internal/httpapi -run \"TestHTTPLibrary\""}`
 
 ## Documentation updates
+
 - Update docs/progress.md on lifecycle changes.
 
 ## Notes
@@ -75,3 +78,4 @@ Expose the three core catalog read endpoints through shared library services.
 - Before editing, read existing allowed source files supplied by completed dependencies. Missing paths are new files owned by this task, not existing context.
 - Only listed paths plus this task file may change. Do not edit other task contracts or generated agent instructions; task lifecycle is managed by APK.
 - Keep contract behavior fixed; if a counterexample requires expanding scope, update this task before source edits. No actual host deployment, push or publication is authorized.
+- Scope amendment (2026-11-12): the catalog routes join the server mux and the serve lifecycle opens the shared-lifetime database and passes the app service to the server, so internal/httpapi/server.go and internal/runtime/runtime.go join the allowed list.
