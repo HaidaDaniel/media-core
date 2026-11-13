@@ -36,6 +36,7 @@ Create lightweight React/Vite routing shell with common fetch/session/error hand
 - web/src/auth/**
 - web/src/styles.css
 - web/src/shell/**
+- web/dist/
 - docs/decisions.md
 - docs/progress.md
 - .tasks/0030-bootstrap-react-shell-typed-api-client-and-login.md
@@ -81,6 +82,7 @@ Create lightweight React/Vite routing shell with common fetch/session/error hand
 
 ## Notes
 
+- Scope amendment (2026-11-13): `web/dist/` is added to the allowed list because the task's own required verification command ends with `pnpm --dir web build`, which emits the static bundle into the working tree; APK's file-scope check counts untracked output against the allowed list. The dist directory is generated output of that command, not a source edit; the production embedding of the build happens in task 0047.
 - Milestone: M2. See docs/implementation-plan.md for requirements and graph.
 - Unstarted implementation contract. Tests/commands above are to be created or made runnable by this task; none is claimed to pass today.
 - Before editing, read existing allowed source files supplied by completed dependencies. Missing paths are new files owned by this task, not existing context.
