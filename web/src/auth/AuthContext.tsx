@@ -20,16 +20,21 @@ export function AuthProvider({ children }: { children: ReactNode }): JSX.Element
 
   useEffect(() => {
     let cancelled = false;
+    // The initial inspection settles only while the provider is still
+    // inspecting, so a slow response can never overwrite a completed
+    // login or logout.
     inspectSession()
       .then((live) => {
         if (!cancelled) {
-          setStatus(live ? "authenticated" : "anonymous");
+          setStatus((current) =>
+            current === "inspecting" ? (live ? "authenticated" : "anonymous") : current,
+          );
         }
       })
       .catch(() => {
         if (!cancelled) {
           setCSRFToken(null);
-          setStatus("anonymous");
+          setStatus((current) => (current === "inspecting" ? "anonymous" : current));
         }
       });
     return () => {
@@ -42,12 +47,11 @@ export function AuthProvider({ children }: { children: ReactNode }): JSX.Element
     setStatus("authenticated");
   }, []);
 
+  // A failed logout throws to the caller and keeps the live session
+  // state: the server session is invalidated only on success.
   const logout = useCallback(async () => {
-    try {
-      await apiLogout();
-    } finally {
-      setStatus("anonymous");
-    }
+    await apiLogout();
+    setStatus("anonymous");
   }, []);
 
   const value = useMemo(() => ({ status, login, logout }), [status, login, logout]);

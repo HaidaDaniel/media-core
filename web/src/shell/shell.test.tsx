@@ -1,19 +1,29 @@
 // App routing: anonymous visitors are sent to the login screen, a live
 // session renders the shell navigation with the routed placeholder, and an
 // unknown address shows the not-found state instead of a blank page.
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { App } from "../App";
 
-const { mockInspectSession } = vi.hoisted(() => ({
-  mockInspectSession: vi.fn(),
-}));
+const { mockInspectSession, mockLogout, ApiErrorStub } = vi.hoisted(() => {
+  class ApiErrorStub extends Error {
+    code: string;
+
+    constructor(code: string, message: string) {
+      super(message);
+      this.name = "ApiError";
+      this.code = code;
+    }
+  }
+  return { mockInspectSession: vi.fn(), mockLogout: vi.fn(), ApiErrorStub };
+});
 
 vi.mock("../api/client", () => ({
   inspectSession: (...args: unknown[]) => mockInspectSession(...args),
   login: vi.fn(),
-  logout: vi.fn(),
+  logout: (...args: unknown[]) => mockLogout(...args),
   setCSRFToken: vi.fn(),
+  ApiError: ApiErrorStub,
 }));
 
 function navigateTo(path: string): void {
@@ -59,5 +69,16 @@ describe("App routing", () => {
     navigateTo("/no-such-screen");
     render(<App />);
     expect(await screen.findByRole("heading", { name: "Not found" })).not.toBeNull();
+  });
+
+  it("shows the server message when sign out fails and keeps the navigation", async () => {
+    mockInspectSession.mockResolvedValueOnce(true);
+    mockLogout.mockRejectedValueOnce(new ApiErrorStub("forbidden", "CSRF mismatch"));
+    navigateTo("/");
+    render(<App />);
+    const signOut = await screen.findByRole("button", { name: /sign out/i });
+    fireEvent.click(signOut);
+    expect((await screen.findByRole("alert")).textContent).toBe("CSRF mismatch");
+    expect(screen.getByRole("navigation")).not.toBeNull();
   });
 });
