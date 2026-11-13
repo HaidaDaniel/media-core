@@ -1,6 +1,6 @@
 # Task 0028 - Expose personal annotation HTTP adapter group
 
-State: doing
+State: done
 Owner: opencode-media-20261110
 Mode: mvp
 Lane: http
