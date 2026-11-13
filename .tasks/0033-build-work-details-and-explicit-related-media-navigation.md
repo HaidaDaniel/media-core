@@ -28,6 +28,7 @@ Present one logical work and its edition/source relationships with deliberate co
 - web/src/work/**
 - web/src/relations/**
 - web/src/App.tsx
+- web/src/shell/shell.test.tsx
 - docs/progress.md
 - .tasks/0033-build-work-details-and-explicit-related-media-navigation.md
 
@@ -72,7 +73,8 @@ Present one logical work and its edition/source relationships with deliberate co
 
 ## Notes
 
-- Frozen-API scoping (verified against 0025-0029 before implementation): the work view has no notes field and no endpoint lists work-scoped notes, so "work-note display" is scoped to the per-edition notes carried by each edition detail. The frozen API has no origin-listing endpoint, so origin claims (original/anime_original/unknown) are recorded through the form and rendered from the returned view, defaulting to unknown when no claim exists; originality is never inferred from a media kind or a provider. Work-scope relations are same_underlying_work, sequel_of, side_story_of and related; adaptation_of/translation_of/alternative_version are edition-scope, so anime→manga navigation follows each edition's relation traversal. Confirm/revoke act only on edges whose canonical from entity is this work (its revision guards the mutation); other edges render read-only.
+- Scope amendment: mounting the real work screen at `/works/:id` changes what the App-routing shell test renders for that route, so `web/src/shell/shell.test.tsx` is admitted to update its mocked `get` to a path-aware work/relations payload (test-only; no behavior change to the screen).
+- Frozen-API scoping (verified against 0025-0029 before implementation): the work view has no notes field and no endpoint lists work-scoped notes, so "work-note display" is scoped to the per-edition notes carried by each edition detail. The frozen API has no origin-listing endpoint, so origin claims (original/anime_original/unknown) are recorded through the form and rendered from the returned view, defaulting to unknown when no claim exists; originality is never inferred from a media kind or a provider. Work-scope relations are same_underlying_work, sequel_of, side_story_of and related; adaptation_of/translation_of/alternative_version are edition-scope, so anime→manga navigation follows each edition's relation traversal. Confirm/revoke act only on edges whose canonical from entity is this work (its revision guards the mutation); other edges render read-only. The frozen relation traversal (0029 RelatedView) returns edges without per-edge provenance and no read endpoint exposes the full relation view, so existing relation rows show direction, confirmation state and navigation; provenance is shown for origin claims (carried in the returned origin view) and for the relations created or acted on from this screen's forms.
 - Milestone: M4. See docs/implementation-plan.md for requirements and graph.
 - Unstarted implementation contract. Tests/commands above are to be created or made runnable by this task; none is claimed to pass today.
 - Before editing, read existing allowed source files supplied by completed dependencies. Missing paths are new files owned by this task, not existing context.

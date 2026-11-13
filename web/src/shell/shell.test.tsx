@@ -24,9 +24,34 @@ vi.mock("../api/client", () => ({
   logout: (...args: unknown[]) => mockLogout(...args),
   setCSRFToken: vi.fn(),
   ApiError: ApiErrorStub,
-  get: vi.fn(() =>
-    Promise.resolve({ items: [], next_cursor: null, total: 0 }),
-  ),
+  // Path-aware: the work route renders the real work screen, which reads the
+  // work detail and the work relations; every other read is the empty list.
+  get: vi.fn((path: string) => {
+    if (path.includes("/relations")) {
+      return Promise.resolve({ entity_id: "w-1", scope: "work", edges: [] });
+    }
+    if (path.startsWith("/works/")) {
+      return Promise.resolve({
+        id: "w-1",
+        revision: 1,
+        created_at: "2026-01-01T00:00:00Z",
+        updated_at: "2026-01-01T00:00:00Z",
+        archived_at: null,
+        titles: [
+          {
+            id: "t-1",
+            text: "Work details",
+            language: null,
+            kind: "original",
+            preferred: true,
+            provenance: "manual",
+          },
+        ],
+        editions: [],
+      });
+    }
+    return Promise.resolve({ items: [], next_cursor: null, total: 0 });
+  }),
 }));
 
 function navigateTo(path: string): void {
@@ -57,7 +82,7 @@ describe("App routing", () => {
     expect(await screen.findByRole("link", { name: /library/i })).not.toBeNull();
   });
 
-  it("renders the shell navigation with the work placeholder for a live session", async () => {
+  it("renders the shell navigation with the work screen for a live session", async () => {
     mockInspectSession.mockResolvedValueOnce(true);
     navigateTo("/works/w-1");
     render(<App />);
