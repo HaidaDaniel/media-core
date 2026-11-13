@@ -2,8 +2,9 @@
 // URL, so a refresh or a back step restores the exact listing; the search
 // input is debounced before it touches the URL, and an obsolete response can
 // never overwrite a newer one (logical cancellation by generation counter).
-// A failed first load shows the error alone; a failed change or page load
-// keeps the prior list intact with the error and a retry beside it.
+// The prior list and count stay visible until a response succeeds, so a
+// failed first load shows the error alone and a failed change or page load
+// keeps the prior list and count intact beside the error and a retry.
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { JSX } from "react";
 import { useSearchParams } from "react-router-dom";
@@ -57,6 +58,7 @@ export function LibraryPage(): JSX.Element {
   const [total, setTotal] = useState<number | null>(null);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [pageLoading, setPageLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [states, setStates] = useState<Record<string, string>>({});
@@ -87,16 +89,16 @@ export function LibraryPage(): JSX.Element {
   }, [text, query, params, setParams]);
 
   // Load the first page whenever the URL listing request changes. A newer
-  // request invalidates every in-flight one, so a stale response is dropped.
+  // request invalidates every in-flight one, so a stale response is dropped,
+  // and the prior list and count stay visible until a response succeeds.
   useEffect(() => {
     const gen = ++generation.current;
-    knownStates.current.clear();
-    setLoading(true);
     setError(null);
-    setItems([]);
-    setTotal(null);
-    setNextCursor(null);
-    setStates({});
+    if (total === null) {
+      setLoading(true);
+    } else {
+      setRefreshing(true);
+    }
     listWorks({
       query: query || undefined,
       kind: kind ? [kind] : undefined,
@@ -115,11 +117,15 @@ export function LibraryPage(): JSX.Element {
       .catch((err: unknown) => {
         if (gen === generation.current) {
           setError(errorMessage(err));
+          // A failed first page invalidates any cursor from the prior
+          // request, so a retry starts a fresh listing.
+          setNextCursor(null);
         }
       })
       .finally(() => {
         if (gen === generation.current) {
           setLoading(false);
+          setRefreshing(false);
         }
       });
   }, [query, kind, consumption, sort, limit, retryTick]);
@@ -217,10 +223,7 @@ export function LibraryPage(): JSX.Element {
     }
   }
 
-  const countLabel =
-    total === null
-      ? "Loading the library…"
-      : `${total} ${total === 1 ? "work" : "works"}`;
+  const countLabel = `${total} ${total === 1 ? "work" : "works"}`;
 
   return (
     <section className="library">
@@ -299,9 +302,11 @@ export function LibraryPage(): JSX.Element {
         </div>
       </form>
 
-      <p className="library-count" role="status">
-        {countLabel}
-      </p>
+      {total !== null && (
+        <p className="library-count" role="status">
+          {countLabel}
+        </p>
+      )}
 
       {error !== null && (
         <div className="library-error" role="alert">
@@ -314,7 +319,7 @@ export function LibraryPage(): JSX.Element {
 
       {loading ? (
         <p className="library-loading">Loading the library…</p>
-      ) : items.length === 0 ? (
+      ) : error !== null && items.length === 0 ? null : items.length === 0 ? (
         <div className="library-empty">
           <p>No works match the current filters.</p>
           <button type="button" onClick={resetFilters}>
@@ -322,20 +327,32 @@ export function LibraryPage(): JSX.Element {
           </button>
         </div>
       ) : (
-        <ul className={view === "cards" ? "library-list library-cards" : "library-list"}>
-          {items.map((card) => (
-            <li key={card.work_id}>
-              <WorkCardView card={card} states={states} view={view} activeFilter={activeFilter} />
-            </li>
-          ))}
-        </ul>
+        <>
+          {refreshing && (
+            <p className="library-refreshing" role="status">
+              Updating…
+            </p>
+          )}
+          <ul className={view === "cards" ? "library-list library-cards" : "library-list"}>
+            {items.map((card) => (
+              <li key={card.work_id}>
+                <WorkCardView
+                  card={card}
+                  states={states}
+                  view={view}
+                  activeFilter={activeFilter}
+                />
+              </li>
+            ))}
+          </ul>
+        </>
       )}
 
       {nextCursor !== null && (
         <button
           type="button"
           className="library-more"
-          disabled={pageLoading || loading}
+          disabled={pageLoading || loading || refreshing}
           onClick={() => void loadMore()}
         >
           {pageLoading ? "Loading more…" : "Load more"}

@@ -205,12 +205,16 @@ describe("library states", () => {
     renderPage("/");
     const alert = await screen.findByRole("alert");
     expect(alert.textContent).toContain("the storage is locked");
+    // The failure is the whole state: no empty result and no count are
+    // asserted alongside it.
+    expect(screen.queryByText("No works match the current filters.")).toBeNull();
+    expect(screen.queryByText("0 works")).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Retry" }));
     expect(await screen.findByText("Static Bloom")).not.toBeNull();
     expect(mockListWorks).toHaveBeenCalledTimes(2);
   });
 
-  it("keeps the failed filter in the URL when a change fails and retries it", async () => {
+  it("keeps the prior list and the failed filter when a change fails, and retries it", async () => {
     renderPage("/");
     expect(await screen.findByText("Static Bloom")).not.toBeNull();
     mockListWorks.mockRejectedValueOnce(new ApiError("locked", 503, "the storage is locked", true));
@@ -224,6 +228,10 @@ describe("library states", () => {
     );
     const alert = await screen.findByRole("alert");
     expect(alert.textContent).toContain("the storage is locked");
+    // The prior state stays intact: the old list and its count remain
+    // visible, and the URL keeps the failed filter.
+    expect(screen.getByText("Static Bloom")).not.toBeNull();
+    expect(screen.getByText("1 work")).not.toBeNull();
     expect(screen.getByTestId("url").textContent).toBe("/?kind=anime");
     mockListWorks.mockResolvedValue(payload([card()]));
     fireEvent.click(screen.getByRole("button", { name: "Retry" }));

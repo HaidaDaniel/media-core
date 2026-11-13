@@ -234,6 +234,11 @@ input {
   text-align: center;
 }
 
+.library-refreshing {
+  color: var(--muted);
+  margin: 0 0 0.6rem;
+}
+
 .library-list {
   list-style: none;
   margin: 0;
