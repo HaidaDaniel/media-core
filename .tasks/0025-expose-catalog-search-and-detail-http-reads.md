@@ -1,6 +1,6 @@
 # Task 0025 - Expose catalog search and detail HTTP reads
 
-State: doing
+State: review
 Owner: opencode-media-20261110
 Mode: mvp
 Lane: http
@@ -66,7 +66,7 @@ Expose the three core catalog read endpoints through shared library services.
 
 ## Verification
 
-- `{"id":"focused","type":"automated","required":true,"environment":"local","profile":"report","command":"go test ./internal/httpapi -run \"TestHTTPLibrary\""}`
+- `{"id":"focused","type":"automated","required":true,"environment":"local","profile":"report","command":"go test ./internal/httpapi ./internal/runtime -run \"TestHTTPLibrary|TestDispatchServe\""}`
 
 ## Documentation updates
 
@@ -81,3 +81,4 @@ Expose the three core catalog read endpoints through shared library services.
 - Keep contract behavior fixed; if a counterexample requires expanding scope, update this task before source edits. No actual host deployment, push or publication is authorized.
 - Scope amendment (2026-11-12): the catalog routes join the server mux and the serve lifecycle opens the shared-lifetime database and passes the app service to the server, so internal/httpapi/server.go and internal/runtime/runtime.go join the allowed list.
 - Scope amendment (2026-11-12, second): serve now fails before listen when the state directory has no initialized database, so its regression test joins the allowed list (internal/runtime/runtime_test.go).
+- Scope amendment (2026-11-12, third, per review): the focused verification now also runs the serve dispatch tests (`go test ./internal/httpapi ./internal/runtime -run "TestHTTPLibrary|TestDispatchServe"`) so the schema-failure regression is part of the required evidence.
