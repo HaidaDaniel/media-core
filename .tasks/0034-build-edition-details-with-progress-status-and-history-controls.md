@@ -1,7 +1,7 @@
 # Task 0034 - Build edition details with progress status and history controls
 
-State: todo
-Owner: none
+State: doing
+Owner: opencode-media-20261110
 Mode: mvp
 Lane: web
 Scope: web
@@ -24,10 +24,10 @@ Provide the minimal usable edition page for daily progress/status updates and hi
 - docs/application-contract.md
 
 ## Files allowed to edit
+
 - web/src/edition/**
 - web/src/App.tsx
 - docs/progress.md
-
 - .tasks/0034-build-edition-details-with-progress-status-and-history-controls.md
 
 ## Files forbidden to edit
@@ -66,10 +66,12 @@ Provide the minimal usable edition page for daily progress/status updates and hi
 - `{"id":"focused","type":"automated","required":true,"environment":"local","profile":"report","command":"pnpm --dir web exec tsc --noEmit && pnpm --dir web test -- --run src/edition"}`
 
 ## Documentation updates
+
 - Update docs/progress.md on lifecycle changes.
 
 ## Notes
 
+- Frozen-API scoping: the edition-level write surface is PATCH /editions/{id} with only kind, language and other_label (internal/httpapi/catalog_writes.go updateEditionBody). The frozen contract has no edition-level title correction endpoint (titles are corrected at work scope, PATCH /works/{id}/titles) and no archive route, so the edition page renders titles read-only and the narrow metadata corrections cover kind/language/other_label. History rows carry the label states effective/superseded/retracted (internal/store/activity.go activityBranches); only progress observations are retractable (POST /editions/{id}/history/{record_id}/retract).
 - Milestone: M2. See docs/implementation-plan.md for requirements and graph.
 - Unstarted implementation contract. Tests/commands above are to be created or made runnable by this task; none is claimed to pass today.
 - Before editing, read existing allowed source files supplied by completed dependencies. Missing paths are new files owned by this task, not existing context.
