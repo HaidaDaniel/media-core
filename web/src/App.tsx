@@ -7,7 +7,8 @@ import { AuthProvider, useAuth } from "./auth/AuthContext";
 import { QuickAddPage } from "./add/QuickAddPage";
 import { LoginPage } from "./auth/LoginPage";
 import { LibraryPage } from "./library/LibraryPage";
-import { ActivityPage, EditionPage, NotFoundPage } from "./shell/Placeholders";
+import { ActivityPage, NotFoundPage } from "./shell/Placeholders";
+import { EditionPage } from "./edition/EditionPage";
 import { Shell } from "./shell/Shell";
 import { WorkPage } from "./work/WorkPage";
 
