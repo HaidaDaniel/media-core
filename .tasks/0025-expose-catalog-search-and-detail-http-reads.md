@@ -29,6 +29,7 @@ Expose the three core catalog read endpoints through shared library services.
 - internal/httpapi/routes.go
 - internal/httpapi/server.go
 - internal/runtime/runtime.go
+- internal/runtime/runtime_test.go
 - docs/progress.md
 - .tasks/0025-expose-catalog-search-and-detail-http-reads.md
 
@@ -79,3 +80,4 @@ Expose the three core catalog read endpoints through shared library services.
 - Only listed paths plus this task file may change. Do not edit other task contracts or generated agent instructions; task lifecycle is managed by APK.
 - Keep contract behavior fixed; if a counterexample requires expanding scope, update this task before source edits. No actual host deployment, push or publication is authorized.
 - Scope amendment (2026-11-12): the catalog routes join the server mux and the serve lifecycle opens the shared-lifetime database and passes the app service to the server, so internal/httpapi/server.go and internal/runtime/runtime.go join the allowed list.
+- Scope amendment (2026-11-12, second): serve now fails before listen when the state directory has no initialized database, so its regression test joins the allowed list (internal/runtime/runtime_test.go).
