@@ -1,7 +1,7 @@
 # Task 0027 - Expose progress consumption and history HTTP routes
 
-State: todo
-Owner: none
+State: done
+Owner: opencode-media-20261110
 Mode: mvp
 Lane: http
 Scope: http
@@ -23,11 +23,11 @@ Provide reading observation/status endpoints and correction/history access.
 - docs/application-contract.md
 
 ## Files allowed to edit
+
 - internal/httpapi/reading.go
 - internal/httpapi/reading_test.go
 - internal/httpapi/routes.go
 - docs/progress.md
-
 - .tasks/0027-expose-progress-consumption-and-history-http-routes.md
 
 ## Files forbidden to edit
@@ -66,6 +66,7 @@ Provide reading observation/status endpoints and correction/history access.
 - `{"id":"focused","type":"automated","required":true,"environment":"local","profile":"report","command":"go test ./internal/httpapi -run \"TestHTTPReading\""}`
 
 ## Documentation updates
+
 - Update docs/progress.md on lifecycle changes.
 
 ## Notes
