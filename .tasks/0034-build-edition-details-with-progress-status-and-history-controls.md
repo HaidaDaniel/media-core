@@ -1,6 +1,6 @@
 # Task 0034 - Build edition details with progress status and history controls
 
-State: doing
+State: done
 Owner: opencode-media-20261110
 Mode: mvp
 Lane: web
