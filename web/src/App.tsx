@@ -4,9 +4,10 @@
 import type { JSX } from "react";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { AuthProvider, useAuth } from "./auth/AuthContext";
+import { QuickAddPage } from "./add/QuickAddPage";
 import { LoginPage } from "./auth/LoginPage";
 import { LibraryPage } from "./library/LibraryPage";
-import { ActivityPage, EditionPage, NotFoundPage, QuickAddPage, WorkPage } from "./shell/Placeholders";
+import { ActivityPage, EditionPage, NotFoundPage, WorkPage } from "./shell/Placeholders";
 import { Shell } from "./shell/Shell";
 
 function RequireAuth(): JSX.Element {
