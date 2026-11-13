@@ -6,6 +6,8 @@ Status vocabulary: planned, implemented, tested, deployed, blocked. Documentatio
 
 Task 0004 is done, owner codex-media-plan-20261110. Initial worktree was clean on main at 7acb2f0458bdfff33bd48c4312b2eb2be944b56d. Existing 0001 canceled / 0002 done / 0003 todo are preserved.
 
+Task 0003 is done, owner opencode-media-20261110. The adoption documentation review closed late: its acceptance criteria (project, scope and architecture docs describe the adopted repository; no application source file changed) were already met by the completed 0002 and 0004 documentation work, so the task itself changed no files — the gate ran clean over zero changed files after the documentation-only verification command passed. This clears the last adoption-phase todo.
+
 Product/domain/architecture revised for personal history, distinct state dimensions, explicit sources/editions and equal Web + Hermes/MCP scope. ADR-0009–0013 amend earlier target decisions without deleting their history. 45 future implementation tasks 0005–0049 are unclaimed todo; [inventory/coverage/dependencies](implementation-plan.md).
 
 ## Planned

@@ -1,7 +1,7 @@
 # Task 0003 - Document Adopted Repository
 
-State: todo
-Owner: none
+State: done
+Owner: opencode-media-20261110
 Mode: adopt
 Lane: adoption
 Scope: docs,adoption
