@@ -49,6 +49,9 @@ func New(service *app.Service, logger *slog.Logger) *Server {
 	RegisterLibraryTools(s)
 	RegisterCatalogWriteTools(s)
 	RegisterReadingTools(s)
+	RegisterAnnotationTools(s)
+	RegisterRelationTools(s)
+	RegisterActivityTools(s)
 	return s
 }
 
