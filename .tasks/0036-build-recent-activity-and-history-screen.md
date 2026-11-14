@@ -1,7 +1,7 @@
 # Task 0036 - Build recent-activity and history screen
 
-State: todo
-Owner: none
+State: done
+Owner: opencode-media-20261110
 Mode: mvp
 Lane: web
 Scope: web
@@ -24,10 +24,10 @@ Show recent personal changes with useful dates and links rather than analytics.
 - docs/application-contract.md
 
 ## Files allowed to edit
+
 - web/src/activity/**
 - web/src/App.tsx
 - docs/progress.md
-
 - .tasks/0036-build-recent-activity-and-history-screen.md
 
 ## Files forbidden to edit
@@ -66,6 +66,7 @@ Show recent personal changes with useful dates and links rather than analytics.
 - `{"id":"focused","type":"automated","required":true,"environment":"local","profile":"report","command":"pnpm --dir web exec tsc --noEmit && pnpm --dir web test -- --run src/activity"}`
 
 ## Documentation updates
+
 - Update docs/progress.md on lifecycle changes.
 
 ## Notes
