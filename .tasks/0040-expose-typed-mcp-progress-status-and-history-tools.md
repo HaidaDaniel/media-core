@@ -1,7 +1,7 @@
 # Task 0040 - Expose typed MCP progress status and history tools
 
-State: todo
-Owner: none
+State: done
+Owner: opencode-media-20261110
 Mode: mvp
 Lane: mcp
 Scope: mcp
@@ -24,11 +24,11 @@ Expose daily reading updates and correction/history through shared use cases.
 - docs/application-contract.md
 
 ## Files allowed to edit
+
 - internal/mcp/reading.go
 - internal/mcp/reading_test.go
 - internal/mcp/server.go
 - docs/progress.md
-
 - .tasks/0040-expose-typed-mcp-progress-status-and-history-tools.md
 
 ## Files forbidden to edit
@@ -67,6 +67,7 @@ Expose daily reading updates and correction/history through shared use cases.
 - `{"id":"focused","type":"automated","required":true,"environment":"local","profile":"report","command":"go test ./internal/mcp -run \"TestMCPReading\""}`
 
 ## Documentation updates
+
 - Update docs/progress.md on lifecycle changes.
 
 ## Notes
