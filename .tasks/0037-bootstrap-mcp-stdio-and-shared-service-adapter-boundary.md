@@ -1,6 +1,6 @@
 # Task 0037 - Bootstrap MCP stdio and shared-service adapter boundary
 
-State: doing
+State: done
 Owner: opencode-media-20261110
 Mode: mvp
 Lane: mcp
@@ -37,10 +37,6 @@ Add maintained Go MCP SDK and clean stdio mode without HTTP dependency.
 - docs/decisions.md
 - docs/progress.md
 - .tasks/0037-bootstrap-mcp-stdio-and-shared-service-adapter-boundary.md
-
-## Scope amendment
-
-- 2026-11-14: `internal/runtime/runtime_test.go` and `internal/cli/cli_test.go` were added to the allowed files. Wiring the `mcp` command out of the reserved set (the task goal) invalidates the reserved-command assertions in both files, so their tests for `mcp` must move to the implemented-behavior contract (flag and schema-boundary failures before any frame). No other test or source file is touched. The one-line `mcp` usage entry in `internal/cli/cli.go` is cosmetic and stays stale until a task owns that file.
 
 ## Files forbidden to edit
 
@@ -83,6 +79,7 @@ Add maintained Go MCP SDK and clean stdio mode without HTTP dependency.
 
 ## Notes
 
+- Scope amendment 2026-11-14: `internal/runtime/runtime_test.go` and `internal/cli/cli_test.go` were added to the allowed files. Wiring the `mcp` command out of the reserved set (the task goal) invalidates the reserved-command assertions in both files, so their tests for `mcp` move to the implemented-behavior contract (flag and schema-boundary failures before any frame). No other test or source file is touched. The one-line `mcp` usage entry in `internal/cli/cli.go` is cosmetic and stays stale until a task owns that file.
 - Milestone: M3. See docs/implementation-plan.md for requirements and graph.
 - Unstarted implementation contract. Tests/commands above are to be created or made runnable by this task; none is claimed to pass today.
 - Before editing, read existing allowed source files supplied by completed dependencies. Missing paths are new files owned by this task, not existing context.
