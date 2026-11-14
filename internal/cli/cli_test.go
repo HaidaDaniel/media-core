@@ -63,18 +63,30 @@ func TestRunUnsupported(t *testing.T) {
 	}
 }
 
-func TestRunReserved(t *testing.T) {
-	for _, command := range []string{"mcp"} {
-		var out, errBuf bytes.Buffer
-		if code := Run([]string{command}, &out, &errBuf); code != ExitError {
-			t.Fatalf("Run(%s) exit = %d, want %d", command, code, ExitError)
-		}
-		if !strings.Contains(errBuf.String(), "reserved") {
-			t.Errorf("Run(%s) stderr %q does not contain the reserved message", command, errBuf.String())
-		}
-		if out.Len() != 0 {
-			t.Errorf("Run(%s) stdout %q should be empty", command, out.String())
-		}
+func TestRunMCPFailsBeforeAnyFrame(t *testing.T) {
+	// Unknown mcp flags fail with usage before any state access; there is
+	// no listener flag because the transport is stdio.
+	var out, errBuf bytes.Buffer
+	if code := Run([]string{"mcp", "--bogus"}, &out, &errBuf); code != ExitUsage {
+		t.Fatalf("Run(mcp --bogus) exit = %d, want %d (stderr %q)", code, ExitUsage, errBuf.String())
+	}
+	if out.Len() != 0 {
+		t.Errorf("Run(mcp --bogus) stdout %q should be empty", out.String())
+	}
+
+	// An uninitialized state dir fails with the schema guidance and no
+	// frame on stdout.
+	out.Reset()
+	errBuf.Reset()
+	dir := t.TempDir()
+	if code := Run([]string{"mcp", "--state-dir", dir}, &out, &errBuf); code != ExitError {
+		t.Fatalf("Run(mcp on an empty state dir) exit = %d, want %d (stderr %q)", code, ExitError, errBuf.String())
+	}
+	if !strings.Contains(errBuf.String(), "run media-core init") {
+		t.Errorf("stderr %q must carry the init guidance", errBuf.String())
+	}
+	if out.Len() != 0 {
+		t.Errorf("Run(mcp on an empty state dir) stdout %q should be empty", out.String())
 	}
 }
 

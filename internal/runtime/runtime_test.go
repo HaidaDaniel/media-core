@@ -23,17 +23,40 @@ func TestDispatchMissing(t *testing.T) {
 	}
 }
 
-func TestDispatchReserved(t *testing.T) {
-	for _, command := range []string{"mcp"} {
-		var out bytes.Buffer
-		err := Dispatch([]string{command}, &out)
-		var reserved ErrReserved
-		if !errors.As(err, &reserved) || reserved.Command != command {
-			t.Errorf("Dispatch(%s) = %v, want ErrReserved{%s}", command, err, command)
-		}
-		if out.Len() != 0 {
-			t.Errorf("Dispatch(%s) wrote %q to out", command, out.String())
-		}
+func TestDispatchMCPFailsBeforeAnyFrame(t *testing.T) {
+	// Unknown mcp flags fail fast; there is no listener flag because the
+	// transport is stdio and no native remote listener exists.
+	var out bytes.Buffer
+	err := Dispatch([]string{"mcp", "--bogus"}, &out)
+	if err == nil {
+		t.Fatal("Dispatch(mcp --bogus) = nil, want a flag error")
+	}
+	var exitErr *ExitCodeError
+	if !errors.As(err, &exitErr) || exitErr.Exit != 2 {
+		t.Errorf("Dispatch(mcp --bogus) = %v, want exit code 2", err)
+	}
+	if out.Len() != 0 {
+		t.Errorf("Dispatch(mcp --bogus) wrote %q to out", out.String())
+	}
+
+	// A state directory without an initialized database fails with the
+	// schema guidance before any protocol frame is written and no serve
+	// process is needed.
+	dir := t.TempDir()
+	out.Reset()
+	err = Dispatch([]string{"mcp", "--state-dir", dir}, &out)
+	if err == nil {
+		t.Fatal("Dispatch(mcp on an empty state dir) = nil, want the schema error")
+	}
+	exitErr = nil
+	if !errors.As(err, &exitErr) || exitErr.Exit != 1 {
+		t.Fatalf("Dispatch(mcp on an empty state dir) = %v, want exit code 1", err)
+	}
+	if !strings.Contains(err.Error(), "run media-core init") {
+		t.Errorf("error %q must carry the init guidance", err)
+	}
+	if out.Len() != 0 {
+		t.Errorf("Dispatch(mcp on an empty state dir) wrote %q to out", out.String())
 	}
 }
 

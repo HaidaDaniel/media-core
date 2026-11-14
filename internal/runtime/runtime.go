@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"log/slog"
 	"os"
 	"os/signal"
 	"syscall"
@@ -13,6 +14,7 @@ import (
 	"github.com/HaidaDaniel/media-core/internal/buildinfo"
 	"github.com/HaidaDaniel/media-core/internal/config"
 	"github.com/HaidaDaniel/media-core/internal/httpapi"
+	"github.com/HaidaDaniel/media-core/internal/mcp"
 	"github.com/HaidaDaniel/media-core/internal/store"
 )
 
@@ -94,7 +96,7 @@ func Dispatch(args []string, out io.Writer) error {
 	case "serve":
 		return runServe(args[1:], out)
 	case "mcp":
-		return ErrReserved{Command: "mcp"}
+		return runMCP(args[1:], out)
 	default:
 		if h, ok := commandHandlers[args[0]]; ok {
 			return h(args[1:], out)
@@ -170,6 +172,61 @@ func parseServeArgs(args []string) (config.Options, error) {
 			opts.AllowRemote = true
 		default:
 			return opts, fmt.Errorf("media-core serve: unknown argument %q (%s)", args[i], serveUsage)
+		}
+	}
+	return opts, nil
+}
+
+// runMCP runs the MCP stdio lifecycle. Configuration is resolved first,
+// so an invalid state dir fails before any protocol frame is written. The
+// state database is then opened under the shared lifetime maintenance
+// lock, which enforces the schema boundary: a missing or drifted schema
+// fails before any frame is written and no serve process is needed. The
+// protocol serves over stdio until the client closes stdin or the
+// process receives SIGINT/SIGTERM; stdout carries protocol frames only
+// and every diagnostic goes to stderr.
+func runMCP(args []string, out io.Writer) error {
+	// Exit codes per docs/application-contract.md: 2 invalid input, 1
+	// config or runtime failure.
+	opts, err := parseMCPArgs(args)
+	if err != nil {
+		return &ExitCodeError{Exit: 2, Err: err}
+	}
+	cfg, err := ResolveConfig(opts)
+	if err != nil {
+		return &ExitCodeError{Exit: 1, Err: err}
+	}
+	db, err := OpenDatabase(cfg)
+	if err != nil {
+		return &ExitCodeError{Exit: 1, Err: err}
+	}
+	defer db.Close()
+	logger := slog.New(slog.NewTextHandler(os.Stderr, nil))
+	srv := mcp.New(app.NewService(db), logger)
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+	if err := srv.Run(ctx, os.Stdin, os.Stdout); err != nil {
+		return &ExitCodeError{Exit: 1, Err: err}
+	}
+	return nil
+}
+
+// parseMCPArgs maps mcp flags onto explicit configuration options. The
+// only flag is the state dir; there is no listener because the transport
+// is stdio and no native remote listener exists.
+func parseMCPArgs(args []string) (config.Options, error) {
+	const mcpUsage = "usage: media-core mcp [--state-dir <dir>]"
+	var opts config.Options
+	for i := 0; i < len(args); i++ {
+		switch args[i] {
+		case "--state-dir":
+			if i+1 >= len(args) {
+				return opts, fmt.Errorf("media-core mcp: --state-dir requires a value")
+			}
+			i++
+			opts.StateDir = args[i]
+		default:
+			return opts, fmt.Errorf("media-core mcp: unknown argument %q (%s)", args[i], mcpUsage)
 		}
 	}
 	return opts, nil
