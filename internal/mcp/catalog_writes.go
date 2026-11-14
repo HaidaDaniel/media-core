@@ -245,8 +245,11 @@ type updateCatalogInput struct {
 // creates nothing until an explicit choice with its short-lived token is
 // presented, and a matching URL or external ID resolves to the existing
 // entry instead of cloning it.
+func init() {
+	trackTools(ToolResolveAddition, ToolCreateEntry, ToolUpdateCatalog)
+}
+
 func RegisterCatalogWriteTools(s *Server) {
-	registeredTools = append(registeredTools, ToolResolveAddition, ToolCreateEntry, ToolUpdateCatalog)
 	AddTool(s, &mcpsdk.Tool{
 		Name:        ToolResolveAddition,
 		Description: "Resolve a library addition against the existing catalog before creating anything. Returns the outcome: ready (no match), existing (a known identity matched; the work ID is returned), or candidates (exact title matches exist; each candidate carries evidence and a short-lived token). Present the candidates to the user; the choice is theirs, not an inference.",

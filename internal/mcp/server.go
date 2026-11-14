@@ -21,11 +21,15 @@ type Server struct {
 	srv     *mcpsdk.Server
 }
 
-// registeredTools is the tool surface the server exposes, in registration
-// order. Each Register* function appends its own names where it registers
-// them, and the subprocess test asserts the live tools/list against this
-// list, so a new tool group updates the surface in one place.
+// registeredTools is the tool surface the server exposes, recorded at
+// package initialization (before any test or server run) by each tool
+// group's init. The subprocess test asserts the live tools/list against
+// this list, so a new tool group records its names where its tools are
+// defined, and the assertion fails if the live surface and the recorded
+// surface ever diverge.
 var registeredTools = []string{}
+
+func trackTools(names ...string) { registeredTools = append(registeredTools, names...) }
 
 // New builds the MCP server over the shared service. The logger receives
 // every protocol diagnostic and must write to a stream that is not the
