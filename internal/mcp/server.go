@@ -48,6 +48,7 @@ func New(service *app.Service, logger *slog.Logger) *Server {
 	s := &Server{service: service, srv: mcpsdk.NewServer(impl, opts)}
 	RegisterLibraryTools(s)
 	RegisterCatalogWriteTools(s)
+	RegisterReadingTools(s)
 	return s
 }
 
