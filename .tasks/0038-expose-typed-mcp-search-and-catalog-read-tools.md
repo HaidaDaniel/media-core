@@ -1,6 +1,6 @@
 # Task 0038 - Expose typed MCP search and catalog read tools
 
-State: doing
+State: done
 Owner: opencode-media-20261110
 Mode: mvp
 Lane: mcp
