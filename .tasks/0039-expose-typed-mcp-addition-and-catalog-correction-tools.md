@@ -1,7 +1,7 @@
 # Task 0039 - Expose typed MCP addition and catalog correction tools
 
-State: todo
-Owner: none
+State: doing
+Owner: opencode-media-20261110
 Mode: mvp
 Lane: mcp
 Scope: mcp
@@ -24,11 +24,13 @@ Expose resolve_addition/create_entry/update_catalog without bypassing identity d
 - docs/application-contract.md
 
 ## Files allowed to edit
+
 - internal/mcp/catalog_writes.go
 - internal/mcp/catalog_writes_test.go
 - internal/mcp/server.go
+- internal/mcp/library.go
+- internal/mcp/server_test.go
 - docs/progress.md
-
 - .tasks/0039-expose-typed-mcp-addition-and-catalog-correction-tools.md
 
 ## Files forbidden to edit
@@ -67,10 +69,12 @@ Expose resolve_addition/create_entry/update_catalog without bypassing identity d
 - `{"id":"focused","type":"automated","required":true,"environment":"local","profile":"report","command":"go test ./internal/mcp -run \"TestMCPCatalogWrite\""}`
 
 ## Documentation updates
+
 - Update docs/progress.md on lifecycle changes.
 
 ## Notes
 
+- Scope amendment 2026-11-14: `internal/mcp/server_test.go` and `internal/mcp/library.go` were added to the allowed files. The hardcoded three-tool surface assertion became stale when the 0039 tools register in the same constructor; the assertion is now data-driven against the `registeredTools` list (server.go), which each Register* function extends where it registers, so later tool groups (0040-0041) do not require further test-file changes.
 - Milestone: M3. See docs/implementation-plan.md for requirements and graph.
 - Unstarted implementation contract. Tests/commands above are to be created or made runnable by this task; none is claimed to pass today.
 - Before editing, read existing allowed source files supplied by completed dependencies. Missing paths are new files owned by this task, not existing context.

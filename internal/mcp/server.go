@@ -21,6 +21,12 @@ type Server struct {
 	srv     *mcpsdk.Server
 }
 
+// registeredTools is the tool surface the server exposes, in registration
+// order. Each Register* function appends its own names where it registers
+// them, and the subprocess test asserts the live tools/list against this
+// list, so a new tool group updates the surface in one place.
+var registeredTools = []string{}
+
 // New builds the MCP server over the shared service. The logger receives
 // every protocol diagnostic and must write to a stream that is not the
 // protocol output, which carries frames only.
@@ -37,6 +43,7 @@ func New(service *app.Service, logger *slog.Logger) *Server {
 	}
 	s := &Server{service: service, srv: mcpsdk.NewServer(impl, opts)}
 	RegisterLibraryTools(s)
+	RegisterCatalogWriteTools(s)
 	return s
 }
 

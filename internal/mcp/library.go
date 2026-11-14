@@ -152,6 +152,7 @@ type getEditionInput struct {
 // and cursor rule is the one the shared service already enforces for
 // HTTP and CLI.
 func RegisterLibraryTools(s *Server) {
+	registeredTools = append(registeredTools, ToolSearchLibrary, ToolGetWork, ToolGetEdition)
 	AddTool(s, &mcpsdk.Tool{
 		Name:        ToolSearchLibrary,
 		Description: "Search the personal media library as work cards. The query matches normalized titles (Japanese, Russian, romaji) and metadata; every filter dimension is optional and combinable. Returns the shared catalog list DTO with the matching edition IDs per card and an opaque cursor for the next page of the same request.",

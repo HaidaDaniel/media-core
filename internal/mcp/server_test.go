@@ -214,12 +214,12 @@ func TestMCPServer(t *testing.T) {
 	if err := json.Unmarshal(list.Result, &toolsResult); err != nil {
 		t.Fatalf("unmarshal tools/list result: %v", err)
 	}
-	// The tool surface is exactly the domain tools registered so far; no
-	// generic SQL, shell or file tool exists at any point.
-	want := map[string]bool{
-		ToolSearchLibrary: false,
-		ToolGetWork:       false,
-		ToolGetEdition:    false,
+	// The tool surface is exactly the domain tools registered so far
+	// (tracked in registeredTools as each group registers); no generic
+	// SQL, shell or file tool exists at any point.
+	want := make(map[string]bool, len(registeredTools))
+	for _, name := range registeredTools {
+		want[name] = false
 	}
 	for _, tool := range toolsResult.Tools {
 		if _, ok := want[tool.Name]; !ok {
