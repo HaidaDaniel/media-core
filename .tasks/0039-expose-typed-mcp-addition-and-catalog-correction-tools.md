@@ -1,6 +1,6 @@
 # Task 0039 - Expose typed MCP addition and catalog correction tools
 
-State: doing
+State: done
 Owner: opencode-media-20261110
 Mode: mvp
 Lane: mcp
