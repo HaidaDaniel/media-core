@@ -1,7 +1,7 @@
 # Task 0038 - Expose typed MCP search and catalog read tools
 
-State: todo
-Owner: none
+State: doing
+Owner: opencode-media-20261110
 Mode: mvp
 Lane: mcp
 Scope: mcp
@@ -24,11 +24,12 @@ Expose search_library/get_work/get_edition over the existing query service.
 - docs/application-contract.md
 
 ## Files allowed to edit
+
 - internal/mcp/library.go
 - internal/mcp/library_test.go
 - internal/mcp/server.go
+- internal/mcp/server_test.go
 - docs/progress.md
-
 - .tasks/0038-expose-typed-mcp-search-and-catalog-read-tools.md
 
 ## Files forbidden to edit
@@ -67,10 +68,12 @@ Expose search_library/get_work/get_edition over the existing query service.
 - `{"id":"focused","type":"automated","required":true,"environment":"local","profile":"report","command":"go test ./internal/mcp -run \"TestMCPLibrary\""}`
 
 ## Documentation updates
+
 - Update docs/progress.md on lifecycle changes.
 
 ## Notes
 
+- Scope amendment 2026-11-14: `internal/mcp/server_test.go` was added to the allowed files. Registering the catalog tools in the server constructor (the only live registration path; runtime and the 0037 test files are not otherwise owned here) makes the 0037 assertion that the bootstrap server registers no tools stale, so that assertion now expects exactly the three catalog tools.
 - Milestone: M3. See docs/implementation-plan.md for requirements and graph.
 - Unstarted implementation contract. Tests/commands above are to be created or made runnable by this task; none is claimed to pass today.
 - Before editing, read existing allowed source files supplied by completed dependencies. Missing paths are new files owned by this task, not existing context.

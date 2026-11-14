@@ -35,7 +35,9 @@ func New(service *app.Service, logger *slog.Logger) *Server {
 	if logger == nil {
 		opts.Logger = slog.Default()
 	}
-	return &Server{service: service, srv: mcpsdk.NewServer(impl, opts)}
+	s := &Server{service: service, srv: mcpsdk.NewServer(impl, opts)}
+	RegisterLibraryTools(s)
+	return s
 }
 
 // Service exposes the shared service for tool registration.
@@ -54,7 +56,13 @@ func AddTool[In, Out any](s *Server, t *mcpsdk.Tool, h mcpsdk.ToolHandlerFor[In,
 // process stdio streams; a clean client EOF ends the session without
 // error.
 func (s *Server) Run(ctx context.Context, in io.ReadCloser, out io.WriteCloser) error {
-	err := s.srv.Run(ctx, &mcpsdk.IOTransport{Reader: in, Writer: out})
+	return s.Serve(ctx, &mcpsdk.IOTransport{Reader: in, Writer: out})
+}
+
+// Serve runs the protocol over an arbitrary SDK transport (the stdio
+// streams in production, an in-memory pipe in tests).
+func (s *Server) Serve(ctx context.Context, t mcpsdk.Transport) error {
+	err := s.srv.Run(ctx, t)
 	if errors.Is(err, io.EOF) {
 		return nil
 	}

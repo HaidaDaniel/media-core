@@ -207,15 +207,30 @@ func TestMCPServer(t *testing.T) {
 
 	list := p.listTools(t)
 	var toolsResult struct {
-		Tools []json.RawMessage `json:"tools"`
+		Tools []struct {
+			Name string `json:"name"`
+		} `json:"tools"`
 	}
 	if err := json.Unmarshal(list.Result, &toolsResult); err != nil {
 		t.Fatalf("unmarshal tools/list result: %v", err)
 	}
-	// The bootstrap registers no tools; domain tools arrive with the
-	// capability tasks and no generic tool exists at any point.
-	if len(toolsResult.Tools) != 0 {
-		t.Fatalf("bootstrap server must register no tools: %s", list.Result)
+	// The tool surface is exactly the domain tools registered so far; no
+	// generic SQL, shell or file tool exists at any point.
+	want := map[string]bool{
+		ToolSearchLibrary: false,
+		ToolGetWork:       false,
+		ToolGetEdition:    false,
+	}
+	for _, tool := range toolsResult.Tools {
+		if _, ok := want[tool.Name]; !ok {
+			t.Fatalf("unexpected tool %q in the tool surface", tool.Name)
+		}
+		want[tool.Name] = true
+	}
+	for name, seen := range want {
+		if !seen {
+			t.Fatalf("tool %q missing from the tool surface", name)
+		}
 	}
 
 	if err := p.stdin.Close(); err != nil {
