@@ -127,7 +127,7 @@ func (s *Service) ImportEvents(ctx context.Context, req ImportRequest) (ImportRe
 			pending, perr := s.eventPending(ctx, namespace, ev.PublicationID)
 			if perr != nil {
 				res.Items = append(res.Items, item)
-				return res, mapStoreError(perr, base)
+				return res, importStoreError(perr, base)
 			}
 			item.Pending = pending
 		case errors.Is(err, store.ErrEventConflict):
@@ -138,11 +138,21 @@ func (s *Service) ImportEvents(ctx context.Context, req ImportRequest) (ImportRe
 			res.Conflicts++
 		default:
 			res.Items = append(res.Items, item)
-			return res, mapStoreError(err, base)
+			return res, importStoreError(err, base)
 		}
 		res.Items = append(res.Items, item)
 	}
 	return res, nil
+}
+
+// importStoreError maps an import store error to the application error,
+// treating an invalid event or a malformed pending cursor as an
+// invalid-argument (caller input) error rather than a storage failure.
+func importStoreError(err error, base MutationBase) *AppError {
+	if errors.Is(err, store.ErrInvalidEvent) {
+		return &AppError{Code: ErrInvalidArgument, Message: err.Error(), RequestID: base.RequestID, Actor: base.Actor.Principal}
+	}
+	return mapStoreError(err, base)
 }
 
 // eventPending reports whether an event has no active binding for its
@@ -177,7 +187,7 @@ func (s *Service) PendingImports(ctx context.Context, q PendingImportQuery) (Lis
 	}
 	events, total, next, err := s.db.ListPendingEvents(ctx, limit, q.Cursor)
 	if err != nil {
-		return ListPayload{}, mapStoreError(err, MutationBase{})
+		return ListPayload{}, importStoreError(err, MutationBase{})
 	}
 	items := make([]any, 0, len(events))
 	for _, e := range events {

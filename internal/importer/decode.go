@@ -5,9 +5,11 @@
 package importer
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
+	"math/big"
 	"sort"
 	"strconv"
 	"strings"
@@ -253,12 +255,16 @@ func schemaMajor(version string) (int, bool) {
 }
 
 // CanonicalJSON returns the canonical form of a JSON value: object keys
-// sorted, no insignificant whitespace, and numeric values normalized. It
-// ignores object key order and whitespace so semantically identical
-// payloads compare equal, and it is the idempotency equality rule.
+// sorted, no insignificant whitespace, and numeric values normalized exactly.
+// It ignores object key order and whitespace so semantically identical
+// payloads compare equal, and it is the idempotency equality rule. Numbers
+// are kept exact (a float64 would collapse distinct integers past 2^53)
+// while semantically equal literals (1 and 1.0) render identically.
 func CanonicalJSON(raw json.RawMessage) (string, error) {
 	var v any
-	if err := json.Unmarshal(raw, &v); err != nil {
+	dec := json.NewDecoder(bytes.NewReader(raw))
+	dec.UseNumber()
+	if err := dec.Decode(&v); err != nil {
 		return "", err
 	}
 	return canonical(v)
@@ -310,6 +316,8 @@ func canonical(v any) (string, error) {
 		return b.String(), nil
 	case nil:
 		return "null", nil
+	case json.Number:
+		return canonicalNumber(t)
 	default:
 		s, err := json.Marshal(t)
 		if err != nil {
@@ -317,4 +325,69 @@ func canonical(v any) (string, error) {
 		}
 		return string(s), nil
 	}
+}
+
+// canonicalNumber renders one JSON number in an exact canonical form. It
+// parses to a big.Rat so distinct large integers stay distinct while
+// semantically equal literals (1 and 1.0) render identically.
+func canonicalNumber(n json.Number) (string, error) {
+	rat, ok := new(big.Rat).SetString(n.String())
+	if !ok {
+		return n.String(), nil
+	}
+	if rat.Denom().Int64() == 1 {
+		return rat.Num().String(), nil
+	}
+	return ratToDecimal(rat), nil
+}
+
+// ratToDecimal renders the exact finite decimal for a rational whose
+// denominator is a product of twos and fives — always true for a JSON number
+// literal — trimming redundant trailing zeros.
+func ratToDecimal(rat *big.Rat) string {
+	num := new(big.Int).Set(rat.Num())
+	den := new(big.Int).Set(rat.Denom())
+	neg := num.Sign() < 0
+	if neg {
+		num.Abs(num)
+	}
+	two := big.NewInt(2)
+	five := big.NewInt(5)
+	d := new(big.Int).Set(den)
+	var a, b int
+	for new(big.Int).Mod(d, two).Sign() == 0 {
+		d.Div(d, two)
+		a++
+	}
+	for new(big.Int).Mod(d, five).Sign() == 0 {
+		d.Div(d, five)
+		b++
+	}
+	scale := a
+	if b > scale {
+		scale = b
+	}
+	scaled := new(big.Int).Set(num)
+	if scale > a {
+		scaled.Mul(scaled, new(big.Int).Exp(two, big.NewInt(int64(scale-a)), nil))
+	}
+	if scale > b {
+		scaled.Mul(scaled, new(big.Int).Exp(five, big.NewInt(int64(scale-b)), nil))
+	}
+	s := scaled.String()
+	if scale > 0 {
+		for len(s) <= scale {
+			s = "0" + s
+		}
+		intPart := s[:len(s)-scale]
+		fracPart := strings.TrimRight(s[len(s)-scale:], "0")
+		s = intPart
+		if fracPart != "" {
+			s += "." + fracPart
+		}
+	}
+	if neg && s != "0" {
+		s = "-" + s
+	}
+	return s
 }

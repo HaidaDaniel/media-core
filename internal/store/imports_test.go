@@ -204,6 +204,35 @@ func TestImportPendingExcludesBound(t *testing.T) {
 	}
 }
 
+// TestImportPendingListNullPublicationCursor proves keyset pagination is
+// applied to events without a publication id (the always-pending class): a
+// cursor must resume after the last served row, never re-serve it.
+func TestImportPendingListNullPublicationCursor(t *testing.T) {
+	db := openMigrated(t, t.TempDir())
+	defer db.Close()
+	base := libraryNow()
+	for i, id := range []string{"evt_n1", "evt_n2", "evt_n3"} {
+		mustImportEvent(t, db, sampleEventInput(id, "release.added", nil, base.Add(time.Duration(i)*time.Second)))
+	}
+	page1, total, next, err := db.ListPendingEvents(ctx(t), 2, nil)
+	if err != nil {
+		t.Fatalf("page 1: %v", err)
+	}
+	if total != 3 || len(page1) != 2 || next == nil {
+		t.Fatalf("page 1: total=%d len=%d next=%v, want 3/2/cursor", total, len(page1), next)
+	}
+	page2, _, next2, err := db.ListPendingEvents(ctx(t), 2, next)
+	if err != nil {
+		t.Fatalf("page 2: %v", err)
+	}
+	if len(page2) != 1 || page2[0].EventID != "evt_n3" {
+		t.Fatalf("page 2 = %v, want the single row after the cursor (no re-served row)", []string{page2[0].EventID})
+	}
+	if next2 != nil {
+		t.Fatalf("page 2 next = %v, want none", *next2)
+	}
+}
+
 // insertActiveBinding inserts one active binding row directly; binding
 // creation is the next task, the store table and pending exclusion are here.
 func insertActiveBinding(t *testing.T, db *Database, namespace, publicationID, editionID string, now time.Time) {

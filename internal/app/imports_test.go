@@ -147,6 +147,21 @@ func TestImportEventsUnknownFieldsPreserved(t *testing.T) {
 	}
 }
 
+// TestImportPendingMalformedCursor proves a malformed cursor is a caller
+// input error (invalid_argument), not a storage failure.
+func TestImportPendingMalformedCursor(t *testing.T) {
+	s := newTestService(t)
+	bad := "no-pipe-here"
+	_, err := s.PendingImports(context.Background(), PendingImportQuery{Limit: 10, Cursor: &bad})
+	if err == nil {
+		t.Fatal("malformed cursor: want an error")
+	}
+	var ae *AppError
+	if !errors.As(err, &ae) || ae.Code != ErrInvalidArgument {
+		t.Fatalf("error = %v, want invalid_argument", err)
+	}
+}
+
 // TestImportPendingPagination proves the pending queue lists imported
 // events oldest first with a stable total and keyset pagination.
 func TestImportPendingPagination(t *testing.T) {

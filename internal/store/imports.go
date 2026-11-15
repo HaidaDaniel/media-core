@@ -111,9 +111,12 @@ const eventColumns = `id, event_id, schema_version, event_type, raw_payload, can
 // pendingFilter selects events with no active binding for their
 // (namespace, publication_id); an event without a publication id is always
 // pending.
-const pendingFilter = `e.publication_id IS NULL
+// The disjunction is parenthesized so a cursor AND applied by the caller
+// binds to the whole predicate: (IS NULL OR NOT EXISTS) AND <cursor>, not
+// IS NULL OR (NOT EXISTS AND <cursor>).
+const pendingFilter = `(e.publication_id IS NULL
 	OR NOT EXISTS (SELECT 1 FROM import_bindings b
-	               WHERE b.state = 'active' AND b.namespace = e.namespace AND b.publication_id = e.publication_id)`
+	               WHERE b.state = 'active' AND b.namespace = e.namespace AND b.publication_id = e.publication_id))`
 
 // scanImportEventRow fills one full event row from a scanner.
 func scanImportEventRow(s interface {

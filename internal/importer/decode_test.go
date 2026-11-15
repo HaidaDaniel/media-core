@@ -262,6 +262,46 @@ func TestEventDecodeCanonicalIgnoresKeyOrderWhitespace(t *testing.T) {
 	}
 }
 
+// TestEventDecodeCanonicalNumericExactness pins that canonical numbers are
+// exact: semantically equal literals render identically (1 == 1.0) while
+// distinct large integers stay distinct past 2^53, where a float64 would
+// collapse them.
+func TestEventDecodeCanonicalNumericExactness(t *testing.T) {
+	one, err := CanonicalJSON(mustRaw(t, `1`))
+	if err != nil {
+		t.Fatalf("canonical 1: %v", err)
+	}
+	oneDotZero, err := CanonicalJSON(mustRaw(t, `1.0`))
+	if err != nil {
+		t.Fatalf("canonical 1.0: %v", err)
+	}
+	if one != oneDotZero || one != "1" {
+		t.Fatalf("canonical(1)=%q canonical(1.0)=%q, want both %q", one, oneDotZero, "1")
+	}
+	lo, err := CanonicalJSON(mustRaw(t, `9007199254740992`))
+	if err != nil {
+		t.Fatalf("canonical 2^53: %v", err)
+	}
+	hi, err := CanonicalJSON(mustRaw(t, `9007199254740993`))
+	if err != nil {
+		t.Fatalf("canonical 2^53+1: %v", err)
+	}
+	if lo == hi {
+		t.Fatalf("distinct large integers collapsed to the same canonical form %q", lo)
+	}
+	if lo != "9007199254740992" || hi != "9007199254740993" {
+		t.Fatalf("large integer canonicals = %q, %q, want the exact literals", lo, hi)
+	}
+	// A non-integer decimal renders as an exact trimmed decimal.
+	half, err := CanonicalJSON(mustRaw(t, `0.5`))
+	if err != nil {
+		t.Fatalf("canonical 0.5: %v", err)
+	}
+	if half != "0.5" {
+		t.Fatalf("canonical(0.5) = %q, want 0.5", half)
+	}
+}
+
 func mustRaw(t *testing.T, s string) json.RawMessage {
 	t.Helper()
 	return json.RawMessage(s)
