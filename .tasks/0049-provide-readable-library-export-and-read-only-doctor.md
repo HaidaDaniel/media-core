@@ -1,7 +1,7 @@
 # Task 0049 - Provide readable library export and read-only doctor
 
-State: todo
-Owner: none
+State: doing
+Owner: opencode-media-20261110
 Mode: mvp
 Lane: reliability
 Scope: reliability
@@ -23,6 +23,7 @@ Provide portable readable state export and diagnostics without inventing repair 
 - docs/application-contract.md
 
 ## Files allowed to edit
+
 - internal/app/export.go
 - internal/app/export_test.go
 - internal/cli/export.go
@@ -32,7 +33,6 @@ Provide portable readable state export and diagnostics without inventing repair 
 - internal/runtime/runtime.go
 - docs/engineering/configuration.md
 - docs/progress.md
-
 - .tasks/0049-provide-readable-library-export-and-read-only-doctor.md
 
 ## Files forbidden to edit
@@ -71,6 +71,7 @@ Provide portable readable state export and diagnostics without inventing repair 
 - `{"id":"focused","type":"automated","required":true,"environment":"local","profile":"report","command":"go test ./internal/app ./internal/cli -run \"Test(Export|Doctor)\""}`
 
 ## Documentation updates
+
 - Update docs/progress.md on lifecycle changes.
 
 ## Notes

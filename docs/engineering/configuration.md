@@ -95,6 +95,50 @@ values.
 - Diagnostics render state directory, listener, public origin, allow-remote
   flag, and TLS file paths only.
 
+## Doctor (task 0049)
+
+- `media-core doctor [--state-dir <dir>]` diagnoses the resolved state
+  directory with read-only probes: configuration, state directory,
+  database file, schema state, and file permissions. It creates nothing —
+  no state directory, no lock file, no database sidecar — takes no
+  maintenance lock, and never opens the state database itself.
+- The schema probe inspects a throwaway copy of the database file staged
+  in the system temp dir and deleted afterwards: even a read-only SQLite
+  open would materialize WAL sidecars into the state directory. The main
+  file is self-consistent and the schema only changes through the
+  exclusive init/migrate maintenance, so reading it without the live WAL
+  is sound.
+- The report is a JSON envelope with one entry per probe: `pass`, `warn`,
+  or `fail`. A missing state asks for `media-core init`, a behind schema
+  asks for `media-core migrate`, a newer schema asks for a newer build.
+  Loose file modes are warnings, not failures, because the next normal
+  open tightens them. `ok` is false exactly when a probe fails.
+- Exit codes: 0 when the diagnosis completes (the verdict lives in the
+  report), 2 for argument misuse, 1 for a failed configuration
+  resolution.
+
+## Export (task 0049)
+
+- `media-core export [--dest <file>]` writes one versioned readable
+  export document (format marker `media-core-export-v1`) containing every
+  registry table with all columns, in a stable per-table row order:
+  entity rows by id, observation rows by (observed_at, recorded_at, id),
+  note revisions by (note_id, revision). IDs, provenance and the full
+  observation history travel with the document.
+- Every table is read inside a single transaction, so the document
+  reflects one consistent snapshot and never mixes a partially committed
+  write. Values are passed through verbatim; the export re-validates no
+  domain value.
+- Without `--dest` the document rides the envelope on stdout; with it the
+  raw document is written to the file (mode 0600, an existing file is
+  replaced) and the envelope carries the summary. `--dest` must be an
+  absolute path.
+- The export is a projection, not a restore input: its format marker is
+  distinct from the backup archive marker, and restore consumes only a
+  validated backup archive, rejecting an export document. The owner
+  secret and sessions are not part of the state database and are never
+  exported.
+
 ## Testing notes
 
 Precedence, XDG/HOME fallback, rejection of relative and symlinked state
