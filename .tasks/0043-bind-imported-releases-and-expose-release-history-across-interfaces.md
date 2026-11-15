@@ -1,7 +1,7 @@
 # Task 0043 - Bind imported releases and expose release history across interfaces
 
-State: todo
-Owner: none
+State: done
+Owner: opencode-media-20261110
 Mode: mvp
 Lane: integration
 Scope: integration
@@ -24,12 +24,14 @@ Add the small release-binding vertical slice: explicit map, projection, pending 
 - docs/product/requirements.md
 
 ## Files allowed to edit
+
 - internal/app/import_binding.go
 - internal/app/import_binding_test.go
 - internal/store/releases.go
 - internal/store/releases_test.go
 - internal/store/activity.go
 - internal/store/migrations/0013_release_bindings.sql
+- internal/store/migrations_test.go
 - internal/cli/releases.go
 - internal/runtime/runtime.go
 - internal/httpapi/imports.go
@@ -48,7 +50,6 @@ Add the small release-binding vertical slice: explicit map, projection, pending 
 - web/src/work/releases/**
 - tests/acceptance/releases_test.go
 - docs/progress.md
-
 - .tasks/0043-bind-imported-releases-and-expose-release-history-across-interfaces.md
 
 ## Files forbidden to edit
@@ -84,9 +85,10 @@ Add the small release-binding vertical slice: explicit map, projection, pending 
 
 ## Verification
 
-- `{"id":"focused","type":"automated","required":true,"environment":"local","profile":"report","command":"go test ./internal/app ./internal/store ./internal/httpapi ./internal/mcp ./tests/acceptance -run \"Test(ImportBinding|Release|ScenarioE)\" && pnpm --dir web exec tsc --noEmit && pnpm --dir web test -- --run src/activity/imports src/work/releases src/activity/ActivityPage.test.tsx src/work/WorkPage.test.tsx"}`
+- `{"id":"focused","type":"automated","required":true,"environment":"local","profile":"report","command":"go test ./internal/... ./tests/... -run \"Test(ImportBinding|Release|ScenarioE)\" && pnpm --dir web exec tsc --noEmit && pnpm --dir web test"}`
 
 ## Documentation updates
+
 - Update docs/progress.md on lifecycle changes.
 
 ## Notes
@@ -94,5 +96,7 @@ Add the small release-binding vertical slice: explicit map, projection, pending 
 - Milestone: M5. See docs/implementation-plan.md for requirements and graph.
 - Unstarted implementation contract. Tests/commands above are to be created or made runnable by this task; none is claimed to pass today.
 - Before editing, read existing allowed source files supplied by completed dependencies. Missing paths are new files owned by this task, not existing context.
+- Scope amendment: added internal/store/migrations_test.go to the allowed files. The task already authorizes the new 0013_release_bindings.sql migration (the projection index); that test pins the exact embedded-migration count and names, so adding the migration necessarily updates it. No feature scope change.
+- Verification amendment: the focused command was 306 chars, over APK's 240-char evidence.command limit, so it could not be recorded. Shortened to the equivalent 138-char command (go test ./internal/... ./tests/... with the same -run filter, plus web tsc and the full web vitest suite, which is a superset of the four named web test paths). Same checks, all green.
 - Only listed paths plus this task file may change. Do not edit other task contracts or generated agent instructions; task lifecycle is managed by APK.
 - Keep contract behavior fixed; if a counterexample requires expanding scope, update this task before source edits. No actual host deployment, push or publication is authorized.
