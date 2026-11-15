@@ -376,9 +376,16 @@ func (d *Database) activityPage(ctx context.Context, adapter activityQueryAdapte
 		if observedAt.Valid {
 			t, err := parseInstant(observedAt.String)
 			if err != nil {
-				return nil, fmt.Errorf("store: parse activity observed_at: %w", err)
+				// Only imported_release carries the producer's opaque
+				// source_time, which the importer stores verbatim (0042);
+				// an unparseable value degrades to absent instead of failing
+				// the whole feed.
+				if r.Type != ActivityImportedRelease {
+					return nil, fmt.Errorf("store: parse activity observed_at: %w", err)
+				}
+			} else {
+				r.ObservedAt = &t
 			}
-			r.ObservedAt = &t
 		}
 		t, err := parseInstant(recordedAt)
 		if err != nil {

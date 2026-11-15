@@ -248,3 +248,105 @@ func TestReleaseActivityImportedRelease(t *testing.T) {
 		t.Fatalf("revoked activity: rows=%d err=%v, want none", len(rows), err)
 	}
 }
+
+// TestReleaseActivityOpaqueSourceTime proves the review fix: an imported
+// release whose producer source_time is not a parseable RFC3339 instant
+// degrades to an absent observed_at instead of failing the whole activity
+// feed, while a well-formed source_time is still parsed and kept.
+func TestReleaseActivityOpaqueSourceTime(t *testing.T) {
+	db := openMigrated(t, t.TempDir())
+	defer db.Close()
+	now := libraryNow()
+	w := mustWork(t, db, now, "Release Story")
+	e, _ := mustEdition(t, db, now, w, domain.KindManga, "Manga Edition")
+
+	mustImportEvent(t, db, EventInput{
+		EventID: "evt_opaque", SchemaVersion: "1.0", EventType: "release.added",
+		RawPayload: `{"event_id":"evt_opaque"}`, Canonical: `{"event_id":"evt_opaque"}`,
+		Namespace: importer.DefaultNamespace, PublicationID: strPtr("pub_opaque"),
+		ReleaseNumber: strPtr("12"), ReleaseTitle: strPtr("Chapter 12"),
+		SourceTime: strPtr("14/11/2026 10:00"), CreatedAt: now,
+	})
+	well := "2026-11-14T10:00:00Z"
+	mustImportEvent(t, db, EventInput{
+		EventID: "evt_well", SchemaVersion: "1.0", EventType: "release.added",
+		RawPayload: `{"event_id":"evt_well"}`, Canonical: `{"event_id":"evt_well"}`,
+		Namespace: importer.DefaultNamespace, PublicationID: strPtr("pub_well"),
+		ReleaseNumber: strPtr("13"), ReleaseTitle: strPtr("Chapter 13"),
+		SourceTime: &well, CreatedAt: now.Add(time.Second),
+	})
+	if _, err := db.BindReleaseBinding(ctx(t), importer.DefaultNamespace, "pub_opaque", e.ID, "tester", now.Add(2*time.Second)); err != nil {
+		t.Fatalf("bind opaque: %v", err)
+	}
+	if _, err := db.BindReleaseBinding(ctx(t), importer.DefaultNamespace, "pub_well", e.ID, "tester", now.Add(3*time.Second)); err != nil {
+		t.Fatalf("bind well: %v", err)
+	}
+
+	// The whole feed (every type) must not fail on the opaque timestamp.
+	all, _, err := db.RecentActivity(ctx(t), ActivityQuery{})
+	if err != nil {
+		t.Fatalf("RecentActivity(all): %v, want no error (an opaque producer source_time must not break the feed)", err)
+	}
+	var opaque, wellRow ActivityRow
+	for _, r := range all {
+		if r.Type != ActivityImportedRelease || r.Value == nil {
+			continue
+		}
+		switch *r.Value {
+		case "12":
+			opaque = r
+		case "13":
+			wellRow = r
+		}
+	}
+	if opaque.ID == "" {
+		t.Fatalf("missing the opaque imported_release row in %+v", all)
+	}
+	if opaque.ObservedAt != nil {
+		t.Fatalf("opaque observed_at = %v, want nil (unparseable producer source_time degrades to absent)", *opaque.ObservedAt)
+	}
+	if wellRow.ID == "" {
+		t.Fatalf("missing the well-formed imported_release row in %+v", all)
+	}
+	if wellRow.ObservedAt == nil {
+		t.Fatalf("well-formed observed_at = nil, want the parsed producer source_time")
+	}
+}
+
+// TestReleaseRebindSameEditionNoOp proves the review fix: rebinding a
+// publication to the edition it is already bound to is an idempotent no-op
+// (the same active row is returned, no duplicate active row is inserted),
+// not a storage error.
+func TestReleaseRebindSameEditionNoOp(t *testing.T) {
+	db := openMigrated(t, t.TempDir())
+	defer db.Close()
+	now := libraryNow()
+	w := mustWork(t, db, now, "Release Story")
+	e, _ := mustEdition(t, db, now, w, domain.KindManga, "Manga Edition")
+
+	first, err := db.BindReleaseBinding(ctx(t), importer.DefaultNamespace, "pub_same", e.ID, "tester", now)
+	if err != nil {
+		t.Fatalf("bind: %v", err)
+	}
+	again, err := db.RebindReleaseBinding(ctx(t), importer.DefaultNamespace, "pub_same", e.ID, "corrector", now.Add(time.Second))
+	if err != nil {
+		t.Fatalf("rebind to the same edition: %v, want an idempotent no-op, not a storage error", err)
+	}
+	if again.ID != first.ID {
+		t.Fatalf("rebind no-op id = %s, want the existing active row %s", again.ID, first.ID)
+	}
+	active, err := db.GetReleaseBinding(ctx(t), importer.DefaultNamespace, "pub_same")
+	if err != nil {
+		t.Fatalf("GetReleaseBinding: %v", err)
+	}
+	if active == nil || active.ID != first.ID {
+		t.Fatalf("active binding = %+v, want the original row", active)
+	}
+	history, err := db.ListReleaseBindings(ctx(t), importer.DefaultNamespace, "pub_same")
+	if err != nil {
+		t.Fatalf("ListReleaseBindings: %v", err)
+	}
+	if len(history) != 1 {
+		t.Fatalf("binding history = %d rows, want 1 (no duplicate active row)", len(history))
+	}
+}

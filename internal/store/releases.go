@@ -223,6 +223,15 @@ func (d *Database) RebindReleaseBinding(ctx context.Context, namespace, publicat
 	if err != nil {
 		return ReleaseBinding{}, err
 	}
+	if existing != nil && existing.EditionID == newEditionID {
+		// Rebinding a publication to the edition it already targets is an
+		// idempotent no-op: return the current binding without inserting a
+		// duplicate active row.
+		if err := tx.Commit(); err != nil {
+			return ReleaseBinding{}, fmt.Errorf("store: commit rebind no-op: %w", err)
+		}
+		return *existing, nil
+	}
 	var replacesID *string
 	if existing != nil && existing.EditionID != newEditionID {
 		if _, err := tx.ExecContext(ctx,
