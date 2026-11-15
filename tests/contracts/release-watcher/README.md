@@ -6,9 +6,9 @@ https://github.com/HaidaDaniel/release-watcher/blob/main/docs/integration-contra
 
 These fixtures pin the envelope shape Media Core imports (file/stdin). They
 are sanitized: no real publication data, no personal identifiers, and stable
-synthetic ids. The importer tests in `internal/importer` and the store tests
-in `internal/store` load these fixtures, so a producer contract change that
-breaks the v1.0 shape is caught here.
+synthetic ids. The importer tests in `internal/importer` and the application
+tests in `internal/app` load these fixtures, so a producer contract change
+that breaks the v1.0 shape is caught here.
 
 Envelope shape (v1.0):
 
