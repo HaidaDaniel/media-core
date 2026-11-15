@@ -302,7 +302,17 @@ func normalize(v any) any {
 			case idKeys[k]:
 				t[k] = "<id>"
 			case k == "matched_edition_ids":
-				t[k] = []any{"<id>"}
+				// Element-wise canonicalization: the list length is
+				// user-visible (the per-edition match badge), so a
+				// cross-transport divergence in length must not normalize
+				// away.
+				if ids, ok := val.([]any); ok {
+					norm := make([]any, len(ids))
+					for i := range norm {
+						norm[i] = "<id>"
+					}
+					t[k] = norm
+				}
 			case timeKeys[k]:
 				t[k] = "<time>"
 			default:

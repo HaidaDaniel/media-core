@@ -384,11 +384,13 @@ test("scenario A: a watched anime stays connected to its unread manga source", a
 
   // The anime edition carries the confirmed adaptation of the manga; the
   // relation row links to the manga edition.
-  // The relation row appears on both editions (from their own perspective);
-  // the first is the anime's, and its link points to the manga edition.
-  const relationRow = page
-    .locator("li.work-edition", { hasText: "is an adaptation of" })
-    .first();
+  // The relation row appears on both editions, from their own perspective;
+  // the anime's row is the one that starts "This edition is an adaptation
+  // of", and its link points to the manga edition. Selecting by sentence
+  // keeps the navigation independent of edition ordering.
+  const relationRow = page.locator("li.work-edition", {
+    hasText: "This edition is an adaptation of",
+  });
   await expect(relationRow).toContainText("Confirmed");
   await relationRow.getByRole("link").first().click();
   await page.waitForURL(/\/editions\//);
