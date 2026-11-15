@@ -1,0 +1,17 @@
+{
+  "schema_version": "1.0",
+  "ok": true,
+  "data": {
+    "next_cursor": "evt_000000000000000009",
+    "events": [
+      {
+        "schema_version": "1.0",
+        "event_id": "evt_000000000000000007",
+        "event_type": "release.flagged",
+        "publication_id": "pub_mu_1234",
+        "external_work_ref": "mu:1234",
+        "note": "a producer-side flag Media Core does not project"
+      }
+    ]
+  }
+}

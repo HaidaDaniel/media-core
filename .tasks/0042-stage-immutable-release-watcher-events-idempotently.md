@@ -1,7 +1,7 @@
 # Task 0042 - Stage immutable Release Watcher events idempotently
 
-State: todo
-Owner: none
+State: doing
+Owner: opencode-media-20261110
 Mode: mvp
 Lane: integration
 Scope: integration
@@ -24,6 +24,7 @@ Import version 1.0 file/stdin envelopes into immutable pending records with even
 - docs/domain-model.md
 
 ## Files allowed to edit
+
 - internal/importer/decode.go
 - internal/importer/decode_test.go
 - internal/app/imports.go
@@ -31,12 +32,12 @@ Import version 1.0 file/stdin envelopes into immutable pending records with even
 - internal/store/imports.go
 - internal/store/imports_test.go
 - internal/store/migrations/0012_imports.sql
+- internal/store/migrations_test.go
 - internal/cli/imports.go
 - internal/runtime/runtime.go
 - tests/contracts/release-watcher/**
 - docs/integration-contract.md
 - docs/progress.md
-
 - .tasks/0042-stage-immutable-release-watcher-events-idempotently.md
 
 ## Files forbidden to edit
@@ -75,10 +76,12 @@ Import version 1.0 file/stdin envelopes into immutable pending records with even
 - `{"id":"focused","type":"automated","required":true,"environment":"local","profile":"report","command":"go test ./internal/importer ./internal/app ./internal/store -run \"Test(Import|EventDecode)\""}`
 
 ## Documentation updates
+
 - Update docs/progress.md on lifecycle changes.
 
 ## Notes
 
+- Scope amendment: `internal/store/migrations_test.go` joins the allowed files because it pins the embedded migration set's count and names; appending migration 0012 requires updating that test or the store suite fails.
 - Milestone: M5. See docs/implementation-plan.md for requirements and graph.
 - Unstarted implementation contract. Tests/commands above are to be created or made runnable by this task; none is claimed to pass today.
 - Before editing, read existing allowed source files supplied by completed dependencies. Missing paths are new files owned by this task, not existing context.

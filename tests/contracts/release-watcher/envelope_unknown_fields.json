@@ -1,0 +1,26 @@
+{
+  "schema_version": "1.0",
+  "ok": true,
+  "data": {
+    "next_cursor": "evt_000000000000000008",
+    "events": [
+      {
+        "schema_version": "1.0",
+        "event_id": "evt_000000000000000008",
+        "event_type": "release.added",
+        "publication_id": "pub_mu_1234",
+        "external_work_ref": "mu:1234",
+        "release_id": "rel_9012",
+        "release_number": "13",
+        "release_title": "Chapter 13",
+        "release_url": "https://example.org/release/9012",
+        "current_count": 13,
+        "count_delta": 1,
+        "source_time": "2026-11-15T09:00:00Z",
+        "detection_time": "2026-11-15T09:05:00Z",
+        "producer_extra": { "region": "us", "score": 0.97 },
+        "tags": ["scanlation", "english"]
+      }
+    ]
+  }
+}

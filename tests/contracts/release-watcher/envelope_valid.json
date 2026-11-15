@@ -1,0 +1,24 @@
+{
+  "schema_version": "1.0",
+  "ok": true,
+  "data": {
+    "next_cursor": "evt_000000000000000002",
+    "events": [
+      {
+        "schema_version": "1.0",
+        "event_id": "evt_000000000000000001",
+        "event_type": "release.added",
+        "publication_id": "pub_mu_1234",
+        "external_work_ref": "mu:1234",
+        "release_id": "rel_5678",
+        "release_number": "12",
+        "release_title": "Chapter 12",
+        "release_url": "https://example.org/release/5678",
+        "current_count": 12,
+        "count_delta": 1,
+        "source_time": "2026-11-14T10:00:00Z",
+        "detection_time": "2026-11-14T10:05:00Z"
+      }
+    ]
+  }
+}

@@ -1,6 +1,6 @@
 # Integration contract
 
-Status: documented target. Media Core does not implement an importer yet. The Release Watcher contract is authoritative: https://github.com/HaidaDaniel/release-watcher/blob/main/docs/integration-contract.md.
+Status: the version 1.0 import is implemented (task 0042): Media Core stages file/stdin envelopes as immutable pending records, idempotently by `event_id`, with per-item results and no producer database access. Explicit binding of a pending record to an edition is a later task (0043). The Release Watcher contract is authoritative: https://github.com/HaidaDaniel/release-watcher/blob/main/docs/integration-contract.md.
 
 ## Principles
 
@@ -43,16 +43,18 @@ RSS/Atom events use opaque entry ids; they are scoped to a publication. Media Co
 
 ## Import interface
 
-Planned local commands:
+Implemented local commands:
 
 ```sh
 media-core import releases --from <release-watcher-json-or-export>
 media-core import releases --from -            # stdin
-media-core releases <edition-id> --json
-media-core pending-imports --json
+media-core pending-imports [--limit N] [--cursor C]
 ```
 
-The import is a local file/stdin operation. There is no mandatory network connection between the two projects. An optional remote fetch is a future adapter, not a core dependency.
+- `import releases` reads the version 1.0 envelope from a file or stdin, validates the envelope and major before any write, and stages each event as an immutable pending record in its own transaction. The result envelope reports per-item outcomes: `imported`, `replayed` (a canonical-equal no-op), or `conflict` (same `event_id`, different payload). A malformed envelope or unsupported major writes nothing and fails; a partial import (one or more conflicts) prints the result and exits `3`.
+- `pending-imports` lists the pending queue: imported events with no active binding, oldest first, keyset-paginated.
+
+The import is a local file/stdin operation. There is no mandatory network connection between the two projects. An optional remote fetch is a future adapter, not a core dependency. Binding a pending record to an edition (`bind_import`) is implemented by task 0043.
 
 ## Media Core CLI JSON envelope
 

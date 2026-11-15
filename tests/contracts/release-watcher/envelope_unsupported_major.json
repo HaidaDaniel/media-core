@@ -1,0 +1,15 @@
+{
+  "schema_version": "2.0",
+  "ok": true,
+  "data": {
+    "next_cursor": "evt_000000000000000010",
+    "events": [
+      {
+        "schema_version": "2.0",
+        "event_id": "evt_000000000000000010",
+        "event_type": "release.added",
+        "publication_id": "pub_mu_1234"
+      }
+    ]
+  }
+}
