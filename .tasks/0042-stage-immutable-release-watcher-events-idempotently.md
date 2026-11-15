@@ -1,6 +1,6 @@
 # Task 0042 - Stage immutable Release Watcher events idempotently
 
-State: doing
+State: done
 Owner: opencode-media-20261110
 Mode: mvp
 Lane: integration
