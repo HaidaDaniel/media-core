@@ -1,7 +1,7 @@
 # Task 0044 - Verify multi-process concurrency and migration integrity
 
-State: todo
-Owner: none
+State: done
+Owner: opencode-media-20261110
 Mode: mvp
 Lane: reliability
 Scope: reliability
@@ -23,12 +23,12 @@ Add focused process-level counterexamples for the shared SQLite and maintenance 
 - docs/product/requirements.md
 
 ## Files allowed to edit
+
 - tests/concurrency/**
 - tests/migrations/**
 - internal/store/database_test.go
 - internal/store/migrations_test.go
 - docs/progress.md
-
 - .tasks/0044-verify-multi-process-concurrency-and-migration-integrity.md
 
 ## Files forbidden to edit
@@ -67,6 +67,7 @@ Add focused process-level counterexamples for the shared SQLite and maintenance 
 - `{"id":"focused","type":"automated","required":true,"environment":"local","profile":"report","command":"go test ./tests/concurrency ./tests/migrations"}`
 
 ## Documentation updates
+
 - Update docs/progress.md on lifecycle changes.
 
 ## Notes
