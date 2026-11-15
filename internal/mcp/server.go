@@ -52,6 +52,7 @@ func New(service *app.Service, logger *slog.Logger) *Server {
 	RegisterAnnotationTools(s)
 	RegisterRelationTools(s)
 	RegisterActivityTools(s)
+	RegisterImportTools(s)
 	return s
 }
 

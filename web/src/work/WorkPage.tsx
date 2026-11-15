@@ -28,6 +28,7 @@ import {
   workRelations,
 } from "../relations/relationsApi";
 import { getEdition, getWork, type EditionViewWire, type WorkViewWire } from "./workApi";
+import { ReleasesPanel } from "./releases/ReleasesPanel";
 
 function errorMessage(e: unknown): string {
   if (e instanceof ApiError) return e.message;
@@ -389,6 +390,7 @@ export function WorkPage(): JSX.Element {
                   ))}
                 </ul>
               )}
+              <ReleasesPanel editionId={summary.id} />
               {rel && rel.edges.length > 0 && (
                 <>
                   <p className="login-hint">Related editions</p>

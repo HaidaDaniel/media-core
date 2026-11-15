@@ -11,8 +11,9 @@ import (
 
 // ActivityType classifies one history row of the personal activity
 // projection over the authoritative observation and revision tables.
-// ImportedRelease is reserved: no table produces it yet; the release
-// importer (0043) extends the projection with it.
+// ImportedRelease is projected from an immutable import event through its
+// active release binding (0043); it is explicitly labeled and never mixed
+// with the personal dimensions.
 type ActivityType string
 
 // Activity types.
@@ -245,7 +246,18 @@ const activityBranches = `
 		NULL
 	FROM tag_assignments ta
 	JOIN tags tg ON tg.id = ta.tag_id
-	LEFT JOIN editions te ON te.id = ta.edition_id`
+	LEFT JOIN editions te ON te.id = ta.edition_id
+	UNION ALL
+	SELECT 'imported_release', e.id, ed.work_id, b.edition_id,
+		COALESCE(e.release_number, e.release_id, e.event_type),
+		e.release_title,
+		'imported',
+		e.event_type, NULL, NULL,
+		e.source_time, e.created_at, NULL,
+		e.publication_id
+	FROM import_events e
+	JOIN import_bindings b ON b.state = 'active' AND b.namespace = e.namespace AND b.publication_id = e.publication_id
+	JOIN editions ed ON ed.id = b.edition_id`
 
 // activityWhere builds the feed filter: the optional type dimension, the
 // entity scope of one history request and the seek condition. The type

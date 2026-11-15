@@ -14,6 +14,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { JSX } from "react";
 import { Link } from "react-router-dom";
 import { ApiError } from "../api/client";
+import { PendingImportsPanel } from "./imports/PendingImportsPanel";
 import { listActivity, type ActivityItemWire } from "./activityApi";
 
 const LIMIT = 30;
@@ -248,6 +249,7 @@ export function ActivityPage(): JSX.Element {
           {pageLoading ? "Loading more…" : "Load more"}
         </button>
       )}
+      <PendingImportsPanel />
     </section>
   );
 }
