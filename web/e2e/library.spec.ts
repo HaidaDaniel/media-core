@@ -307,7 +307,13 @@ test.beforeAll(async () => {
   // The file holds the raw 32 secret bytes; the login accepts their hex.
   ownerSecret = readFileSync(path.join(stateDir, "owner-secret")).toString("hex");
 
-  execFileSync("pnpm", ["run", "build"], { cwd: webDir, stdio: "pipe" });
+  // The bundle is built into the temp work dir, never into the repo tree,
+  // so the suite leaves no untracked artifacts behind.
+  const distDir = path.join(workDir, "dist");
+  execFileSync("pnpm", ["exec", "vite", "build", "--outDir", distDir], {
+    cwd: webDir,
+    stdio: "pipe",
+  });
 
   const log = openSync(path.join(workDir, "api.log"), "w");
   apiProc = spawn(
@@ -317,7 +323,7 @@ test.beforeAll(async () => {
   );
   await waitForHttp(`http://${apiHost}/api/v1/works`, 30_000);
 
-  proxy = await startOriginProxy(path.join(webDir, "dist"));
+  proxy = await startOriginProxy(distDir);
   await waitForHttp(`${webBase}/api/v1/works`, 10_000);
 
   await seedScenarioA();
