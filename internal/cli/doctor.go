@@ -16,7 +16,6 @@ import (
 	"github.com/HaidaDaniel/media-core/internal/store"
 )
 
-
 func init() {
 	runtime.RegisterCommand("doctor", runDoctor)
 }
@@ -169,7 +168,7 @@ func probeSchema(dbPath string, dbOK, dirOK bool) (string, string) {
 		return doctorFail, "not checked: state directory is missing"
 	}
 	if !dbOK {
-		return doctorFail, "not checked: database file is missing"
+		return doctorFail, "not checked: database file unavailable"
 	}
 	tmp, err := os.CreateTemp("", "media-core-doctor-*")
 	if err != nil {

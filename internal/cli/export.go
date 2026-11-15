@@ -81,7 +81,7 @@ func runExport(args []string, out io.Writer) error {
 	if a.dest == "" {
 		return writeEnvelope(out, doc, nil)
 	}
-	if err := os.WriteFile(a.dest, buf.Bytes(), 0o600); err != nil {
+	if err := writeExportFile(a.dest, buf.Bytes()); err != nil {
 		return writeEnvelope(out, nil, typedStorageError("export: write file: "+err.Error()))
 	}
 	return writeEnvelope(out, ExportSummary{
@@ -91,6 +91,26 @@ func runExport(args []string, out io.Writer) error {
 		Tables: len(doc.Tables),
 		Rows:   doc.Rows(),
 	}, nil)
+}
+
+// writeExportFile publishes the document to path with a 0600 mode that
+// holds even when the file already exists: os.WriteFile would keep the
+// old mode on replacement, and the document carries personal notes and
+// progress.
+func writeExportFile(path string, data []byte) error {
+	f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o600)
+	if err != nil {
+		return err
+	}
+	if err := f.Chmod(0o600); err != nil {
+		f.Close()
+		return err
+	}
+	if _, err := f.Write(data); err != nil {
+		f.Close()
+		return err
+	}
+	return f.Close()
 }
 
 func typedStorageError(msg string) *app.AppError {

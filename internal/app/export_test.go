@@ -30,7 +30,7 @@ func tableRowsFrom(t *testing.T, raw, name string) []map[string]any {
 	t.Helper()
 	var doc struct {
 		Tables []struct {
-			Name string         `json:"name"`
+			Name string           `json:"name"`
 			Rows []map[string]any `json:"rows"`
 		} `json:"tables"`
 	}

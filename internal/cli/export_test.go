@@ -12,7 +12,7 @@ type exportDoc struct {
 	Format string `json:"format"`
 	Schema int    `json:"schema"`
 	Tables []struct {
-		Name string         `json:"name"`
+		Name string           `json:"name"`
 		Rows []map[string]any `json:"rows"`
 	} `json:"tables"`
 }
@@ -110,6 +110,20 @@ func TestExportCLI(t *testing.T) {
 	}
 	if !found {
 		t.Fatalf("the seeded title is missing from the exported document")
+	}
+
+	// Replacing a pre-existing file must keep the 0600 mode: the document
+	// carries personal notes and progress.
+	loose := filepath.Join(t.TempDir(), "loose.json")
+	if err := os.WriteFile(loose, []byte("stale"), 0o644); err != nil {
+		t.Fatalf("seed loose file: %v", err)
+	}
+	code, out, errw = runCLI(t, "export", "--state-dir", dir, "--dest", loose)
+	if code != ExitOK {
+		t.Fatalf("export --dest replace: exit = %d, stderr = %q", code, errw)
+	}
+	if fi, err := os.Stat(loose); err != nil || fi.Mode().Perm() != 0o600 {
+		t.Fatalf("replaced file mode = %v, want 0600", fi.Mode().Perm())
 	}
 
 	code, _, _ = runCLI(t, "export", "--state-dir", dir, "--bogus")

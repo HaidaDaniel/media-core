@@ -29,7 +29,7 @@ type ExportApp struct {
 // every column, so IDs, provenance and the full observation history travel
 // with the document.
 type ExportTable struct {
-	Name string         `json:"name"`
+	Name string           `json:"name"`
 	Rows []map[string]any `json:"rows"`
 }
 

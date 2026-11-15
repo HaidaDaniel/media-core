@@ -11,7 +11,7 @@ import (
 )
 
 type doctorDoc struct {
-	OK       bool `json:"ok"`
+	OK       bool   `json:"ok"`
 	StateDir string `json:"state_dir"`
 	Checks   []struct {
 		Name   string `json:"name"`
