@@ -53,7 +53,14 @@ const (
 	CodeMissingData       = "missing_data"
 	CodeMissingEventID    = "missing_event_id"
 	CodeMissingEventType  = "missing_event_type"
+	CodeNumberTooLarge    = "number_too_large"
 )
+
+// maxCanonicalScale bounds a number's canonical form: at most this many
+// integer digits or decimal places. A JSON number literal beyond this is not
+// a plausible producer field, and unbounded it would make canonicalization
+// quadratic in the exponent (a hang on bounded input).
+const maxCanonicalScale = 100
 
 // Envelope is the Release Watcher v1.0 import envelope. The raw event bytes
 // are preserved so the store can keep the exact source payload.
@@ -205,6 +212,9 @@ func decodeEvent(raw json.RawMessage, index int) (Event, error) {
 	}
 	canonical, err := CanonicalJSON(raw)
 	if err != nil {
+		if envErr, ok := err.(*EnvelopeError); ok {
+			return Event{}, &EnvelopeError{Code: envErr.Code, Message: fmt.Sprintf("event %d: %s", index, envErr.Message)}
+		}
 		return Event{}, &EnvelopeError{Code: CodeBadJSON, Message: fmt.Sprintf("event %d canonical form: %v", index, err)}
 	}
 	return Event{
@@ -328,9 +338,18 @@ func canonical(v any) (string, error) {
 }
 
 // canonicalNumber renders one JSON number in an exact canonical form. It
-// parses to a big.Rat so distinct large integers stay distinct while
-// semantically equal literals (1 and 1.0) render identically.
+// first bounds the number from its literal (linear in the literal length, so
+// a bounded input cannot drive unbounded work), then parses to a big.Rat so
+// distinct large integers stay distinct while semantically equal literals
+// (1 and 1.0) render identically.
 func canonicalNumber(n json.Number) (string, error) {
+	scale, intDigits, ok := numberScale(n.String())
+	if !ok {
+		return n.String(), nil
+	}
+	if scale > maxCanonicalScale || intDigits > maxCanonicalScale {
+		return "", &EnvelopeError{Code: CodeNumberTooLarge, Message: fmt.Sprintf("number %q has an unbounded canonical form", n.String())}
+	}
 	rat, ok := new(big.Rat).SetString(n.String())
 	if !ok {
 		return n.String(), nil
@@ -341,19 +360,57 @@ func canonicalNumber(n json.Number) (string, error) {
 	return ratToDecimal(rat), nil
 }
 
-// ratToDecimal renders the exact finite decimal for a rational whose
-// denominator is a product of twos and fives — always true for a JSON number
-// literal — trimming redundant trailing zeros.
+// numberScale returns the canonical decimal scale (decimal places) and the
+// integer digit count of a JSON number literal, computed directly from the
+// literal in linear time. A JSON number literal is [minus] int [. frac]
+// [exp], so the scale is (fracDigits - exp) clamped to zero and the integer
+// digit count is (intDigits + exp) clamped to the literal's digit count.
+func numberScale(s string) (scale, intDigits int, ok bool) {
+	if s == "" {
+		return 0, 0, false
+	}
+	if s[0] == '-' || s[0] == '+' {
+		s = s[1:]
+	}
+	if s == "" {
+		return 0, 0, false
+	}
+	exp := 0
+	if i := strings.IndexAny(s, "eE"); i >= 0 {
+		e, err := strconv.Atoi(s[i+1:])
+		if err != nil {
+			return 0, 0, false
+		}
+		exp = e
+		s = s[:i]
+	}
+	intPart, fracPart := s, ""
+	if i := strings.IndexByte(s, '.'); i >= 0 {
+		intPart, fracPart = s[:i], s[i+1:]
+	}
+	intDigits = len(intPart) + exp
+	if intDigits < len(intPart) {
+		intDigits = len(intPart)
+	}
+	scale = len(fracPart) - exp
+	if scale < 0 {
+		scale = 0
+	}
+	return scale, intDigits, true
+}
+
+// ratToDecimal renders the exact finite decimal for a rational with a
+// bounded scale (canonicalNumber guarantees the scale is small), trimming
+// redundant trailing zeros.
 func ratToDecimal(rat *big.Rat) string {
 	num := new(big.Int).Set(rat.Num())
-	den := new(big.Int).Set(rat.Denom())
 	neg := num.Sign() < 0
 	if neg {
 		num.Abs(num)
 	}
 	two := big.NewInt(2)
 	five := big.NewInt(5)
-	d := new(big.Int).Set(den)
+	d := new(big.Int).Set(rat.Denom())
 	var a, b int
 	for new(big.Int).Mod(d, two).Sign() == 0 {
 		d.Div(d, two)

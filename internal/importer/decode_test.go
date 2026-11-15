@@ -302,6 +302,30 @@ func TestEventDecodeCanonicalNumericExactness(t *testing.T) {
 	}
 }
 
+// TestEventDecodeCanonicalBoundedScale pins that a JSON number with a
+// large-magnitude exponent is rejected (not hung on): canonicalization is
+// bounded in the exponent, so a bounded input cannot drive unbounded work.
+func TestEventDecodeCanonicalBoundedScale(t *testing.T) {
+	for _, lit := range []string{"1e-999999", "1e999999"} {
+		if _, err := CanonicalJSON(mustRaw(t, lit)); err == nil {
+			t.Fatalf("canonical(%q): want a bounded-scale error, got nil", lit)
+		} else {
+			var envErr *EnvelopeError
+			if !errors.As(err, &envErr) || envErr.Code != CodeNumberTooLarge {
+				t.Fatalf("canonical(%q) error = %v, want number_too_large", lit, err)
+			}
+		}
+	}
+	// A plausible number still canonicalizes exactly.
+	s, err := CanonicalJSON(mustRaw(t, `1234.5678`))
+	if err != nil {
+		t.Fatalf("canonical(1234.5678): %v", err)
+	}
+	if s != "1234.5678" {
+		t.Fatalf("canonical(1234.5678) = %q, want 1234.5678", s)
+	}
+}
+
 func mustRaw(t *testing.T, s string) json.RawMessage {
 	t.Helper()
 	return json.RawMessage(s)
