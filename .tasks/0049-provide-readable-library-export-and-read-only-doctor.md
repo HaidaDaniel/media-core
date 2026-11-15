@@ -1,6 +1,6 @@
 # Task 0049 - Provide readable library export and read-only doctor
 
-State: doing
+State: done
 Owner: opencode-media-20261110
 Mode: mvp
 Lane: reliability
