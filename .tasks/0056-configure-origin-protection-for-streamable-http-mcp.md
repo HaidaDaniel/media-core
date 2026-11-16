@@ -1,7 +1,7 @@
 # Task 0056 - Configure Origin protection for Streamable HTTP MCP
 
-State: todo
-Owner: none
+State: done
+Owner: opencode-media-fix-20261116
 Mode: mvp
 Lane: mcp
 Scope: mcp,security
