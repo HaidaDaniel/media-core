@@ -1,7 +1,7 @@
 # Task 0061 - Align graceful-shutdown error semantics
 
-State: todo
-Owner: none
+State: done
+Owner: opencode-media-fix-20261116
 Mode: mvp
 Lane: reliability
 Scope: reliability,http,mcp
