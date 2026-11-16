@@ -136,7 +136,7 @@ A fresh audit reproduced five findings on committed main; each has its own task 
 - 0065 done — session inspection carries a generation guard; late GET responses cannot overwrite or clear a token from a completed login/logout; three regression cases fail on old code; focused verification passed at candidate 125dca3.
 - 0066 done — manifest verified at runtime against staged files; release gate fails on missing binaries; full local build exercised the verifier; focused verification passed at candidate 955012c.
 - 0067 done — CI and non-publishing release gate added, hardened example units and daily backup timer documented, first-run runbook and scratch restore smoke wired; two review findings fixed; focused verification and independent review passed at candidates 3e2db35/9d36152/5ceba8e.
-- 0069 todo — newly found during final verification: Playwright scenario D note assertion matches both rendered text and textarea.
+- 0069 done — note assertions scoped to the rendered notes list; full five-test Playwright suite passes; focused verification at candidate 6ed5749.
 - 0068 done — CLI usage lists all implemented commands; architecture/deployment/README corrected; Hermes tool names and transports were checked and found consistent, so no Hermes edit was needed; focused verification passed at candidate a69af90.
 
 ## Implemented

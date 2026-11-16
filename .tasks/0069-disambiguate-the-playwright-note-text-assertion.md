@@ -1,7 +1,7 @@
 # Task 0069 - Disambiguate the Playwright note-text assertion
 
-State: todo
-Owner: none
+State: done
+Owner: opencode-media-fix-20261116
 Mode: mvp
 Lane: acceptance
 Scope: acceptance
