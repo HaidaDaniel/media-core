@@ -40,7 +40,6 @@ Make the web-asset manifest verifier cover the full staged tree, including neste
 - release/**
 - internal/webassets/dist/**
 - web/dist/**
-- scripts/build-release.sh
 
 ## Steps
 
