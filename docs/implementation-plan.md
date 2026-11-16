@@ -1,6 +1,6 @@
 # Implementation plan and requirement coverage
 
-This is the inventory of **65 implementation tasks, 0005–0069**: the original 45 MVP tasks, 14 post-implementation remediation tasks and 6 post-implementation audit tasks. Tasks 0005–0068 are implemented and done; 0069 starts as todo. Existing 0001 canceled, 0002 done and 0003 todo remain unchanged. No task here authorizes production deployment.
+This is the inventory of **68 implementation tasks, 0005–0072**: the original 45 MVP tasks, 14 post-implementation remediation tasks, 6 post-implementation audit tasks and 3 final deployment-readiness tasks. Tasks 0005–0069 are implemented and done; 0070–0072 start as todo. Existing 0001 canceled, 0002 done and 0003 todo remain unchanged. No task here authorizes production deployment.
 
 The task Markdown is the execution contract: context, narrow allowed paths, steps, invariants, acceptance, negative cases, focused verification and review questions. Verification entries are JSON objects; each task records its own evidence when run. Use the installed APK 0.6.0 syntax.
 
@@ -75,6 +75,9 @@ Each row lists direct dependencies; numbering is not execution order (0049 is an
 | [0067](../.tasks/0067-prepare-ci-hardened-service-units-and-a-backup-runbook.md) | Prepare CI, hardened service units and a backup runbook | 0047, 0058, 0066 | high | M5 | todo |
 | [0068](../.tasks/0068-reconcile-operator-documentation-with-the-implemented-cli.md) | Reconcile operator documentation with the implemented CLI | 0064, 0065, 0066, 0067 | medium | M5 | todo |
 | [0069](../.tasks/0069-disambiguate-the-playwright-note-text-assertion.md) | Disambiguate the Playwright note-text assertion | 0046, 0067 | medium | M5 | todo |
+| [0070](../.tasks/0070-make-the-backup-unit-independent-of-path.md) | Make the backup unit independent of PATH | 0067 | high | M5 | todo |
+| [0071](../.tasks/0071-add-safe-backup-retention-with-dry-run.md) | Add safe backup retention with dry-run | 0067, 0070 | high | M5 | todo |
+| [0072](../.tasks/0072-verify-staged-assets-recursively-in-the-release-manifest-gate.md) | Verify staged assets recursively in the release manifest gate | 0066 | medium | M5 | todo |
 
 ## Execution path and observable increments
 
@@ -116,10 +119,10 @@ Every requirement has implementation ownership. Scenarios A–G live in docs/pro
 | R11 | [Hermes](hermes.md) | 0037, 0038, 0039, 0040, 0041, 0048, 0056 | A, B, C, D, G |
 | R12 | [Contracts](application-contract.md), [architecture](architecture.md) | 0007, 0012, 0025, 0026, 0027, 0028, 0029, 0038, 0039, 0040, 0041, 0045, 0046, 0057 | A, B, C, D |
 | R13 | [Architecture](architecture.md) | 0006, 0024, 0030, 0047, 0061 | G |
-| R14 | [Architecture](architecture.md), [requirements](product/requirements.md) | 0022, 0023, 0049, 0047, 0064 | F |
+| R14 | [Architecture](architecture.md), [requirements](product/requirements.md) | 0022, 0023, 0049, 0047, 0064, 0070, 0071 | F |
 | R15 | [Architecture](architecture.md), [risks](engineering/risk-register.md) | 0008, 0009, 0022, 0023, 0044, 0055, 0059 | B, C, F |
 | R16 | [Integration](integration-contract.md) | 0042, 0043 | E |
-| R17 | [Architecture](architecture.md), [technology](engineering/tech-options.md) | 0030, 0047, 0048, 0058, 0066, 0067 | F, G |
+| R17 | [Architecture](architecture.md), [technology](engineering/tech-options.md) | 0030, 0047, 0048, 0058, 0066, 0067, 0072 | F, G |
 | R18 | [Scope](scope.md), [integration](integration-contract.md), [contracts](application-contract.md) | 0012, 0019, 0020, 0032, 0041, 0045, 0048 | A, C, G |
 
 ## Planning verification boundary
