@@ -29,6 +29,6 @@ if [ ! -d "$ARCHIVE" ]; then
 fi
 
 RESTORE_DIR="$TMP/restored"
-"$BIN" restore "$ARCHIVE" --state-dir "$RESTORE_DIR" >/dev/null
+"$BIN" restore "$ARCHIVE" --state-dir "$RESTORE_DIR" --force >/dev/null
 "$BIN" list --state-dir "$RESTORE_DIR" >/dev/null
 echo "backup smoke ok: $ARCHIVE"

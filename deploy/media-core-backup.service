@@ -16,5 +16,5 @@ ProtectKernelTunables=true
 ProtectControlGroups=true
 RestrictSUIDSGID=true
 LockPersonality=true
-ReadWritePaths=/var/backups/media-core
+ReadWritePaths=/var/lib/media-core /var/backups/media-core
 UMask=0077
