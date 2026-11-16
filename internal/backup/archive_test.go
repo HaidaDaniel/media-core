@@ -12,6 +12,8 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -307,6 +309,9 @@ func TestBackupRefusesOverwrite(t *testing.T) {
 		t.Fatalf("read dest: %v", err)
 	}
 	for _, e := range entries {
+		if e.Name() == archiveLockName {
+			continue
+		}
 		if e.Name() != "a" {
 			t.Fatalf("destination entry %q after overwrite, want only the archive (no set-aside debris)", e.Name())
 		}
@@ -507,5 +512,67 @@ func TestBackupExcludesStateContents(t *testing.T) {
 	}
 	if bytes.Contains(manifest, []byte("topsecret-material")) {
 		t.Fatalf("manifest carries state directory secret material")
+	}
+}
+
+// TestBackupConcurrentSameName proves that racing publishers of one archive
+// name serialize on the destination lock: exactly one succeeds and the rest
+// get the stable archive-exists error rather than silently replacing it.
+func TestBackupConcurrentSameName(t *testing.T) {
+	dir, db := initState(t)
+	defer db.Close()
+	dest := filepath.Join(t.TempDir(), "dest")
+	const count = 8
+	oldHook := archivePrePublishHook
+	var inPublish int64
+	archivePrePublishHook = func(string) {
+		atomic.AddInt64(&inPublish, 1)
+		time.Sleep(50 * time.Millisecond)
+	}
+	defer func() { archivePrePublishHook = oldHook }()
+	start := make(chan struct{})
+	results := make(chan error, count)
+	var wg sync.WaitGroup
+	for i := 0; i < count; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			<-start
+			_, err := Create(context.Background(), Options{StateDir: dir, DestDir: dest, Name: "race"})
+			results <- err
+		}()
+	}
+	close(start)
+	wg.Wait()
+	close(results)
+	var created, exists int
+	for err := range results {
+		switch {
+		case err == nil:
+			created++
+		case errors.Is(err, ErrExists):
+			exists++
+		default:
+			t.Fatalf("unexpected publish error: %v", err)
+		}
+	}
+	if created != 1 || exists != count-1 {
+		t.Fatalf("created = %d, exists = %d, want 1 and %d", created, exists, count-1)
+	}
+	if got := atomic.LoadInt64(&inPublish); got != 1 {
+		t.Fatalf("publishers in the critical section = %d, want 1", got)
+	}
+	entries, err := os.ReadDir(dest)
+	if err != nil {
+		t.Fatalf("read dest: %v", err)
+	}
+	archives := 0
+	for _, e := range entries {
+		if e.Name() != archiveLockName {
+			archives++
+		}
+	}
+	if archives != 1 {
+		t.Fatalf("archives = %d, want 1", archives)
 	}
 }

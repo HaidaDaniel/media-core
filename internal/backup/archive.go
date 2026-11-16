@@ -21,11 +21,15 @@ import (
 
 	"github.com/HaidaDaniel/media-core/internal/buildinfo"
 	"github.com/HaidaDaniel/media-core/internal/store"
+	"golang.org/x/sys/unix"
 )
 
 // ArchiveFormatName is the manifest format marker of the v1 snapshot
 // archive.
 const ArchiveFormatName = "media-core-snapshot-v1"
+
+// archiveLockName is a non-archive lock file inside the destination.
+const archiveLockName = ".media-core-archive.lock"
 
 // DBFileName is the snapshot database file name inside the archive.
 const DBFileName = "media-core.db"
@@ -36,6 +40,12 @@ const ManifestFileName = "manifest.json"
 // ErrExists is returned when the target archive already exists and the
 // caller did not request an overwrite.
 var ErrExists = errors.New("backup: archive already exists; use force to replace it")
+
+// ErrArchiveBusy means another publisher holds the destination lock.
+var ErrArchiveBusy = errors.New("backup: archive destination is busy")
+
+// archivePrePublishHook is a test seam for the window between validation and rename.
+var archivePrePublishHook func(staged string)
 
 // ErrInvalid is returned when the options are not usable for a backup.
 var ErrInvalid = errors.New("backup: invalid backup options")
@@ -79,6 +89,33 @@ type Manifest struct {
 type Result struct {
 	Path     string
 	Manifest Manifest
+}
+
+// acquirePublishLock serializes archive publication in one destination
+// directory. It is independent of the database maintenance lock, so live
+// writers holding a shared DB lock never block a backup.
+func acquirePublishLock(destDir string) (*os.File, error) {
+	path := filepath.Join(destDir, archiveLockName)
+	f, err := os.OpenFile(path, os.O_CREATE|os.O_RDWR, 0o600)
+	if err != nil {
+		return nil, fmt.Errorf("backup: open archive lock: %w", err)
+	}
+	deadline := time.Now().Add(5 * time.Second)
+	for {
+		err := unix.Flock(int(f.Fd()), unix.LOCK_EX|unix.LOCK_NB)
+		if err == nil {
+			return f, nil
+		}
+		if err != unix.EWOULDBLOCK && err != unix.EAGAIN {
+			f.Close()
+			return nil, fmt.Errorf("backup: lock archive destination: %w", err)
+		}
+		if time.Now().After(deadline) {
+			f.Close()
+			return nil, ErrArchiveBusy
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
 }
 
 // Create publishes one consistent snapshot archive of the state database
@@ -134,6 +171,15 @@ func Create(ctx context.Context, opts Options) (*Result, error) {
 	if err := verifySourceFile(srcPath); err != nil {
 		return nil, err
 	}
+
+	publishLock, err := acquirePublishLock(destDir)
+	if err != nil {
+		return nil, err
+	}
+	defer func() {
+		_ = unix.Flock(int(publishLock.Fd()), unix.LOCK_UN)
+		_ = publishLock.Close()
+	}()
 
 	staging, err := os.MkdirTemp(destDir, ".staging-")
 	if err != nil {
@@ -201,6 +247,10 @@ func Create(ctx context.Context, opts Options) (*Result, error) {
 	} else if _, err := os.Lstat(final); err == nil {
 		return nil, fmt.Errorf("%w: %s", ErrExists, final)
 	}
+	if archivePrePublishHook != nil {
+		archivePrePublishHook(staging)
+	}
+
 	if err := os.Rename(staging, final); err != nil {
 		if _, statErr := os.Lstat(final); statErr == nil {
 			return nil, fmt.Errorf("%w: %s", ErrExists, final)
