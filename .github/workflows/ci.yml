@@ -1,0 +1,58 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.30.3
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - name: Install tooling
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm --dir web install --frozen-lockfile
+      - name: Go checks
+        run: |
+          go build ./...
+          go vet ./...
+          go test ./...
+          go test -race ./...
+      - name: Shell syntax
+        run: bash -n scripts/build-release.sh scripts/backup-smoke.sh
+      - name: Structural checks
+        run: python3 scripts/check-planning.py
+      - name: Web checks
+        run: |
+          pnpm --dir web exec tsc --noEmit
+          pnpm --dir web exec vitest run
+      - name: Browser acceptance
+        run: |
+          pnpm --dir web exec playwright install --with-deps chromium
+          pnpm --dir web exec playwright test
+      - name: Local release artifacts and gate
+        run: bash scripts/build-release.sh
+      - name: Backup and restore smoke
+        run: |
+          BIN="$(pwd)/media-core-ci"
+          go build -o "$BIN" ./cmd/media-core
+          STATE="$(mktemp -d)"
+          BACKUPS="$(mktemp -d)"
+          "$BIN" init --state-dir "$STATE" >/dev/null
+          MEDIA_CORE_BIN="$BIN" bash scripts/backup-smoke.sh "$STATE" "$BACKUPS"

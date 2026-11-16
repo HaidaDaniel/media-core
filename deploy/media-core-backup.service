@@ -1,0 +1,20 @@
+[Unit]
+Description=Media Core consistent backup and restore smoke
+Documentation=man:systemd.service(5)
+
+[Service]
+Type=oneshot
+User=media-core
+Group=media-core
+WorkingDirectory=/opt/media-core
+ExecStart=/opt/media-core/scripts/backup-smoke.sh /var/lib/media-core /var/backups/media-core
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+LockPersonality=true
+ReadWritePaths=/var/backups/media-core
+UMask=0077

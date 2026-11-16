@@ -126,3 +126,22 @@ packaging test for both artifacts, which checks the ELF magic and the
 `e_machine` field against the target architecture; the non-host artifact is
 then reported as format-checked only. Run it on a matching host (or
 emulator) for a full smoke.
+
+## First-run setup (operator runbook)
+
+1. Install the binary and keep state outside the checkout: `/opt/media-core/media-core`, state in `/var/lib/media-core` (directory 0700, files 0600).
+2. `media-core init --state-dir /var/lib/media-core` creates and migrates the database. It does **not** create the owner secret.
+3. `media-core owner generate --state-dir /var/lib/media-core` writes a 256-bit secret to a 0600 file and prints it once to the local operator's stdout; `owner show` displays it again locally. Never put it in a unit file, workflow, URL or browser storage.
+4. Start with `media-core serve --state-dir /var/lib/media-core --listen 127.0.0.1:8787` (or enable the example `deploy/media-core.service`). Log in from the same host or through an SSH port forward; direct remote access additionally requires `--allow-remote`, an https `--public-origin` and a TLS certificate/key.
+
+## Service management
+
+`deploy/media-core.service`, `deploy/media-core-backup.service` and `deploy/media-core-backup.timer` are examples, not an installation step. They use a dedicated `media-core` account, `NoNewPrivileges`, `ProtectSystem=strict`, `RestrictSUIDSGID` and explicit `ReadWritePaths` for the state and backup directories; they contain no secret values. Review paths and the account before enabling any unit.
+
+## Backup and restore smoke
+
+`scripts/backup-smoke.sh <state-dir> <backup-dir>` creates a consistent snapshot archive, restores it into a fresh temporary state directory and runs a read there. It never stops the service, changes the live database or publishes anything. The destination directory must be outside the state directory. Run it manually after setup and schedule it with `deploy/media-core-backup.timer` (daily by default). A real restore of a live state remains an explicit operator action: stop all handles first, validate the archive, then use `media-core restore <archive> --state-dir <dir> [--force]`.
+
+## CI and release gate
+
+`.github/workflows/ci.yml` runs build, vet, tests, race tests, shell syntax, structural checks, TypeScript, Vitest, Playwright and a local release build on every push/PR. `.github/workflows/release-gate.yml` is separate and non-publishing: it re-runs verification and uploads local artifacts only. Neither workflow deploys to a NAS.

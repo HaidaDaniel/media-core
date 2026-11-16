@@ -1,0 +1,10 @@
+[Unit]
+Description=Daily Media Core backup and restore smoke
+
+[Timer]
+OnCalendar=daily
+Persistent=true
+Unit=media-core-backup.service
+
+[Install]
+WantedBy=timers.target
