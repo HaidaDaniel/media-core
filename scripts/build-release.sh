@@ -29,14 +29,27 @@ if [ ! -f "$STAGE/index.html" ]; then
   echo "error: the tracked placeholder $STAGE/index.html is missing; restore it from git" >&2
   exit 1
 fi
-# Keep the placeholder so step 5 can restore it without git, and stage in
-# a temp dir so a failed validation never destroys the tracked shell.
+# Keep the placeholder so the trap can restore it without git, and stage
+# in a temp dir so a failed validation never destroys the tracked shell.
 PLACEHOLDER_TMP=$(mktemp)
 STAGING_TMP=$(mktemp -d)
+PLACEHOLDER_MODE=$(stat -c %a "$STAGE/index.html")
+restore_placeholder() {
+  if [ -s "$PLACEHOLDER_TMP" ]; then
+    rm -rf "$STAGE"
+    mkdir -p "$STAGE"
+    cp "$PLACEHOLDER_TMP" "$STAGE/index.html"
+    chmod "$PLACEHOLDER_MODE" "$STAGE/index.html"
+  fi
+}
 cleanup() {
+  restore_placeholder
   rm -f "$PLACEHOLDER_TMP" 2>/dev/null || true
   if [ -n "${STAGING_TMP:-}" ]; then rm -rf "$STAGING_TMP" 2>/dev/null || true; fi
 }
+# The trap restores the placeholder on every exit path, so a failure after
+# the staging swap never leaves the tracked shell replaced or its mode
+# altered; the success path calls it again for the message.
 trap cleanup EXIT
 cp "$STAGE/index.html" "$PLACEHOLDER_TMP"
 cp -r "$WEB_DIST/." "$STAGING_TMP/"
@@ -116,11 +129,9 @@ else
 fi
 
 # -- 5. Restore the tracked placeholder so the tree stays clean; the
-#    linked binaries in release/ keep the real assets.
-rm -rf "$STAGE"
-mkdir -p "$STAGE"
-cp "$PLACEHOLDER_TMP" "$STAGE/index.html"
-rm -f "$PLACEHOLDER_TMP"
+#    linked binaries in release/ keep the real assets. The EXIT trap does
+#    the same on any earlier failure.
+restore_placeholder
 echo "-- restored the tracked placeholder in $STAGE (release binaries keep the staged build)"
 
 echo "== artifacts (sha256):"

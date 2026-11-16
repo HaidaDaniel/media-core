@@ -128,7 +128,7 @@ func TestAssetsCachePolicies(t *testing.T) {
 func TestAssetsSPAFallback(t *testing.T) {
 	srv := startAssetServer(t, synthAssets)
 
-	for _, p := range []string{"/library", "/works/abc-123", "/library?filter=d"} {
+	for _, p := range []string{"/library", "/works/abc-123", "/library?filter=d", "/library/", "/works/abc-123/"} {
 		resp, body := getAsset(t, srv, p)
 		if resp.StatusCode != http.StatusOK || !strings.Contains(string(body), "synth") {
 			t.Fatalf("GET %s: status=%d body=%q, want the shell", p, resp.StatusCode, body)

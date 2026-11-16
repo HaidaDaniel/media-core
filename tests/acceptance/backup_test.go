@@ -674,9 +674,11 @@ func compareWebAndMCP(t *testing.T, restoredDir, secret string, ids fixtureIDs) 
 	}
 }
 
-// normalizeF strips ids and instants and sorts the heterogeneous
-// collections so the two transport payloads are comparable; it is the
-// acceptance normalizer from the parity suite.
+// normalizeF strips ids and instants so the two transport payloads are
+// comparable; it is the acceptance normalizer from the parity suite. It
+// deliberately does not reorder collections, so the comparison is
+// order-sensitive and relies on both transports sharing the service
+// layer's query ordering.
 func normalizeF(v any) any {
 	idKeys := map[string]bool{
 		"id": true, "work_id": true, "edition_id": true, "relation_id": true,

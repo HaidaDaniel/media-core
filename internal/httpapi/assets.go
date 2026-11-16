@@ -50,6 +50,13 @@ func serveAssets(fsys fs.FS, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	p := r.URL.Path
+	// A single trailing slash on a non-root path is the same client route
+	// with a trailing slash: normalize it so /library/ answers with the
+	// shell like /library does. Doubled slashes and dot segments still
+	// change under cleaning and stay misses.
+	if p != "/" && strings.HasSuffix(p, "/") {
+		p = strings.TrimSuffix(p, "/")
+	}
 	// A path that changes under cleaning carries dot segments or doubled
 	// slashes (including percent-encoded ones): it is a miss, never a
 	// fetch, so a cleaned spelling cannot smuggle a file through.
