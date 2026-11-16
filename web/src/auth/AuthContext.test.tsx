@@ -8,16 +8,18 @@ import { AuthProvider, useAuth } from "./AuthContext";
 import { Shell } from "../shell/Shell";
 import { LoginPage } from "./LoginPage";
 
-const { mockInspectSession, mockLogout } = vi.hoisted(() => ({
+const { mockInspectSession, mockLogin, mockLogout, mockSetCSRFToken } = vi.hoisted(() => ({
   mockInspectSession: vi.fn(),
+  mockLogin: vi.fn(),
   mockLogout: vi.fn(),
+  mockSetCSRFToken: vi.fn(),
 }));
 
 vi.mock("../api/client", () => ({
   inspectSession: (...args: unknown[]) => mockInspectSession(...args),
-  login: vi.fn(),
+  login: (...args: unknown[]) => mockLogin(...args),
   logout: (...args: unknown[]) => mockLogout(...args),
-  setCSRFToken: vi.fn(),
+  setCSRFToken: (...args: unknown[]) => mockSetCSRFToken(...args),
 }));
 
 function StatusProbe(): JSX.Element {
@@ -136,6 +138,63 @@ describe("AuthProvider", () => {
     await act(async () => {
       // let the late inspection settle
     });
+    expect((screen.getByTestId("status")).textContent).toBe("authenticated");
+  });
+
+  it("a late failed inspection cannot clear state after a completed login", async () => {
+    let rejectInspect: (error: Error) => void = () => undefined;
+    mockInspectSession.mockImplementationOnce(
+      () =>
+        new Promise<boolean>((_resolve, reject) => {
+          rejectInspect = reject;
+        }),
+    );
+    mockLogin.mockResolvedValueOnce(undefined);
+    render(
+      <AuthProvider>
+        <LoginPage />
+        <StatusProbe />
+      </AuthProvider>,
+    );
+    const input = (await screen.findByLabelText("Owner secret")) as HTMLInputElement;
+    fireEvent.change(input, { target: { value: "secret" } });
+    fireEvent.click(screen.getByRole("button", { name: /sign in/i }));
+    await vi.waitFor(() =>
+      expect((screen.getByTestId("status")).textContent).toBe("authenticated"),
+    );
+    const callsAfterLogin = mockSetCSRFToken.mock.calls.length;
+    rejectInspect(new Error("late failure"));
+    await act(async () => undefined);
+    expect(mockSetCSRFToken.mock.calls.slice(callsAfterLogin)).toEqual([]);
+    expect((screen.getByTestId("status")).textContent).toBe("authenticated");
+  });
+
+  it("expires the inspection generation after a completed login", async () => {
+    let resolveInspect: (live: boolean) => void = () => undefined;
+    let guard: (() => boolean) | undefined;
+    mockInspectSession.mockImplementationOnce((shouldApply: () => boolean) => {
+      guard = shouldApply;
+      return new Promise<boolean>((resolve) => {
+        resolveInspect = resolve;
+      });
+    });
+    mockLogin.mockResolvedValueOnce(undefined);
+    render(
+      <AuthProvider>
+        <LoginPage />
+        <StatusProbe />
+      </AuthProvider>,
+    );
+    const input = (await screen.findByLabelText("Owner secret")) as HTMLInputElement;
+    fireEvent.change(input, { target: { value: "secret" } });
+    fireEvent.click(screen.getByRole("button", { name: /sign in/i }));
+    await vi.waitFor(() =>
+      expect((screen.getByTestId("status")).textContent).toBe("authenticated"),
+    );
+    expect(guard).toBeDefined();
+    expect(guard?.()).toBe(false);
+    resolveInspect(true);
+    await act(async () => undefined);
     expect((screen.getByTestId("status")).textContent).toBe("authenticated");
   });
 });

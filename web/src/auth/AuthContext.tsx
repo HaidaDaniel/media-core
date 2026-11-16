@@ -1,9 +1,9 @@
 // The single-owner session state of the app: one in-memory inspection on
 // start, then login/logout through the API client. The owner secret and
 // the CSRF token never touch browser storage.
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import type { JSX, ReactNode } from "react";
-import { inspectSession, login as apiLogin, logout as apiLogout, setCSRFToken } from "../api/client";
+import { inspectSession, login as apiLogin, logout as apiLogout } from "../api/client";
 
 export type AuthStatus = "inspecting" | "anonymous" | "authenticated";
 
@@ -17,24 +17,26 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }): JSX.Element {
   const [status, setStatus] = useState<AuthStatus>("inspecting");
+  // Every successful login or logout advances the generation. The initial
+  // inspection applies its token and status only while its own generation
+  // is still current, so a late response cannot undo a completed action.
+  const generation = useRef(0);
 
   useEffect(() => {
     let cancelled = false;
-    // The initial inspection settles only while the provider is still
-    // inspecting, so a slow response can never overwrite a completed
-    // login or logout.
-    inspectSession()
+    const mine = generation.current;
+    const current = () => !cancelled && generation.current === mine;
+    inspectSession(current)
       .then((live) => {
-        if (!cancelled) {
-          setStatus((current) =>
-            current === "inspecting" ? (live ? "authenticated" : "anonymous") : current,
+        if (current()) {
+          setStatus((state) =>
+            state === "inspecting" ? (live ? "authenticated" : "anonymous") : state,
           );
         }
       })
       .catch(() => {
-        if (!cancelled) {
-          setCSRFToken(null);
-          setStatus((current) => (current === "inspecting" ? "anonymous" : current));
+        if (current()) {
+          setStatus((state) => (state === "inspecting" ? "anonymous" : state));
         }
       });
     return () => {
@@ -44,6 +46,7 @@ export function AuthProvider({ children }: { children: ReactNode }): JSX.Element
 
   const login = useCallback(async (ownerSecret: string) => {
     await apiLogin(ownerSecret);
+    generation.current += 1;
     setStatus("authenticated");
   }, []);
 
@@ -51,6 +54,7 @@ export function AuthProvider({ children }: { children: ReactNode }): JSX.Element
   // state: the server session is invalidated only on success.
   const logout = useCallback(async () => {
     await apiLogout();
+    generation.current += 1;
     setStatus("anonymous");
   }, []);
 

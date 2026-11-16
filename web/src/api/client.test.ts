@@ -161,6 +161,28 @@ describe("session endpoints", () => {
     expect(getCSRFToken()).toBeNull();
   });
 
+  it("inspectSession leaves the token alone when the generation is stale", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn()
+        .mockResolvedValueOnce(jsonResponse(200, { schema_version: "1.0", ok: true, data: { csrf_token: "old" } }))
+        .mockResolvedValueOnce(
+          jsonResponse(401, {
+            schema_version: "1.0",
+            ok: false,
+            error: { code: "unauthorized", message: "not authenticated", retryable: false },
+          }),
+        ),
+    );
+    setCSRFToken("current");
+    const stale = () => false;
+    await expect(inspectSession(stale)).resolves.toBe(true);
+    expect(getCSRFToken()).toBe("current");
+    await expect(inspectSession(stale)).resolves.toBe(false);
+    expect(getCSRFToken()).toBe("current");
+  });
+
   it("logout sends DELETE with the CSRF token and clears it", async () => {
     const fetchMock = vi.fn().mockResolvedValue(jsonResponse(204, { schema_version: "1.0", ok: true, data: null }));
     vi.stubGlobal("fetch", fetchMock);

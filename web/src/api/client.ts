@@ -174,15 +174,23 @@ export async function logout(): Promise<void> {
 }
 
 // inspectSession reports whether a live session exists and refreshes the
-// in-memory CSRF token; a missing or expired session is not an error.
-export async function inspectSession(): Promise<boolean> {
+// in-memory CSRF token; a missing or expired session is not an error. The
+// optional guard lets the caller discard a late response whose request
+// generation was superseded by a login or logout: the result is still
+// reported, but stale token state is never applied.
+export async function inspectSession(shouldApply?: () => boolean): Promise<boolean> {
+  const apply = () => shouldApply === undefined || shouldApply();
   try {
     const payload = await get<SessionPayload>("/session");
-    setCSRFToken(payload.csrf_token);
+    if (apply()) {
+      setCSRFToken(payload.csrf_token);
+    }
     return true;
   } catch (err) {
     if (err instanceof ApiError && err.code === "unauthorized") {
-      setCSRFToken(null);
+      if (apply()) {
+        setCSRFToken(null);
+      }
       return false;
     }
     throw err;
