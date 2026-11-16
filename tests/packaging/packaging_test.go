@@ -373,3 +373,22 @@ func osArch(t *testing.T) string {
 	}
 	return strings.TrimSpace(string(out))
 }
+
+// TestReleaseManifestCannotIncludeItself pins the staging order: the manifest
+// is generated outside the staged tree and moved in only after enumeration,
+// so no manifest entry can describe the file being written.
+func TestPackageReleaseArtifactsManifestCannotIncludeItself(t *testing.T) {
+	raw, err := os.ReadFile(filepath.Join(repoRoot(t), "scripts", "build-release.sh"))
+	if err != nil {
+		t.Fatalf("read build script: %v", err)
+	}
+	script := string(raw)
+	for _, needle := range []string{`MANIFEST_TMP=$(mktemp)`, `} > "$MANIFEST_TMP"`, `mv "$MANIFEST_TMP" "$STAGING_TMP/manifest.json"`} {
+		if !strings.Contains(script, needle) {
+			t.Fatalf("build script no longer contains %q", needle)
+		}
+	}
+	if strings.Contains(script, `> "$STAGING_TMP/manifest.json"`) {
+		t.Fatal("manifest is written directly into the enumerated staging tree")
+	}
+}

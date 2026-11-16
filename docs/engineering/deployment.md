@@ -25,10 +25,12 @@ validates the assets before embedding them. The script:
    (`-ldflags -X` into `internal/buildinfo`: version, short commit, UTC
    build time). The version defaults to `dev` and can be pinned with
    `MEDIA_CORE_VERSION=<version>`.
-4. Smoke-tests the artifact for the host architecture (`version`, `init`,
-   `list` in a throwaway state dir) and reports the other architecture as
-   format-checked only: its binary is linked and verified as a valid ELF
-   for its target, but it is not executed when the host cannot run it.
+4. Verifies both artifacts' ELF magic and target machine types with
+   `go test ./tests/packaging -run TestPackageReleaseArtifacts`, then
+   smoke-tests the host-matching artifact (`version`, `init`, `list` in a
+   throwaway state dir). The other architecture is format-checked only: it
+   is linked and its ELF machine type is verified, but it is not executed
+   when the host cannot run it.
 5. Restores the tracked placeholder in `internal/webassets/dist`, so the
    working tree stays clean; the release binaries in `release/` keep the
    real assets.
@@ -114,7 +116,8 @@ loopback-only posture as the service.
 ## Unsupported architectures
 
 The release script always builds both `linux/amd64` and `linux/arm64`,
-but it can only execute the binary that matches the host. On an amd64
-host the arm64 artifact (and vice versa) is verified as a valid ELF for
-its target machine and reported as format-checked only; run it on a
-matching host (or emulator) for a full smoke.
+but it can only execute the binary that matches the host. It invokes the
+packaging test for both artifacts, which checks the ELF magic and the
+`e_machine` field against the target architecture; the non-host artifact is
+then reported as format-checked only. Run it on a matching host (or
+emulator) for a full smoke.

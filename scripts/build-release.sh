@@ -32,6 +32,7 @@ fi
 # Keep the placeholder so the trap can restore it without git, and stage
 # in a temp dir so a failed validation never destroys the tracked shell.
 PLACEHOLDER_TMP=$(mktemp)
+MANIFEST_TMP=$(mktemp)
 STAGING_TMP=$(mktemp -d)
 PLACEHOLDER_MODE=$(stat -c %a "$STAGE/index.html")
 restore_placeholder() {
@@ -45,6 +46,7 @@ restore_placeholder() {
 cleanup() {
   restore_placeholder
   rm -f "$PLACEHOLDER_TMP" 2>/dev/null || true
+  rm -f "${MANIFEST_TMP:-}" 2>/dev/null || true
   if [ -n "${STAGING_TMP:-}" ]; then rm -rf "$STAGING_TMP" 2>/dev/null || true; fi
 }
 # The trap restores the placeholder on every exit path, so a failure after
@@ -86,7 +88,8 @@ done < <(grep -oE '(src|href)="[^"]+"' "$STAGING_TMP/index.html" | sed 's/^.[^=]
     printf '    {"name": "%s", "size": %s, "sha256": "%s"}' "$f" "$size" "$sum"
   done < <(cd "$STAGING_TMP" && find . -type f | sed 's|^\./||' | LC_ALL=C sort)
   printf '\n  ]\n}\n'
-} > "$STAGING_TMP/manifest.json"
+} > "$MANIFEST_TMP"
+mv "$MANIFEST_TMP" "$STAGING_TMP/manifest.json"
 
 # Everything validated: swap the staging into the embed.
 rm -rf "$STAGE"
@@ -106,6 +109,8 @@ echo "-- linking linux/amd64"
 CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags "$LDFLAGS" -o "$OUT/media-core-linux-amd64" ./cmd/media-core
 echo "-- linking linux/arm64"
 CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -ldflags "$LDFLAGS" -o "$OUT/media-core-linux-arm64" ./cmd/media-core
+echo "-- format check: both artifacts are the expected ELF machine type"
+go test ./tests/packaging -run TestPackageReleaseArtifacts
 
 # -- 4. Smoke the host-matching artifact; report the limits for the rest.
 HOST_ARCH=$(uname -m)
