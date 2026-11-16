@@ -33,7 +33,11 @@ type HTTPOptions struct {
 func (s *Server) StreamableHTTP(opts HTTPOptions) http.Handler {
 	handler := mcpsdk.NewStreamableHTTPHandler(
 		func(*http.Request) *mcpsdk.Server { return s.srv },
-		&mcpsdk.StreamableHTTPOptions{Stateless: true, JSONResponse: true})
+		&mcpsdk.StreamableHTTPOptions{
+			Stateless:             true,
+			JSONResponse:          true,
+			CrossOriginProtection: http.NewCrossOriginProtection(),
+		})
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		secret, err := opts.SecretReader()
 		switch {
