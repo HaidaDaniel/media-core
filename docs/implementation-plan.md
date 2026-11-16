@@ -1,6 +1,6 @@
 # Implementation plan and requirement coverage
 
-This is the inventory of **64 implementation tasks, 0005–0068**: the original 45 MVP tasks, 14 post-implementation remediation tasks and 5 post-implementation audit tasks. Tasks 0005–0063 are implemented and done; 0064–0068 start as todo. Existing 0001 canceled, 0002 done and 0003 todo remain unchanged. No task here authorizes production deployment.
+This is the inventory of **65 implementation tasks, 0005–0069**: the original 45 MVP tasks, 14 post-implementation remediation tasks and 6 post-implementation audit tasks. Tasks 0005–0068 are implemented and done; 0069 starts as todo. Existing 0001 canceled, 0002 done and 0003 todo remain unchanged. No task here authorizes production deployment.
 
 The task Markdown is the execution contract: context, narrow allowed paths, steps, invariants, acceptance, negative cases, focused verification and review questions. Verification entries are JSON objects; each task records its own evidence when run. Use the installed APK 0.6.0 syntax.
 
@@ -74,6 +74,7 @@ Each row lists direct dependencies; numbering is not execution order (0049 is an
 | [0066](../.tasks/0066-make-the-release-gate-verify-real-artifacts-and-manifest-json.md) | Make the release gate verify real artifacts and manifest.json | 0047, 0058 | medium | M5 | todo |
 | [0067](../.tasks/0067-prepare-ci-hardened-service-units-and-a-backup-runbook.md) | Prepare CI, hardened service units and a backup runbook | 0047, 0058, 0066 | high | M5 | todo |
 | [0068](../.tasks/0068-reconcile-operator-documentation-with-the-implemented-cli.md) | Reconcile operator documentation with the implemented CLI | 0064, 0065, 0066, 0067 | medium | M5 | todo |
+| [0069](../.tasks/0069-disambiguate-the-playwright-note-text-assertion.md) | Disambiguate the Playwright note-text assertion | 0046, 0067 | medium | M5 | todo |
 
 ## Execution path and observable increments
 
@@ -111,7 +112,7 @@ Every requirement has implementation ownership. Scenarios A–G live in docs/pro
 | R07 | [Domain](domain-model.md), [integration](integration-contract.md) | 0019, 0028, 0035, 0041 | A, C |
 | R08 | [Domain](domain-model.md), [contracts](application-contract.md) | 0020, 0029, 0033, 0041, 0045 | A, C |
 | R09 | [Domain](domain-model.md), [contracts](application-contract.md) | 0012, 0019, 0026, 0032, 0039, 0044, 0045, 0053 | C |
-| R10 | [Web](web-ui.md), [contracts](application-contract.md) | 0024, 0025, 0026, 0027, 0028, 0029, 0030, 0031, 0032, 0033, 0034, 0035, 0036, 0045, 0046, 0050, 0060, 0065 | A, B, C, D, G |
+| R10 | [Web](web-ui.md), [contracts](application-contract.md) | 0024, 0025, 0026, 0027, 0028, 0029, 0030, 0031, 0032, 0033, 0034, 0035, 0036, 0045, 0046, 0050, 0060, 0065, 0069 | A, B, C, D, G |
 | R11 | [Hermes](hermes.md) | 0037, 0038, 0039, 0040, 0041, 0048, 0056 | A, B, C, D, G |
 | R12 | [Contracts](application-contract.md), [architecture](architecture.md) | 0007, 0012, 0025, 0026, 0027, 0028, 0029, 0038, 0039, 0040, 0041, 0045, 0046, 0057 | A, B, C, D |
 | R13 | [Architecture](architecture.md) | 0006, 0024, 0030, 0047, 0061 | G |
