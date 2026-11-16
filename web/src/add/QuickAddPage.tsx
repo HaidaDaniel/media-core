@@ -42,10 +42,10 @@ const KINDS = [
 // One in-flight create decision; the request id is minted once per attempt
 // and reused when the attempt is retried after an ambiguous failure.
 type CreateAction =
-  | { kind: "create"; options: CreateOptions }
-  | { kind: "use_existing"; workId: string; options: CreateOptions }
-  | { kind: "add_edition"; workId: string; options: CreateOptions }
-  | { kind: "create_distinct"; options: CreateOptions };
+  | { kind: "create"; options: CreateOptions; payload: AdditionPayload }
+  | { kind: "use_existing"; workId: string; options: CreateOptions; payload: AdditionPayload }
+  | { kind: "add_edition"; workId: string; options: CreateOptions; payload: AdditionPayload }
+  | { kind: "create_distinct"; options: CreateOptions; payload: AdditionPayload };
 
 type Phase =
   | { name: "form" }
@@ -119,8 +119,7 @@ export function QuickAddPage(): JSX.Element {
   function runCreate(action: CreateAction): void {
     setPhase({ name: "creating", action });
     const attempt = (): Promise<{ path: string }> => {
-      const { options } = action;
-      const payload = buildPayload();
+      const { options, payload } = action;
       switch (action.kind) {
         case "create":
           return createWork(payload, options).then((r) => ({ path: targetPathFor(r) }));
@@ -155,7 +154,8 @@ export function QuickAddPage(): JSX.Element {
     resolvedSignature.current = signature;
     setPhase({ name: "resolving" });
     setServerError(null);
-    resolveAddition(buildPayload())
+    const payload = buildPayload();
+    resolveAddition(payload)
       .then((result) => {
         if (result.outcome === "existing") {
           if (result.work_id === null) {
@@ -168,6 +168,7 @@ export function QuickAddPage(): JSX.Element {
           runCreate({
             kind: "create",
             options: { requestId: newRequestID() },
+            payload,
           });
         }
       })
@@ -231,12 +232,13 @@ export function QuickAddPage(): JSX.Element {
     if (workId !== null) {
       options.workId = workId;
     }
+    const payload = buildPayload();
     if (choice === "use_existing") {
-      runCreate({ kind: "use_existing", workId: workId as string, options });
+      runCreate({ kind: "use_existing", workId: workId as string, options, payload });
     } else if (choice === "add_edition") {
-      runCreate({ kind: "add_edition", workId: workId as string, options });
+      runCreate({ kind: "add_edition", workId: workId as string, options, payload });
     } else {
-      runCreate({ kind: "create_distinct", options });
+      runCreate({ kind: "create_distinct", options, payload });
     }
   }
 

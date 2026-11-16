@@ -278,6 +278,24 @@ describe("quick add failures", () => {
     expect(second.requestId).toBe(first.requestId);
   });
 
+  it("retries the frozen payload when the form changed after a failed create", async () => {
+    mockResolve.mockResolvedValueOnce(resolveOutcome({ outcome: "ready" }));
+    mockCreateWork.mockRejectedValueOnce(new ApiError("locked", 503, "the storage is locked", true));
+    mockCreateWork.mockResolvedValueOnce(created("w-frozen"));
+    renderAdd();
+    await submitTitle();
+    await screen.findByRole("alert");
+
+    fireEvent.change(screen.getByLabelText("Title"), { target: { value: "A Different Story" } });
+    fireEvent.click(screen.getByRole("button", { name: "Retry" }));
+    expect((await screen.findByTestId("probe")).textContent).toBe("work-w-frozen");
+
+    const firstPayload = mockCreateWork.mock.calls[0][0] as { titles: { text: string }[] };
+    const secondPayload = mockCreateWork.mock.calls[1][0] as { titles: { text: string }[] };
+    expect(secondPayload).toEqual(firstPayload);
+    expect(secondPayload.titles[0].text).toBe("Neon Garden");
+  });
+
   it("re-resolves a stale candidate decision and keeps the input", async () => {
     const candidates = [{ work_id: "w-2", edition_id: null, evidence: ["evidence one"] }];
     mockResolve.mockResolvedValueOnce(
