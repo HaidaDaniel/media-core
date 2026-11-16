@@ -30,6 +30,10 @@ var ErrDestinationExists = errors.New("backup: destination already contains a da
 // the staged-snapshot validation and the atomic publish rename.
 var prePublishHook func(staged string)
 
+// stagedSyncHook is a test seam for a failure while flushing the staged
+// snapshot to stable storage, before any destination change.
+var stagedSyncHook func() error
+
 // RestoreOptions selects one restore of a validated archive.
 type RestoreOptions struct {
 	Archive  string
@@ -127,6 +131,16 @@ func Restore(ctx context.Context, opts RestoreOptions) (*RestoreResult, error) {
 		return nil, fmt.Errorf("backup: stage snapshot: %w", err)
 	}
 	src.Close()
+	if stagedSyncHook != nil {
+		if err := stagedSyncHook(); err != nil {
+			return nil, fmt.Errorf("backup: sync staged snapshot: %w", err)
+		}
+	}
+	// Flush the file itself before publishing its name; syncing only the
+	// directory after rename would expose unsynced data after a power cut.
+	if err := staged.Sync(); err != nil {
+		return nil, fmt.Errorf("backup: sync staged snapshot: %w", err)
+	}
 	if err := staged.Close(); err != nil {
 		return nil, fmt.Errorf("backup: close staged snapshot: %w", err)
 	}

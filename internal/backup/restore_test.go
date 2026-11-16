@@ -556,3 +556,23 @@ func TestRestoreRejectsSymlinkedDestinationBeforeCheckpoint(t *testing.T) {
 		t.Fatalf("destination symlink was replaced or removed: info=%v err=%v", info, err)
 	}
 }
+
+func TestRestoreStagedSyncFailureLeavesDestinationUntouched(t *testing.T) {
+	dest, destDB := seedProbeState(t, 3)
+	defer destDB.Close()
+	before := stateDBHash(t, dest)
+
+	src, srcDB := seedProbeState(t, 2)
+	archive := makeArchive(t, src, "sync-failure")
+	srcDB.Close()
+
+	oldHook := stagedSyncHook
+	stagedSyncHook = func() error { return errors.New("simulated fsync failure") }
+	defer func() { stagedSyncHook = oldHook }()
+	if _, err := Restore(context.Background(), RestoreOptions{Archive: archive, StateDir: dest, Force: true}); err == nil {
+		t.Fatal("staged sync failure unexpectedly succeeded")
+	}
+	if after := stateDBHash(t, dest); after != before {
+		t.Fatalf("destination database changed after a sync failure: %s -> %s", before, after)
+	}
+}
