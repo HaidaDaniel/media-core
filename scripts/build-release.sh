@@ -112,7 +112,7 @@ CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags "$LDFLAGS" -o "$OUT/medi
 echo "-- linking linux/arm64"
 CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -ldflags "$LDFLAGS" -o "$OUT/media-core-linux-arm64" ./cmd/media-core
 echo "-- format check: both artifacts are the expected ELF machine type"
-MEDIA_CORE_RELEASE_GATE=1 go test ./tests/packaging -run TestPackageReleaseArtifacts -count=1
+MEDIA_CORE_RELEASE_GATE=1 MEDIA_CORE_STAGE_DIR="$(pwd)/$STAGE" go test ./tests/packaging -run TestPackageReleaseArtifacts -count=1
 
 # -- 4. Smoke the host-matching artifact; report the limits for the rest.
 HOST_ARCH=$(uname -m)

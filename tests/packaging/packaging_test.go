@@ -12,6 +12,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"io/fs"
 	"net"
 	"net/http"
 	"os"
@@ -392,67 +393,233 @@ type webAssetsManifest struct {
 	Files  []webAssetEntry `json:"files"`
 }
 
-// TestPackageReleaseArtifactsManifest verifies a real manifest against real
-// staged files. The build script sets the staging directory while the files
-// still exist; a missing, malformed or self-referential manifest fails there.
-func TestPackageReleaseArtifactsManifest(t *testing.T) {
-	stage := os.Getenv(stageDirEnv)
-	if stage == "" {
-		t.Skip("staging directory is not set; run scripts/build-release.sh")
-	}
-	raw, err := os.ReadFile(filepath.Join(stage, "manifest.json"))
+func manifestEntry(name, content string) webAssetEntry {
+	sum := sha256.Sum256([]byte(content))
+	return webAssetEntry{Name: name, Size: int64(len(content)), SHA256: fmt.Sprintf("%x", sum)}
+}
+
+// verifyWebAssetsManifest proves that the manifest describes exactly the
+// regular files in the staged tree, including nested directories.
+func verifyWebAssetsManifest(stage string) error {
+	manifestPath := filepath.Join(stage, "manifest.json")
+	info, err := os.Lstat(manifestPath)
 	if err != nil {
-		t.Fatalf("read web asset manifest: %v", err)
+		return fmt.Errorf("read web asset manifest: %w", err)
+	}
+	if !info.Mode().IsRegular() {
+		return fmt.Errorf("manifest is not a regular file")
+	}
+	raw, err := os.ReadFile(manifestPath)
+	if err != nil {
+		return fmt.Errorf("read web asset manifest: %w", err)
 	}
 	var manifest webAssetsManifest
 	if err := json.Unmarshal(raw, &manifest); err != nil {
-		t.Fatalf("parse web asset manifest: %v", err)
+		return fmt.Errorf("parse web asset manifest: %w", err)
 	}
 	if manifest.Format != "media-core-webassets-v1" {
-		t.Fatalf("manifest format = %q, want media-core-webassets-v1", manifest.Format)
+		return fmt.Errorf("manifest format = %q, want media-core-webassets-v1", manifest.Format)
 	}
 	listed := map[string]bool{}
 	for _, entry := range manifest.Files {
 		if entry.Name == "manifest.json" {
-			t.Fatal("manifest contains a self-entry")
+			return fmt.Errorf("manifest contains a self-entry")
 		}
-		if entry.Name == "" || filepath.Clean(entry.Name) != entry.Name || filepath.IsAbs(entry.Name) {
-			t.Fatalf("unsafe manifest entry name %q", entry.Name)
+		if entry.Name == "" || filepath.IsAbs(entry.Name) || strings.Contains(entry.Name, `\`) ||
+			filepath.Clean(entry.Name) != entry.Name || strings.HasPrefix(entry.Name, "..") {
+			return fmt.Errorf("unsafe manifest entry name %q", entry.Name)
 		}
 		if listed[entry.Name] {
-			t.Fatalf("duplicate manifest entry %q", entry.Name)
+			return fmt.Errorf("duplicate manifest entry %q", entry.Name)
 		}
 		listed[entry.Name] = true
 		path := filepath.Join(stage, entry.Name)
-		info, err := os.Lstat(path)
+		fileInfo, err := os.Lstat(path)
 		if err != nil {
-			t.Fatalf("manifest entry %s is absent: %v", entry.Name, err)
+			return fmt.Errorf("manifest entry %s is absent: %w", entry.Name, err)
 		}
-		if !info.Mode().IsRegular() {
-			t.Fatalf("manifest entry %s is not a regular file", entry.Name)
+		if !fileInfo.Mode().IsRegular() {
+			return fmt.Errorf("manifest entry %s is not a regular file", entry.Name)
 		}
-		if info.Size() != entry.Size {
-			t.Fatalf("manifest entry %s size = %d, want %d", entry.Name, info.Size(), entry.Size)
+		if fileInfo.Size() != entry.Size {
+			return fmt.Errorf("manifest entry %s size = %d, want %d", entry.Name, fileInfo.Size(), entry.Size)
 		}
 		contents, err := os.ReadFile(path)
 		if err != nil {
-			t.Fatalf("read manifest entry %s: %v", entry.Name, err)
+			return fmt.Errorf("read manifest entry %s: %w", entry.Name, err)
 		}
 		sum := sha256.Sum256(contents)
 		if fmt.Sprintf("%x", sum) != entry.SHA256 {
-			t.Fatalf("manifest entry %s SHA-256 mismatch", entry.Name)
+			return fmt.Errorf("manifest entry %s SHA-256 mismatch", entry.Name)
 		}
 	}
-	entries, err := os.ReadDir(stage)
+	seen := map[string]bool{}
+	err = filepath.WalkDir(stage, func(path string, entry fs.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		if path == manifestPath {
+			return nil
+		}
+		rel, err := filepath.Rel(stage, path)
+		if err != nil {
+			return err
+		}
+		if entry.Type()&fs.ModeSymlink != 0 {
+			return fmt.Errorf("symlink in staged tree: %s", rel)
+		}
+		if entry.IsDir() {
+			return nil
+		}
+		if !listed[rel] {
+			return fmt.Errorf("staged file %s is absent from the manifest", rel)
+		}
+		seen[rel] = true
+		return nil
+	})
 	if err != nil {
-		t.Fatalf("read staging directory: %v", err)
+		return err
 	}
-	for _, e := range entries {
-		if e.Name() == "manifest.json" || e.IsDir() {
-			continue
-		}
-		if !listed[e.Name()] {
-			t.Fatalf("staged file %s is absent from the manifest", e.Name())
+	for name := range listed {
+		if !seen[name] {
+			return fmt.Errorf("manifest entry %s has no staged file", name)
 		}
 	}
+	return nil
+}
+
+func manifestStage() (string, error) {
+	stage := os.Getenv(stageDirEnv)
+	if stage == "" && os.Getenv(releaseGateEnv) == "1" {
+		return "", fmt.Errorf("release gate requires a staging directory; a manifest check cannot be skipped")
+	}
+	return stage, nil
+}
+
+func TestPackageReleaseArtifactsManifest(t *testing.T) {
+	stage, err := manifestStage()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if stage == "" {
+		t.Skip("staging directory is not set; run scripts/build-release.sh")
+	}
+	if err := verifyWebAssetsManifest(stage); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func writeStagingTree(t *testing.T, files map[string]string, manifest any) string {
+	t.Helper()
+	dir := t.TempDir()
+	for name, content := range files {
+		path := filepath.Join(dir, name)
+		if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+			t.Fatalf("mkdir for %s: %v", name, err)
+		}
+		if err := os.WriteFile(path, []byte(content), 0o600); err != nil {
+			t.Fatalf("write %s: %v", name, err)
+		}
+	}
+	raw, err := json.Marshal(manifest)
+	if err != nil {
+		t.Fatalf("marshal manifest: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "manifest.json"), raw, 0o600); err != nil {
+		t.Fatalf("write manifest: %v", err)
+	}
+	return dir
+}
+
+func validManifest() webAssetsManifest {
+	return webAssetsManifest{Format: "media-core-webassets-v1", Files: []webAssetEntry{
+		manifestEntry("index.html", "<html></html>"),
+		manifestEntry("assets/app.js", "console.log(1)"),
+		manifestEntry("assets/deep/style.css", "body{}"),
+	}}
+}
+
+func TestPackageReleaseArtifactsManifestRecursive(t *testing.T) {
+	files := map[string]string{
+		"index.html":            "<html></html>",
+		"assets/app.js":         "console.log(1)",
+		"assets/deep/style.css": "body{}",
+	}
+	t.Run("complete nested tree", func(t *testing.T) {
+		if err := verifyWebAssetsManifest(writeStagingTree(t, files, validManifest())); err != nil {
+			t.Fatalf("valid nested tree: %v", err)
+		}
+	})
+	t.Run("extra nested file", func(t *testing.T) {
+		more := map[string]string{"index.html": files["index.html"], "assets/app.js": files["assets/app.js"],
+			"assets/deep/style.css": files["assets/deep/style.css"], "assets/deep/extra.js": "hidden"}
+		m := validManifest()
+		if err := verifyWebAssetsManifest(writeStagingTree(t, more, m)); err == nil || !strings.Contains(err.Error(), "absent from the manifest") {
+			t.Fatalf("extra nested file: err = %v", err)
+		}
+	})
+	t.Run("missing file", func(t *testing.T) {
+		less := map[string]string{"index.html": files["index.html"], "assets/app.js": files["assets/app.js"]}
+		if err := verifyWebAssetsManifest(writeStagingTree(t, less, validManifest())); err == nil || !strings.Contains(err.Error(), "is absent") {
+			t.Fatalf("missing file: err = %v", err)
+		}
+	})
+	t.Run("changed hash", func(t *testing.T) {
+		m := validManifest()
+		m.Files[1].SHA256 = strings.Repeat("0", 64)
+		if err := verifyWebAssetsManifest(writeStagingTree(t, files, m)); err == nil || !strings.Contains(err.Error(), "SHA-256 mismatch") {
+			t.Fatalf("changed hash: err = %v", err)
+		}
+	})
+	t.Run("symlink in staged tree", func(t *testing.T) {
+		dir := writeStagingTree(t, files, validManifest())
+		if err := os.Symlink(filepath.Join(dir, "assets", "app.js"), filepath.Join(dir, "assets", "link.js")); err != nil {
+			t.Fatalf("symlink: %v", err)
+		}
+		if err := verifyWebAssetsManifest(dir); err == nil || !strings.Contains(err.Error(), "symlink") {
+			t.Fatalf("symlink in tree: err = %v", err)
+		}
+	})
+	t.Run("invalid path", func(t *testing.T) {
+		m := webAssetsManifest{Format: "media-core-webassets-v1", Files: []webAssetEntry{{Name: "../escape.txt", Size: 1, SHA256: "x"}}}
+		if err := verifyWebAssetsManifest(writeStagingTree(t, files, m)); err == nil || !strings.Contains(err.Error(), "unsafe manifest entry") {
+			t.Fatalf("invalid path: err = %v", err)
+		}
+	})
+	t.Run("absolute path", func(t *testing.T) {
+		m := webAssetsManifest{Format: "media-core-webassets-v1", Files: []webAssetEntry{{Name: "/etc/passwd", Size: 1, SHA256: "x"}}}
+		if err := verifyWebAssetsManifest(writeStagingTree(t, files, m)); err == nil || !strings.Contains(err.Error(), "unsafe manifest entry") {
+			t.Fatalf("absolute path: err = %v", err)
+		}
+	})
+	t.Run("duplicate entry", func(t *testing.T) {
+		m := validManifest()
+		m.Files = append(m.Files, m.Files[0])
+		if err := verifyWebAssetsManifest(writeStagingTree(t, files, m)); err == nil || !strings.Contains(err.Error(), "duplicate") {
+			t.Fatalf("duplicate entry: err = %v", err)
+		}
+	})
+	t.Run("self entry", func(t *testing.T) {
+		m := validManifest()
+		m.Files = append(m.Files, manifestEntry("manifest.json", "{}"))
+		if err := verifyWebAssetsManifest(writeStagingTree(t, files, m)); err == nil || !strings.Contains(err.Error(), "self-entry") {
+			t.Fatalf("self-entry: err = %v", err)
+		}
+	})
+	t.Run("malformed manifest", func(t *testing.T) {
+		dir := writeStagingTree(t, files, validManifest())
+		if err := os.WriteFile(filepath.Join(dir, "manifest.json"), []byte("{"), 0o600); err != nil {
+			t.Fatalf("corrupt manifest: %v", err)
+		}
+		if err := verifyWebAssetsManifest(dir); err == nil {
+			t.Fatal("malformed manifest must fail")
+		}
+	})
+	t.Run("gate without staging directory", func(t *testing.T) {
+		t.Setenv(releaseGateEnv, "1")
+		t.Setenv(stageDirEnv, "")
+		if _, err := manifestStage(); err == nil {
+			t.Fatal("release gate without a staging directory must fail")
+		}
+	})
 }

@@ -21,7 +21,7 @@ validates the assets before embedding them. The script:
    file's name, size and SHA-256 is written alongside and then verified at
    runtime against the real staged files: complete file set, no self-entry,
    matching sizes and hashes. An artifact gate run with
-   `MEDIA_CORE_RELEASE_GATE=1 go test ./tests/packaging -run TestPackageReleaseArtifacts`
+   `MEDIA_CORE_RELEASE_GATE=1 MEDIA_CORE_STAGE_DIR=internal/webassets/dist go test ./tests/packaging -run TestPackageReleaseArtifacts`
    fails if either release binary is missing; without the flag a local test
    run may skip when artifacts are absent.
 3. Swaps the validated build into `internal/webassets/dist` only after the
