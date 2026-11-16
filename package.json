@@ -2,6 +2,9 @@
   "name": "media-core-tooling",
   "private": true,
   "type": "module",
+  "scripts": {
+    "web:lint": "pnpm --dir web exec tsc --noEmit"
+  },
   "devDependencies": {
     "agentic-project-kit": "github:HaidaDaniel/AgenticProjectKit#v0.6.0"
   }

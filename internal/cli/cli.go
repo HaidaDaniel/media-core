@@ -48,7 +48,7 @@ commands:
   restore  restore a validated archive into an isolated or forced state dir
   owner    generate or show the owner secret for HTTP session login
   serve    run the HTTP server (loopback by default) with session login
-  mcp      reserved: MCP stdio (not implemented yet)
+  mcp      run MCP over stdio, or opt-in authenticated Streamable HTTP (--http)
 
 Run "media-core version" to print the build identity.
 `

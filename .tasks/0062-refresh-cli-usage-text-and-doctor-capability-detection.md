@@ -1,7 +1,7 @@
 # Task 0062 - Refresh CLI usage text and doctor capability detection
 
-State: todo
-Owner: none
+State: doing
+Owner: opencode-media-fix-20261116
 Mode: mvp
 Lane: application
 Scope: application,planning
@@ -26,6 +26,7 @@ Remove the stale "MCP not implemented" usage line and restore the doctor warning
 - internal/cli/cli.go
 - internal/cli/cli_test.go
 - package.json
+- web/package.json
 - docs/progress.md
 - .tasks/0062-refresh-cli-usage-text-and-doctor-capability-detection.md
 
@@ -70,7 +71,7 @@ Remove the stale "MCP not implemented" usage line and restore the doctor warning
 
 ## Notes
 
-- Milestone: M5. Post-implementation review remediation of stale operator-facing text and tooling health.
+- Milestone: M5. Post-implementation review remediation of stale operator-facing text and tooling health. Scope expanded before editing: doctor detects the web lint capability from web/package.json, so that manifest is included alongside the root script.
 - Unstarted implementation contract. Tests/commands above are to be created or made runnable by this task; none is claimed to pass today.
 - Before editing, read existing allowed source files supplied by completed dependencies. Missing paths are new files owned by this task, not existing context.
 - Only listed paths plus this task file may change. Do not edit other task contracts or generated agent instructions; task lifecycle is managed by APK.

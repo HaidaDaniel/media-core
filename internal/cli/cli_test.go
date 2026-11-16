@@ -114,3 +114,15 @@ func TestVersionLine(t *testing.T) {
 		t.Errorf("VersionLine() = %q, want the rendered identity", line)
 	}
 }
+
+func TestUsageDescribesImplementedMCP(t *testing.T) {
+	var out bytes.Buffer
+	Usage(&out)
+	text := out.String()
+	if strings.Contains(text, "reserved") || strings.Contains(text, "not implemented") {
+		t.Fatalf("usage still describes a reserved command: %q", text)
+	}
+	if !strings.Contains(text, "run MCP over stdio") || !strings.Contains(text, "--http") {
+		t.Fatalf("usage does not describe the implemented MCP modes: %q", text)
+	}
+}
