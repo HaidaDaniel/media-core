@@ -1,6 +1,6 @@
 # Task 0072 - Verify staged assets recursively in the release manifest gate
 
-State: doing
+State: done
 Owner: opencode-media-fix-20261116
 Mode: mvp
 Lane: packaging

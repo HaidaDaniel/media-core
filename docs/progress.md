@@ -145,7 +145,7 @@ Three findings were reproduced on HEAD 5c42bc5 and registered as tasks; all star
 
 - 0070 done — backup unit pins MEDIA_CORE_BIN to an absolute path; script rejects relative/missing binaries; unit invariants and systemd-like smoke covered by TestDeploymentUnits; independent review passed at candidate 540d3a5.
 - 0071 done — automatic archives get verified markers; 7/4/3 UTC retention with dry-run, lock and symlink-safe deletion; 9 unit tests and independent review passed at candidate 5137f08.
-- 0072 todo — P3: manifest verifier ignores unregistered files in nested directories; reproduced with an extra `assets/extra.js`.
+- 0072 done — manifest verifier walks the full staged tree; 11 negative/positive cases plus build-script gate; two review findings (scope note, gate docs) fixed; independent review passed at candidate 3823813.
 
 GitHub Actions CI for HEAD 5c42bc5 completed successfully (`verify`, conclusion success). Two non-failing annotations were reported: deprecation of Node 20 targets for pinned action majors and the upcoming `ubuntu-latest` Ubuntu 26 migration.
 
