@@ -1,6 +1,6 @@
 # Task 0062 - Refresh CLI usage text and doctor capability detection
 
-State: doing
+State: done
 Owner: opencode-media-fix-20261116
 Mode: mvp
 Lane: application
