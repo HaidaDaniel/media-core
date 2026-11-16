@@ -1,7 +1,7 @@
 # Task 0065 - Prevent late session inspection from clearing the CSRF token
 
-State: todo
-Owner: none
+State: done
+Owner: opencode-media-fix-20261116
 Mode: mvp
 Lane: web
 Scope: web
