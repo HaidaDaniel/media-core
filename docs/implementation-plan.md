@@ -1,6 +1,6 @@
 # Implementation plan and requirement coverage
 
-This is the inventory of **59 implementation tasks, 0005–0063**: the original 45 MVP tasks and 14 post-implementation remediation tasks registered after repository review. Tasks 0005–0049 are implemented and done; 0050–0063 start as todo. Existing 0001 canceled, 0002 done and 0003 todo remain unchanged. No task here authorizes production deployment.
+This is the inventory of **64 implementation tasks, 0005–0068**: the original 45 MVP tasks, 14 post-implementation remediation tasks and 5 post-implementation audit tasks. Tasks 0005–0063 are implemented and done; 0064–0068 start as todo. Existing 0001 canceled, 0002 done and 0003 todo remain unchanged. No task here authorizes production deployment.
 
 The task Markdown is the execution contract: context, narrow allowed paths, steps, invariants, acceptance, negative cases, focused verification and review questions. Verification entries are JSON objects; each task records its own evidence when run. Use the installed APK 0.6.0 syntax.
 
@@ -69,6 +69,11 @@ Each row lists direct dependencies; numbering is not execution order (0049 is an
 | [0061](../.tasks/0061-align-graceful-shutdown-error-semantics.md) | Align graceful-shutdown error semantics | 0024, 0048 | low | M5 | todo |
 | [0062](../.tasks/0062-refresh-cli-usage-text-and-doctor-capability-detection.md) | Refresh CLI usage text and doctor capability detection | 0049 | low | M5 | todo |
 | [0063](../.tasks/0063-refresh-stale-product-and-progress-documentation.md) | Refresh stale product and progress documentation | 0050, 0052, 0053, 0054, 0055, 0056, 0057, 0058, 0059, 0060, 0061, 0062 | medium | M5 | todo |
+| [0064](../.tasks/0064-preserve-uncheckpointed-wal-data-on-interrupted-restore.md) | Preserve uncheckpointed WAL data on interrupted restore | 0023, 0059 | high | M5 | todo |
+| [0065](../.tasks/0065-prevent-late-session-inspection-from-clearing-the-csrf-token.md) | Prevent late session inspection from clearing the CSRF token | 0030, 0050 | medium | M5 | todo |
+| [0066](../.tasks/0066-make-the-release-gate-verify-real-artifacts-and-manifest-json.md) | Make the release gate verify real artifacts and manifest.json | 0047, 0058 | medium | M5 | todo |
+| [0067](../.tasks/0067-prepare-ci-hardened-service-units-and-a-backup-runbook.md) | Prepare CI, hardened service units and a backup runbook | 0047, 0058, 0066 | high | M5 | todo |
+| [0068](../.tasks/0068-reconcile-operator-documentation-with-the-implemented-cli.md) | Reconcile operator documentation with the implemented CLI | 0064, 0065, 0066, 0067 | medium | M5 | todo |
 
 ## Execution path and observable increments
 
@@ -97,7 +102,7 @@ Every requirement has implementation ownership. Scenarios A–G live in docs/pro
 
 | Requirement | Design document | Implementation task(s) | Acceptance scenario |
 | --- | --- | --- | --- |
-| R01 | [Architecture](architecture.md), [contracts](application-contract.md) | 0005, 0006, 0007, 0009, 0049, 0051, 0052, 0062, 0063 | G |
+| R01 | [Architecture](architecture.md), [contracts](application-contract.md) | 0005, 0006, 0007, 0009, 0049, 0051, 0052, 0062, 0063, 0068 | G |
 | R02 | [Domain](domain-model.md), [Web](web-ui.md) | 0010, 0011, 0012, 0013, 0026, 0032, 0039 | A, C |
 | R03 | [Domain](domain-model.md), [contracts](application-contract.md) | 0010, 0013, 0016, 0018, 0031, 0035, 0038 | A, C |
 | R04 | [Domain](domain-model.md) | 0011, 0014, 0016, 0027, 0034, 0040 | A, D, E |
@@ -106,14 +111,14 @@ Every requirement has implementation ownership. Scenarios A–G live in docs/pro
 | R07 | [Domain](domain-model.md), [integration](integration-contract.md) | 0019, 0028, 0035, 0041 | A, C |
 | R08 | [Domain](domain-model.md), [contracts](application-contract.md) | 0020, 0029, 0033, 0041, 0045 | A, C |
 | R09 | [Domain](domain-model.md), [contracts](application-contract.md) | 0012, 0019, 0026, 0032, 0039, 0044, 0045, 0053 | C |
-| R10 | [Web](web-ui.md), [contracts](application-contract.md) | 0024, 0025, 0026, 0027, 0028, 0029, 0030, 0031, 0032, 0033, 0034, 0035, 0036, 0045, 0046, 0050, 0060 | A, B, C, D, G |
+| R10 | [Web](web-ui.md), [contracts](application-contract.md) | 0024, 0025, 0026, 0027, 0028, 0029, 0030, 0031, 0032, 0033, 0034, 0035, 0036, 0045, 0046, 0050, 0060, 0065 | A, B, C, D, G |
 | R11 | [Hermes](hermes.md) | 0037, 0038, 0039, 0040, 0041, 0048, 0056 | A, B, C, D, G |
 | R12 | [Contracts](application-contract.md), [architecture](architecture.md) | 0007, 0012, 0025, 0026, 0027, 0028, 0029, 0038, 0039, 0040, 0041, 0045, 0046, 0057 | A, B, C, D |
 | R13 | [Architecture](architecture.md) | 0006, 0024, 0030, 0047, 0061 | G |
-| R14 | [Architecture](architecture.md), [requirements](product/requirements.md) | 0022, 0023, 0049, 0047 | F |
+| R14 | [Architecture](architecture.md), [requirements](product/requirements.md) | 0022, 0023, 0049, 0047, 0064 | F |
 | R15 | [Architecture](architecture.md), [risks](engineering/risk-register.md) | 0008, 0009, 0022, 0023, 0044, 0055, 0059 | B, C, F |
 | R16 | [Integration](integration-contract.md) | 0042, 0043 | E |
-| R17 | [Architecture](architecture.md), [technology](engineering/tech-options.md) | 0030, 0047, 0048, 0058 | F, G |
+| R17 | [Architecture](architecture.md), [technology](engineering/tech-options.md) | 0030, 0047, 0048, 0058, 0066, 0067 | F, G |
 | R18 | [Scope](scope.md), [integration](integration-contract.md), [contracts](application-contract.md) | 0012, 0019, 0020, 0032, 0041, 0045, 0048 | A, C, G |
 
 ## Planning verification boundary
