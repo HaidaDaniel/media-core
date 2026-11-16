@@ -1,6 +1,6 @@
 # Task 0047 - Embed Web assets and verify complete deployable backup round trip
 
-State: doing
+State: done
 Owner: opencode-media-20261110
 Mode: mvp
 Lane: packaging
