@@ -104,19 +104,26 @@ requests, and the session cookie is bound to it.
 
 ### Owner secret
 
-The owner secret is generated on first serve (or with the owner command)
-and stored in the state directory with mode 0600. It never leaves the
-state directory: backups and exports package only the database, and
-restore retains the destination's own secret file. A lost secret is
-recovered by re-generating and re-logging in; sessions are in-memory and
-do not survive a restart.
+The owner secret is created only by `media-core owner generate --state-dir
+<dir>` and stored in the state directory with mode 0600; neither `init` nor
+`serve` creates it, and login fails with a distinct "not configured" 401
+until it exists. It never leaves the state directory: backups and exports
+package only the database, and restore retains the destination's own
+secret file. Regeneration is idempotent and never overwrites an existing
+secret, so a forgotten secret is an operator recovery decision, not a
+`generate` retry. Sessions are in-memory and do not survive a restart.
 
 ## MCP
 
 `media-core mcp --state-dir <dir>` speaks MCP over stdio with the same
 state; it starts no listener and needs no Node. Clients connect over a
 local pipe or an SSH-forwarded stdio session, which keeps the same
-loopback-only posture as the service.
+loopback-only posture as the service. `media-core mcp --http` opts into a
+loopback Streamable HTTP listener mounted only at `/mcp`; every request
+needs the state directory's owner secret as a Bearer token, and a
+non-loopback bind requires the same allow-remote + https public-origin +
+TLS trio as `serve`. The Origin guard is configured by the SDK; `serve`
+never mounts an MCP endpoint.
 
 ## Unsupported architectures
 

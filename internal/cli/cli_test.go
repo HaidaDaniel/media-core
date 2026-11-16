@@ -125,4 +125,9 @@ func TestUsageDescribesImplementedMCP(t *testing.T) {
 	if !strings.Contains(text, "run MCP over stdio") || !strings.Contains(text, "--http") {
 		t.Fatalf("usage does not describe the implemented MCP modes: %q", text)
 	}
+	for _, command := range []string{"export", "doctor", "releases", "import", "pending-imports"} {
+		if !strings.Contains(text, command+" ") {
+			t.Fatalf("usage omits the implemented command %q: %q", command, text)
+		}
+	}
 }

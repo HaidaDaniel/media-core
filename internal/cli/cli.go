@@ -44,8 +44,13 @@ commands:
   origin   assert, confirm or revoke an explicit origin claim on an edition
   related  traverse related works or editions in both directions, bounded
   activity recent personal activity and complete work/edition history
+  releases list imported release history and active bindings
+  import    stage Release Watcher events from a file or stdin
+  pending-imports list imported events awaiting an explicit edition binding
   backup   create a consistent snapshot archive with an integrity manifest
   restore  restore a validated archive into an isolated or forced state dir
+  export   write a readable versioned JSON export of the library
+  doctor   diagnose configuration, schema and permissions without writes
   owner    generate or show the owner secret for HTTP session login
   serve    run the HTTP server (loopback by default) with session login
   mcp      run MCP over stdio, or opt-in authenticated Streamable HTTP (--http)

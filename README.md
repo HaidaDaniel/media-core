@@ -33,9 +33,13 @@ python3 scripts/check-planning.py
 go build ./...
 go vet ./...
 go test ./...
+go test -race ./...
 pnpm --dir web exec tsc --noEmit
 pnpm --dir web exec vitest run
-bash -n scripts/build-release.sh && go test ./tests/packaging -run TestPackageReleaseArtifacts
+pnpm --dir web exec playwright install --with-deps chromium
+pnpm --dir web exec playwright test
+bash -n scripts/build-release.sh scripts/backup-smoke.sh
+go test ./tests/packaging -run TestPackageReleaseArtifacts -count=1
 ```
 
-`python3 scripts/check-planning.py` validates the current task graph and documentation links; it does not replace application tests. Browser end-to-end scenarios run separately with `pnpm --dir web exec playwright test`.
+The same checks run in `.github/workflows/ci.yml`; a separate non-publishing `.github/workflows/release-gate.yml` builds and uploads local artifacts only. `python3 scripts/check-planning.py` validates the current task graph and documentation links; it does not replace application tests. `bash scripts/backup-smoke.sh <state-dir> <backup-dir>` proves that a backup can be restored into a scratch state directory without touching live data.
