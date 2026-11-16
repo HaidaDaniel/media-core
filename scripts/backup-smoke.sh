@@ -8,7 +8,16 @@ set -euo pipefail
 
 STATE_DIR=${1:?usage: backup-smoke.sh <state-dir> <dest-dir>}
 DEST_DIR=${2:?usage: backup-smoke.sh <state-dir> <dest-dir>}
-BIN=${MEDIA_CORE_BIN:-media-core}
+BIN=${MEDIA_CORE_BIN:-/opt/media-core/media-core}
+
+if [[ "$BIN" != /* ]]; then
+  echo "error: MEDIA_CORE_BIN must be an absolute path, got: $BIN" >&2
+  exit 2
+fi
+if [ ! -f "$BIN" ] || [ ! -x "$BIN" ]; then
+  echo "error: media-core binary is missing or not executable: $BIN" >&2
+  exit 2
+fi
 
 for path in "$STATE_DIR" "$DEST_DIR"; do
   if [ ! -d "$path" ]; then

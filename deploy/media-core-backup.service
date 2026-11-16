@@ -4,6 +4,7 @@ Documentation=man:systemd.service(5)
 
 [Service]
 Type=oneshot
+Environment=MEDIA_CORE_BIN=/opt/media-core/media-core
 User=media-core
 Group=media-core
 WorkingDirectory=/opt/media-core
