@@ -474,7 +474,32 @@ func (s *Service) createEntry(ctx context.Context, req AdditionRequest, dec *sto
 		} else if found {
 			return r, nil
 		}
-		return existingResult(ctx, s, res.Matched)
+		r, err := existingResult(ctx, s, res.Matched)
+		if err != nil {
+			return AdditionResult{}, err
+		}
+		b, err := json.Marshal(r)
+		if err != nil {
+			return AdditionResult{}, &AppError{Code: ErrInternalError, Message: "encode existing result", RequestID: req.RequestID, Actor: req.Actor.Principal}
+		}
+		if err := s.db.ReserveJournal(ctx, s.now(), store.JournalInput{
+			RequestID:   req.RequestID,
+			Operation:   "create_library_entry",
+			RequestHash: hash,
+			ResultJSON:  string(b),
+			Actor:       req.Actor.Principal,
+			Origin:      string(req.Actor.Origin),
+			Identity:    req.Actor.Identity,
+		}); err != nil {
+			// A concurrent identical call may have won the key first.
+			if found, stored, lerr := s.lookupStoredResult(ctx, req, hash); lerr != nil {
+				return AdditionResult{}, lerr
+			} else if found {
+				return stored, nil
+			}
+			return AdditionResult{}, mapStoreError(err, req.MutationBase)
+		}
+		return r, nil
 	case store.EntryCandidates:
 		// The same replay settlement applies when the in-transaction
 		// candidate recheck meets the winner's committed titles.

@@ -203,6 +203,49 @@ func TestAdditionExistingIdentityCreatedFalse(t *testing.T) {
 	}
 }
 
+// TestAdditionIdentityMatchReservesKey proves an exact identity match settles
+// the idempotency key: an exact retry replays and a changed payload on the
+// same key conflicts instead of creating a second work.
+func TestAdditionIdentityMatchReservesKey(t *testing.T) {
+	s := newTestService(t)
+	ctx := context.Background()
+	ref := []store.ReferenceInput{{Provider: appStr("mal"), ExternalID: appStr("anime/77")}}
+	first := baseReq(t, "id-match-1", "Journaled Story")
+	first.Kind = appKind(domain.KindManga)
+	first.References = ref
+	created, err := s.CreateLibraryEntry(ctx, first)
+	if err != nil {
+		t.Fatalf("first create: %v", err)
+	}
+	match := baseReq(t, "id-match-2", "Journaled Story")
+	match.Kind = appKind(domain.KindManga)
+	match.References = ref
+	res, err := s.CreateLibraryEntry(ctx, match)
+	if err != nil {
+		t.Fatalf("identity match: %v", err)
+	}
+	if res.Created || res.Reason == nil || *res.Reason != "already_exists" || res.WorkID != created.WorkID {
+		t.Fatalf("match = %+v, want already_exists for %s", res, created.WorkID)
+	}
+	retry, err := s.CreateLibraryEntry(ctx, match)
+	if err != nil {
+		t.Fatalf("exact retry: %v", err)
+	}
+	if !additionResultsEqual(retry, res) {
+		t.Fatalf("retry = %+v, want stored result %+v", retry, res)
+	}
+	changed := baseReq(t, "id-match-2", "A Different Story")
+	changed.References = ref
+	if _, err := s.CreateLibraryEntry(ctx, changed); err == nil {
+		t.Fatal("changed payload on the reserved key: want a conflict")
+	} else if ae := appError(t, err); ae.Code != ErrConflict {
+		t.Fatalf("error = %+v, want conflict", ae)
+	}
+	if countWorks(t, s) != 1 {
+		t.Fatalf("works = %d, want 1", countWorks(t, s))
+	}
+}
+
 // TestAdditionContradictoryIdentityFailsWithoutWrites proves contradictory
 // explicit work/kind/language against a matched identity is an
 // identity_conflict with no writes.
