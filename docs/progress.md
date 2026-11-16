@@ -153,7 +153,7 @@ GitHub Actions CI for HEAD 5c42bc5 completed successfully (`verify`, conclusion 
 
 An independent review of HEAD 76f4195 confirmed three further defects; each has its own task.
 
-- 0073 todo — P1: restore synced the directory but not the staged database file before publication.
+- 0073 done — staged snapshot is fsynced before rename; sync-failure regression leaves destination untouched; independent review passed at candidate ff6eddb.
 - 0074 todo — P1: two concurrent backup creates with one name can pass ErrExists and the later rename silently replaces the first archive.
 - 0075 todo — P2: the web session generation advanced after the awaited login/logout call, leaving a narrow stale-GET clobber window.
 

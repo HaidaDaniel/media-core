@@ -1,7 +1,7 @@
 # Task 0073 - Fsync the staged database before restore publication
 
-State: todo
-Owner: none
+State: done
+Owner: opencode-media-fix-20261116
 Mode: mvp
 Lane: reliability
 Scope: reliability,storage
