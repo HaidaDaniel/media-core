@@ -10,6 +10,10 @@ Repository docs and task files are the source of truth.
 - Stay inside the task allowed files.
 - Do not add dependencies without updating docs/decisions.md.
 - Update docs/progress.md when task status changes.
+- Use `<repo>/tmp/apk/` for intermediate research, reproducers, temporary scripts, and notes; keep required reports, evidence, and final artifacts outside ignored scratch.
+- Match CI to project stage and explicit requirements: do not mandate hosted CI for discovery or MVP without a concrete reason; preserve quality.required and approved CI contracts.
+- Use the backlog for durable future ideas only when the human asks; never auto-promote backlog items or treat them as executable tasks.
+- Use document proposals for optional engineering ideas, research, experiments, and future documentation plans only when the human asks to preserve information; never auto-accept a proposal or treat it as canonical or implemented.
 
 ## Default Style
 
