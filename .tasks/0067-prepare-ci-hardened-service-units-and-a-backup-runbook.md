@@ -1,6 +1,6 @@
 # Task 0067 - Prepare CI, hardened service units and a backup runbook
 
-State: doing
+State: done
 Owner: opencode-media-fix-20261116
 Mode: mvp
 Lane: reliability
