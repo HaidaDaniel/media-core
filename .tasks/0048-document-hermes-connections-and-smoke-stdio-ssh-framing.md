@@ -1,6 +1,6 @@
 # Task 0048 - MCP connectivity for any agent: stdio and Streamable HTTP, documented and smoked
 
-State: doing
+State: done
 Owner: opencode-media-20261110
 Mode: mvp
 Lane: mcp
@@ -31,7 +31,6 @@ Prepare media-core to work with Hermes and any other MCP agent over both support
 - docs/progress.md
 - package.json
 - pnpm-lock.yaml
-
 - .tasks/0048-document-hermes-connections-and-smoke-stdio-ssh-framing.md
 
 ## Files forbidden to edit
