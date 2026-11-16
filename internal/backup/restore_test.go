@@ -291,6 +291,14 @@ func TestRestoreOffBuildSchema(t *testing.T) {
 			t.Fatalf("Restore err = %v, want ErrSchemaPending", err)
 		}
 	})
+	t.Run("current schema with an incomplete ledger", func(t *testing.T) {
+		// SyntheticArchive writes only the named version. A matching maximum
+		// alone must not make a ledger current: earlier migrations are absent.
+		_, err := Restore(context.Background(), RestoreOptions{Archive: build(current), StateDir: t.TempDir()})
+		if !errors.Is(err, store.ErrSchemaPending) {
+			t.Fatalf("Restore err = %v, want ErrSchemaPending", err)
+		}
+	})
 }
 
 // TestRestoreRetainsOwnerSecret replaces only the database: other files in

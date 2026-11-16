@@ -198,31 +198,39 @@ func applyMigration(db *sql.DB, m migration) error {
 // rejected with a distinct error so the caller can report guidance instead
 // of hot-upgrading under a running server.
 func CheckSchema(db *sql.DB) error {
-	var count int
-	var max int
-	err := db.QueryRow(`SELECT COUNT(*), COALESCE(MAX(version), 0) FROM schema_migrations`).Scan(&count, &max)
+	applied, err := appliedVersions(db)
 	if err != nil {
 		if isMissingTable(err) {
 			return fmt.Errorf("store: %w", ErrSchemaMissing)
 		}
-		return fmt.Errorf("store: read schema ledger: %w", err)
+		return err
 	}
-	current, err := currentSchemaVersion()
+	migs, err := loadMigrations()
 	if err != nil {
 		return err
 	}
-	return schemaStateError(count, max, current)
+	if err := schemaStateError(applied, migs); err != nil {
+		return fmt.Errorf("store: %w", err)
+	}
+	return nil
 }
 
-// schemaStateError decides the boundary for a ledger state.
-func schemaStateError(count, max, current int) error {
-	switch {
-	case count == 0:
+// schemaStateError decides the boundary for a complete ledger state: every
+// embedded migration must be present, no applied version may be newer.
+func schemaStateError(applied map[int]bool, migs []migration) error {
+	if len(applied) == 0 {
 		return ErrSchemaMissing
-	case max < current:
-		return ErrSchemaPending
-	case max > current:
-		return ErrSchemaNewer
+	}
+	current := migs[len(migs)-1].Version
+	for v := range applied {
+		if v > current {
+			return ErrSchemaNewer
+		}
+	}
+	for _, m := range migs {
+		if !applied[m.Version] {
+			return ErrSchemaPending
+		}
 	}
 	return nil
 }

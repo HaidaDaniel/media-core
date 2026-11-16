@@ -244,23 +244,51 @@ func TestMigrationCheckSchemaNewer(t *testing.T) {
 
 // TestSchemaStateError pins the boundary decision for every ledger state.
 func TestSchemaStateError(t *testing.T) {
+	migs := []migration{{Version: 1}, {Version: 2}, {Version: 3}}
+	set := func(versions ...int) map[int]bool {
+		out := map[int]bool{}
+		for _, v := range versions {
+			out[v] = true
+		}
+		return out
+	}
 	cases := []struct {
 		name    string
-		count   int
-		max     int
-		current int
+		applied map[int]bool
 		want    error
 	}{
-		{"missing", 0, 0, 3, ErrSchemaMissing},
-		{"pending", 2, 2, 3, ErrSchemaPending},
-		{"newer", 4, 5, 3, ErrSchemaNewer},
-		{"current", 3, 3, 3, nil},
+		{"missing", set(), ErrSchemaMissing},
+		{"pending", set(1, 2), ErrSchemaPending},
+		{"newer", set(1, 2, 3, 5), ErrSchemaNewer},
+		{"current", set(1, 2, 3), nil},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			if err := schemaStateError(c.count, c.max, c.current); !errors.Is(err, c.want) {
-				t.Fatalf("schemaStateError(%d, %d, %d) = %v, want %v", c.count, c.max, c.current, err, c.want)
+			if err := schemaStateError(c.applied, migs); !errors.Is(err, c.want) {
+				t.Fatalf("schemaStateError(%v) = %v, want %v", c.applied, err, c.want)
 			}
 		})
+	}
+	// A ledger whose maximum equals the current version but which is missing
+	// an earlier migration must be rejected as pending.
+	if err := schemaStateError(set(1, 3), migs); !errors.Is(err, ErrSchemaPending) {
+		t.Fatalf("ledger with a gap = %v, want ErrSchemaPending", err)
+	}
+}
+
+func TestMigrationCheckSchemaRejectsIncompleteLedger(t *testing.T) {
+	db := openRaw(t, t.TempDir())
+	if err := ensureLedger(db); err != nil {
+		t.Fatalf("ensureLedger: %v", err)
+	}
+	current, err := currentSchemaVersion()
+	if err != nil {
+		t.Fatalf("currentSchemaVersion: %v", err)
+	}
+	if _, err := db.Exec(`INSERT INTO schema_migrations (version, name, applied_at) VALUES (?, 'latest_only.sql', '2026-01-01T00:00:00Z')`, current); err != nil {
+		t.Fatalf("insert latest-only ledger row: %v", err)
+	}
+	if err := CheckSchema(db); !errors.Is(err, ErrSchemaPending) {
+		t.Fatalf("CheckSchema on a latest-only ledger: %v, want ErrSchemaPending", err)
 	}
 }
