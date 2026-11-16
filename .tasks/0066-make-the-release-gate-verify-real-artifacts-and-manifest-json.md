@@ -1,7 +1,7 @@
 # Task 0066 - Make the release gate verify real artifacts and manifest.json
 
-State: todo
-Owner: none
+State: done
+Owner: opencode-media-fix-20261116
 Mode: mvp
 Lane: packaging
 Scope: packaging

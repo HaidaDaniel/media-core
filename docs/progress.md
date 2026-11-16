@@ -134,7 +134,7 @@ A fresh audit reproduced five findings on committed main; each has its own task 
 
 - 0064 done — restore checkpoints the destination before sidecar removal, syncs after publication and rejects symlinked destinations; regression reproducer fails on old code; focused verification and independent review passed at candidates ce7ead7/417f325.
 - 0065 done — session inspection carries a generation guard; late GET responses cannot overwrite or clear a token from a completed login/logout; three regression cases fail on old code; focused verification passed at candidate 125dca3.
-- 0066 todo — P2: release gate skipped with missing artifacts and used a Bash string search instead of runtime manifest verification.
+- 0066 done — manifest verified at runtime against staged files; release gate fails on missing binaries; full local build exercised the verifier; focused verification passed at candidate 955012c.
 - 0067 todo — P2: no CI, systemd units, first-run runbook or backup/restore smoke automation.
 - 0068 todo — P3: CLI usage, owner-secret attribution, restore wording and a title limit contradict the code.
 
