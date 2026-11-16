@@ -1,7 +1,7 @@
 # Task 0057 - Stop echoing raw internal errors to clients
 
-State: todo
-Owner: none
+State: done
+Owner: opencode-media-fix-20261116
 Mode: mvp
 Lane: http
 Scope: http,mcp
