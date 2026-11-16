@@ -118,6 +118,11 @@ func (l *MaintenanceLock) Release() error {
 	return closeErr
 }
 
+// VerifyPathChain is the shared path-chain check for callers that create
+// state directories before they can acquire a maintenance lock. It rejects
+// a state dir whose existing path components include a symlink.
+func VerifyPathChain(stateDir string) error { return verifyPathChain(stateDir) }
+
 // verifyPathChain rejects the state dir when it or any existing parent is
 // a symlink, so directory creation and lock placement cannot be
 // redirected through a link.

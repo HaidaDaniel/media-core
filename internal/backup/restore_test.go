@@ -401,3 +401,37 @@ func TestRestoreReadOnlyDestination(t *testing.T) {
 		t.Fatalf("destination database changed despite the failed restore")
 	}
 }
+
+// TestRestoreRejectsSymlinkedParentBeforeCreation proves the destination
+// path chain is verified before MkdirAll can create a directory through a
+// symlinked parent.
+func TestRestoreRejectsSymlinkedParentBeforeCreation(t *testing.T) {
+	src, db := initState(t)
+	archive := makeArchive(t, src, "symlink-parent")
+	db.Close()
+
+	base := t.TempDir()
+	real := filepath.Join(base, "real")
+	if err := os.Mkdir(real, 0o700); err != nil {
+		t.Fatalf("mkdir real: %v", err)
+	}
+	link := filepath.Join(base, "link")
+	if err := os.Symlink(real, link); err != nil {
+		t.Fatalf("symlink: %v", err)
+	}
+	dest := filepath.Join(link, "dest")
+	_, err := Restore(context.Background(), RestoreOptions{Archive: archive, StateDir: dest})
+	if !errors.Is(err, store.ErrSymlink) {
+		t.Fatalf("Restore err = %v, want ErrSymlink", err)
+	}
+	if _, statErr := os.Lstat(dest); !os.IsNotExist(statErr) {
+		t.Fatalf("destination %s was created through the symlink", dest)
+	}
+	entries, err := os.ReadDir(real)
+	if err != nil {
+		t.Fatalf("read real dir: %v", err)
+	}
+	if len(entries) != 0 {
+		t.Fatalf("symlink target gained %d entries", len(entries))
+	}
+}

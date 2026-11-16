@@ -1,7 +1,7 @@
 # Task 0059 - Verify restore paths before creating directories
 
-State: todo
-Owner: none
+State: doing
+Owner: opencode-media-fix-20261116
 Mode: mvp
 Lane: reliability
 Scope: reliability,storage
@@ -26,6 +26,8 @@ Reject a symlinked state-directory chain before `MkdirAll` can create anything t
 
 - internal/backup/restore.go
 - internal/backup/restore_test.go
+- internal/store/maintenance.go
+- internal/store/maintenance_test.go
 - docs/progress.md
 - .tasks/0059-verify-restore-paths-before-creating-directories.md
 
@@ -70,7 +72,7 @@ Reject a symlinked state-directory chain before `MkdirAll` can create anything t
 
 ## Notes
 
-- Milestone: M5. Post-implementation review remediation of path verification ordering.
+- Milestone: M5. Post-implementation review remediation of path verification ordering. Scope expanded before editing: the shared path-chain guard is unexported in internal/store, so this task may add a thin exported wrapper there rather than duplicating symlink rules in the backup package.
 - Unstarted implementation contract. Tests/commands above are to be created or made runnable by this task; none is claimed to pass today.
 - Before editing, read existing allowed source files supplied by completed dependencies. Missing paths are new files owned by this task, not existing context.
 - Only listed paths plus this task file may change. Do not edit other task contracts or generated agent instructions; task lifecycle is managed by APK.

@@ -79,6 +79,11 @@ func Restore(ctx context.Context, opts RestoreOptions) (*RestoreResult, error) {
 		return nil, fmt.Errorf("backup: stat destination: %w", err)
 	}
 
+	// Establish path trust before creating anything: MkdirAll must not be
+	// able to follow a symlinked parent component into another directory.
+	if err := store.VerifyPathChain(opts.StateDir); err != nil {
+		return nil, err
+	}
 	if err := os.MkdirAll(opts.StateDir, 0o700); err != nil {
 		return nil, fmt.Errorf("backup: create state dir: %w", err)
 	}
