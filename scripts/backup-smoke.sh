@@ -8,7 +8,13 @@ set -euo pipefail
 
 STATE_DIR=${1:?usage: backup-smoke.sh <state-dir> <dest-dir>}
 DEST_DIR=${2:?usage: backup-smoke.sh <state-dir> <dest-dir>}
+PREFIX=${3:-media-core-smoke-}
 BIN=${MEDIA_CORE_BIN:-/opt/media-core/media-core}
+SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+
+case "$PREFIX" in
+  *[!A-Za-z0-9-]*) echo "error: unsafe archive prefix: $PREFIX" >&2; exit 2 ;;
+esac
 
 if [[ "$BIN" != /* ]]; then
   echo "error: MEDIA_CORE_BIN must be an absolute path, got: $BIN" >&2
@@ -29,7 +35,7 @@ done
 TMP=$(mktemp -d)
 trap 'rm -rf "$TMP"' EXIT
 
-NAME="media-core-smoke-$(date -u +%Y%m%dT%H%M%SZ)"
+NAME="${PREFIX}$(date -u +%Y%m%dT%H%M%SZ)"
 ENVELOPE=$("$BIN" backup create --state-dir "$STATE_DIR" --dest "$DEST_DIR" --name "$NAME")
 ARCHIVE=$(python3 -c 'import json,sys; print(json.load(sys.stdin)["data"]["archive"])' <<<"$ENVELOPE")
 if [ ! -d "$ARCHIVE" ]; then
@@ -40,4 +46,10 @@ fi
 RESTORE_DIR="$TMP/restored"
 "$BIN" restore "$ARCHIVE" --state-dir "$RESTORE_DIR" --force >/dev/null
 "$BIN" list --state-dir "$RESTORE_DIR" >/dev/null
+MARKER="$ARCHIVE.verified"
+printf 'verified %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$MARKER"
+chmod 0600 "$MARKER"
+if [ "$PREFIX" = "media-core-auto-" ]; then
+  python3 "$SCRIPT_DIR/backup_retention.py" "$DEST_DIR" >/dev/null
+fi
 echo "backup smoke ok: $ARCHIVE"

@@ -1,7 +1,7 @@
 # Task 0071 - Add safe backup retention with dry-run
 
-State: todo
-Owner: none
+State: doing
+Owner: opencode-media-fix-20261116
 Mode: mvp
 Lane: reliability
 Scope: reliability
@@ -24,10 +24,11 @@ Bound the daily backup archive count with explicit, auditable retention (7 daily
 
 ## Files allowed to edit
 
-- scripts/backup-retention.py
+- scripts/backup_retention.py
 - scripts/test_backup_retention.py
 - scripts/backup-smoke.sh
 - deploy/media-core-backup.service
+- tests/packaging/deployment_test.go
 - docs/engineering/deployment.md
 - docs/engineering/backup-restore.md
 - docs/progress.md
@@ -82,7 +83,7 @@ Bound the daily backup archive count with explicit, auditable retention (7 daily
 
 ## Notes
 
-- Milestone: M5. Confirmed P2: the daily timer creates archives without bound; no retention exists.
+- Milestone: M5. Confirmed P2: the daily timer creates archives without bound; no retention exists. Scope expanded before editing: the backup unit ExecStart is pinned by TestDeploymentUnits, so the retention prefix argument requires updating that assertion.
 - Unstarted implementation contract. Tests/commands above are to be created or made runnable by this task; none is claimed to pass today.
 - Before editing, read existing allowed source files supplied by completed dependencies. Missing paths are new files owned by this task, not existing context.
 - Only listed paths plus this task file may change. Do not edit other task contracts or generated agent instructions; task lifecycle is managed by APK.

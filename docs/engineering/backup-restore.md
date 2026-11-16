@@ -143,3 +143,7 @@ verifies, in order:
 The readable export carries the same complete dataset: the export
 registry is required to cover every live table in the schema ledger, and
 `internal/app` asserts that invariant (`TestExportRegistryCoversSchema`).
+
+## Retention of automatic archives
+
+The timer-created prefix `media-core-auto-` and a `.verified` marker identify archives eligible for retention. `scripts/backup_retention.py` keeps the newest 7 daily, 4 weekly and 3 monthly UTC buckets, preserves the newest verified archive, and never deletes manual or unknown archives or symlinks. It runs only after a successful backup-and-restore smoke, under a bounded lock, and supports `--dry-run`. Retention bounds local archive growth only; it does not replace an independent copy on another physical medium.

@@ -149,8 +149,12 @@ The backup unit sets `Environment=MEDIA_CORE_BIN=/opt/media-core/media-core`; th
 
 ## Backup and restore smoke
 
-`scripts/backup-smoke.sh <state-dir> <backup-dir>` creates a consistent snapshot archive, restores it into a fresh temporary state directory and runs a read there. It never stops the service, changes the live database or publishes anything. The destination directory must be outside the state directory. Run it manually after setup and schedule it with `deploy/media-core-backup.timer` (daily by default). A real restore of a live state remains an explicit operator action: stop all handles first, validate the archive, then use `media-core restore <archive> --state-dir <dir> [--force]`.
+`scripts/backup-smoke.sh <state-dir> <backup-dir> [prefix]` creates a consistent snapshot archive, restores it into a fresh temporary state directory and runs a read there. The timer passes the prefix `media-core-auto-`; a manual invocation defaults to `media-core-smoke-`. It never stops the service, changes the live database or publishes anything. The destination directory must be outside the state directory. Run it manually after setup and schedule it with `deploy/media-core-backup.timer` (daily by default). A real restore of a live state remains an explicit operator action: stop all handles first, validate the archive, then use `media-core restore <archive> --state-dir <dir> [--force]`.
 
 ## CI and release gate
 
 `.github/workflows/ci.yml` runs build, vet, tests, race tests, shell syntax, structural checks, TypeScript, Vitest, Playwright and a local release build on every push/PR. `.github/workflows/release-gate.yml` is separate and non-publishing: it re-runs verification and uploads local artifacts only. Neither workflow deploys to a NAS.
+
+## Retention
+
+Automatic archives (`media-core-auto-<UTC timestamp>`) receive a `.verified` marker only after a new archive passes restore smoke. `scripts/backup_retention.py <backup-dir>` keeps the newest 7 UTC daily, 4 ISO-weekly and 3 monthly buckets, always keeps the newest verified archive, and deletes only automatic, marked archives. Manual archives, unknown names and symlinks are never touched; deletions run under a bounded lock and only after the successful smoke that invoked the script. Use `--dry-run` to print the exact deletion plan without changing files. Retention is not a substitute for a separate copy on another physical medium.

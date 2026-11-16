@@ -8,7 +8,7 @@ Environment=MEDIA_CORE_BIN=/opt/media-core/media-core
 User=media-core
 Group=media-core
 WorkingDirectory=/opt/media-core
-ExecStart=/opt/media-core/scripts/backup-smoke.sh /var/lib/media-core /var/backups/media-core
+ExecStart=/opt/media-core/scripts/backup-smoke.sh /var/lib/media-core /var/backups/media-core media-core-auto-
 NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=strict

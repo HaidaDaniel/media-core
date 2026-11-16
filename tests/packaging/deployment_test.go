@@ -40,7 +40,7 @@ func TestDeploymentUnits(t *testing.T) {
 	requireUnitLines(t, "media-core-backup.service", backup,
 		"Environment=MEDIA_CORE_BIN=/opt/media-core/media-core",
 		"User=media-core", "Group=media-core", "WorkingDirectory=/opt/media-core",
-		"ExecStart=/opt/media-core/scripts/backup-smoke.sh /var/lib/media-core /var/backups/media-core",
+		"ExecStart=/opt/media-core/scripts/backup-smoke.sh /var/lib/media-core /var/backups/media-core media-core-auto-",
 		"Type=oneshot", "NoNewPrivileges=true", "ProtectSystem=strict", "ProtectHome=true",
 		"PrivateTmp=true", "ReadWritePaths=/var/lib/media-core /var/backups/media-core", "UMask=0077")
 	requireUnitLines(t, "media-core-backup.timer", timer,
