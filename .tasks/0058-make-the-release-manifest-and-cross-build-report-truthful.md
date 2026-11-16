@@ -1,7 +1,7 @@
 # Task 0058 - Make the release manifest and cross-build report truthful
 
-State: todo
-Owner: none
+State: done
+Owner: opencode-media-fix-20261116
 Mode: mvp
 Lane: packaging
 Scope: packaging

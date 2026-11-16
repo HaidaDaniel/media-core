@@ -117,7 +117,7 @@ Tasks 0050–0063 were registered after a full repository and code review; owner
 - 0055 done — CheckSchema validates every embedded migration version; incomplete ledgers are rejected in Open, backup and restore paths; focused verification and independent review passed at candidate 720c3cf.
 - 0056 done — Streamable HTTP MCP configures the SDK cross-origin guard; hostile Origins are denied while Bearer auth stays unchanged; focused verification passed at candidate fb1d1fb.
 - 0057 done — unclassified errors now render as generic codes with server-side logging in both MCP and HTTP; focused verification passed at candidate 72a954d.
-- 0058 todo — make the release manifest and cross-build report truthful.
+- 0058 done — manifest generated outside the staged tree; build script runs the ELF machine-type check; focused verification and a full local release build passed at candidate fadd9bd.
 - 0059 todo — verify restore paths before creating directories.
 - 0060 todo — freeze the QuickAdd retry payload with its request id.
 - 0061 todo — align graceful-shutdown error semantics.
