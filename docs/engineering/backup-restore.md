@@ -106,9 +106,10 @@ acknowledged transaction that a crashed writer left only in the WAL becomes
 part of the main file; the rename is followed by a directory sync. The
  destination state directory is never cleared: only the database file and
  its sidecars are replaced, so an owner secret or any other state file is
- retained. A failure at any point — validation, staging, locking or
- publishing — leaves the previous database usable with a distinguishable
- error and no staging debris.
+ retained. A failure before publication — validation, staging, locking,
+ checkpoint or rename — leaves the previous database usable with a
+ distinguishable error and no staging debris. A directory-sync failure is
+ reported after publication, when the restored snapshot is already in place.
 
 ## Complete data coverage (task 0047)
 

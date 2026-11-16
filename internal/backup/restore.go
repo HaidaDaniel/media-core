@@ -52,8 +52,9 @@ type RestoreResult struct {
 // makes the restore fail with the locked error instead of racing. The
 // destination state directory itself is never cleared: only the database
 // file and its WAL sidecars are replaced, so an owner secret or any other
-// state file is retained. A failure at any point leaves the previous
-// database usable with a distinguishable error.
+// state file is retained. A failure before publication leaves the previous
+// database usable with a distinguishable error; a directory-sync failure is
+// reported after the new snapshot is already in place.
 func Restore(ctx context.Context, opts RestoreOptions) (*RestoreResult, error) {
 	if !filepath.IsAbs(opts.Archive) {
 		return nil, fmt.Errorf("%w: archive %q must be an absolute path", ErrArchiveInvalid, opts.Archive)
@@ -337,11 +338,15 @@ func SyntheticArchive(dir string, schema int, createdAt time.Time) (string, erro
 // database before the sidecars are removed. It runs while the caller holds
 // the exclusive maintenance lock, so no other process can hold a writer.
 func checkpointDestination(dbPath string) error {
-	if _, err := os.Stat(dbPath); err != nil {
+	info, err := os.Lstat(dbPath)
+	if err != nil {
 		if os.IsNotExist(err) {
 			return nil
 		}
 		return fmt.Errorf("backup: stat destination database: %w", err)
+	}
+	if info.Mode()&os.ModeSymlink != 0 {
+		return fmt.Errorf("%w: %s", store.ErrSymlink, dbPath)
 	}
 	u := &url.URL{Scheme: "file", Path: dbPath}
 	db, err := sql.Open("sqlite", u.String()+"?_pragma=busy_timeout(5000)")

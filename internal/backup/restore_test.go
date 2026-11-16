@@ -525,7 +525,34 @@ func TestRestoreInterruptedAfterCheckpointKeepsData(t *testing.T) {
 	if got := rowsInMainFileOnly(t, dir); got != 1 {
 		t.Fatalf("committed row after interrupted restore = %d, want 1", got)
 	}
-	if err := os.WriteFile(filepath.Join(dir, "marker"), []byte("x"), 0o600); err != nil {
-		t.Fatalf("write marker: %v", err)
+}
+
+func TestRestoreRejectsSymlinkedDestinationBeforeCheckpoint(t *testing.T) {
+	src, srcDB := seedProbeState(t, 2)
+	archive := makeArchive(t, src, "symlink-destination")
+	srcDB.Close()
+
+	dir := t.TempDir()
+	target := filepath.Join(t.TempDir(), "outside.db")
+	const sentinel = "do not touch me"
+	if err := os.WriteFile(target, []byte(sentinel), 0o600); err != nil {
+		t.Fatalf("write target: %v", err)
+	}
+	final := filepath.Join(dir, store.DBFileName)
+	if err := os.Symlink(target, final); err != nil {
+		t.Fatalf("symlink destination: %v", err)
+	}
+	if _, err := Restore(context.Background(), RestoreOptions{Archive: archive, StateDir: dir, Force: true}); !errors.Is(err, store.ErrSymlink) {
+		t.Fatalf("Restore err = %v, want ErrSymlink", err)
+	}
+	got, err := os.ReadFile(target)
+	if err != nil {
+		t.Fatalf("read target: %v", err)
+	}
+	if string(got) != sentinel {
+		t.Fatalf("target outside the state dir was modified: %q", got)
+	}
+	if info, err := os.Lstat(final); err != nil || info.Mode()&os.ModeSymlink == 0 {
+		t.Fatalf("destination symlink was replaced or removed: info=%v err=%v", info, err)
 	}
 }
