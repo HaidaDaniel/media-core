@@ -1,7 +1,7 @@
 # Task 0055 - Verify the full migration ledger in CheckSchema
 
-State: todo
-Owner: none
+State: done
+Owner: opencode-media-fix-20261116
 Mode: mvp
 Lane: storage
 Scope: storage,backup

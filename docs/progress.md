@@ -114,7 +114,7 @@ Tasks 0050–0063 were registered after a full repository and code review; owner
 - 0052 done — structural planning check replaces the frozen todo snapshot; inventory extended to 0050–0063; focused verification passed at candidate b6ae3f3.
 - 0053 done — identity matches now reserve and replay the idempotency key; focused verification and independent review passed at candidate c7ec624.
 - 0054 done — oversized decimal literals are rejected before int64 accumulation; focused verification and independent review passed at candidate 67e2c22.
-- 0055 todo — verify the full migration ledger in CheckSchema.
+- 0055 done — CheckSchema validates every embedded migration version; incomplete ledgers are rejected in Open, backup and restore paths; focused verification and independent review passed at candidate 720c3cf.
 - 0056 todo — configure Origin protection for Streamable HTTP MCP.
 - 0057 todo — stop echoing raw internal errors to clients.
 - 0058 todo — make the release manifest and cross-build report truthful.
