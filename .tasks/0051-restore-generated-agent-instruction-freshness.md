@@ -1,7 +1,7 @@
 # Task 0051 - Restore generated agent instruction freshness
 
-State: todo
-Owner: none
+State: done
+Owner: opencode-media-fix-20261116
 Mode: mvp
 Lane: planning
 Scope: docs,planning
