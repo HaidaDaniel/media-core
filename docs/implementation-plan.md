@@ -1,12 +1,12 @@
 # Implementation plan and requirement coverage
 
-This is the inventory of **45 unstarted implementation tasks, 0005–0049**. Task 0004 owns this documentation/planning phase only. Existing 0001 canceled, 0002 done and 0003 todo remain unchanged. No task here certifies an implemented feature or authorizes production deployment.
+This is the inventory of **59 implementation tasks, 0005–0063**: the original 45 MVP tasks and 14 post-implementation remediation tasks registered after repository review. Tasks 0005–0049 are implemented and done; 0050–0063 start as todo. Existing 0001 canceled, 0002 done and 0003 todo remain unchanged. No task here authorizes production deployment.
 
-The task Markdown is the execution contract: context, narrow allowed paths, steps, invariants, acceptance, negative cases, focused future verification and review questions. All task checks are **future commands** which their task or prerequisite must create/make runnable; none is claimed to have run in this phase. Use installed APK 0.5.2 syntax; gated Verification entries are JSON objects supported by that version.
+The task Markdown is the execution contract: context, narrow allowed paths, steps, invariants, acceptance, negative cases, focused verification and review questions. Verification entries are JSON objects; each task records its own evidence when run. Use the installed APK 0.6.0 syntax.
 
 ## Task inventory and explicit dependency summary
 
-Each row lists direct dependencies; numbering is not execution order (0049 is an early M1 task). All initial states are todo, owner none.
+Each row lists direct dependencies; numbering is not execution order (0049 is an early M1 task). The Initial state column records the state at registration, not the current lifecycle state; owners and evidence are managed by APK.
 
 | Task | Title | Depends on | Risk | Milestone | Initial state |
 | --- | --- | --- | --- | --- | --- |
@@ -53,8 +53,22 @@ Each row lists direct dependencies; numbering is not execution order (0049 is an
 | [0045](../.tasks/0045-verify-anime-source-and-duplicate-workflows-through-web-and-mcp.md) | Verify anime-source and duplicate workflows through Web and MCP | 0031, 0032, 0033, 0034, 0035, 0038, 0039, 0040, 0041 | medium | M5 | todo |
 | [0046](../.tasks/0046-verify-progress-and-negative-impression-history-through-both-interfaces.md) | Verify progress and negative-impression history through both interfaces | 0034, 0035, 0036, 0038, 0039, 0040, 0041, 0045 | medium | M5 | todo |
 | [0047](../.tasks/0047-embed-web-assets-and-verify-complete-deployable-backup-round-trip.md) | Embed Web assets and verify complete deployable backup round trip | 0023, 0024, 0033, 0035, 0036, 0041, 0043, 0044, 0045, 0046, 0049 | high | M5 | todo |
-| [0048](../.tasks/0048-document-hermes-connections-and-smoke-stdio-ssh-framing.md) | Document Hermes connections and smoke stdio SSH framing | 0038, 0039, 0040, 0041, 0047 | medium | M5 | todo |
+| [0048](../.tasks/0048-document-hermes-connections-and-smoke-stdio-ssh-framing.md) | MCP connectivity for any agent: stdio and Streamable HTTP, documented and smoked | 0038, 0039, 0040, 0041, 0047 | high | M5 | todo |
 | [0049](../.tasks/0049-provide-readable-library-export-and-read-only-doctor.md) | Provide readable library export and read-only doctor | 0013, 0015 | medium | M1 | todo |
+| [0050](../.tasks/0050-exclude-playwright-e2e-specs-from-the-vitest-run.md) | Exclude Playwright e2e specs from the Vitest run | 0045 | low | M5 | todo |
+| [0051](../.tasks/0051-restore-generated-agent-instruction-freshness.md) | Restore generated agent instruction freshness | 0063 | low | M5 | todo |
+| [0052](../.tasks/0052-replace-the-frozen-planning-check-with-implementation-state-checks.md) | Replace the frozen planning check with implementation-state checks | none | medium | M5 | todo |
+| [0053](../.tasks/0053-reserve-the-idempotency-key-on-identity-match-no-ops.md) | Reserve the idempotency key on identity-match no-ops | 0012 | high | M5 | todo |
+| [0054](../.tasks/0054-bound-progress-decimal-parsing-against-int64-overflow.md) | Bound progress decimal parsing against int64 overflow | 0015 | high | M5 | todo |
+| [0055](../.tasks/0055-verify-the-full-migration-ledger-in-checkschema.md) | Verify the full migration ledger in CheckSchema | 0009, 0023 | high | M5 | todo |
+| [0056](../.tasks/0056-configure-origin-protection-for-streamable-http-mcp.md) | Configure Origin protection for Streamable HTTP MCP | 0048 | medium | M5 | todo |
+| [0057](../.tasks/0057-stop-echoing-raw-internal-errors-to-clients.md) | Stop echoing raw internal errors to clients | 0024, 0037 | medium | M5 | todo |
+| [0058](../.tasks/0058-make-the-release-manifest-and-cross-build-report-truthful.md) | Make the release manifest and cross-build report truthful | 0047 | medium | M5 | todo |
+| [0059](../.tasks/0059-verify-restore-paths-before-creating-directories.md) | Verify restore paths before creating directories | 0023 | medium | M5 | todo |
+| [0060](../.tasks/0060-freeze-the-quickadd-retry-payload-with-its-request-id.md) | Freeze the QuickAdd retry payload with its request id | 0050, 0032 | medium | M5 | todo |
+| [0061](../.tasks/0061-align-graceful-shutdown-error-semantics.md) | Align graceful-shutdown error semantics | 0024, 0048 | low | M5 | todo |
+| [0062](../.tasks/0062-refresh-cli-usage-text-and-doctor-capability-detection.md) | Refresh CLI usage text and doctor capability detection | 0049 | low | M5 | todo |
+| [0063](../.tasks/0063-refresh-stale-product-and-progress-documentation.md) | Refresh stale product and progress documentation | 0050, 0052, 0053, 0054, 0055, 0056, 0057, 0058, 0059, 0060, 0061, 0062 | medium | M5 | todo |
 
 ## Execution path and observable increments
 
@@ -83,27 +97,27 @@ Every requirement has implementation ownership. Scenarios A–G live in docs/pro
 
 | Requirement | Design document | Implementation task(s) | Acceptance scenario |
 | --- | --- | --- | --- |
-| R01 | [Architecture](architecture.md), [contracts](application-contract.md) | 0005, 0006, 0007, 0009, 0049 | G |
+| R01 | [Architecture](architecture.md), [contracts](application-contract.md) | 0005, 0006, 0007, 0009, 0049, 0051, 0052, 0062, 0063 | G |
 | R02 | [Domain](domain-model.md), [Web](web-ui.md) | 0010, 0011, 0012, 0013, 0026, 0032, 0039 | A, C |
 | R03 | [Domain](domain-model.md), [contracts](application-contract.md) | 0010, 0013, 0016, 0018, 0031, 0035, 0038 | A, C |
 | R04 | [Domain](domain-model.md) | 0011, 0014, 0016, 0027, 0034, 0040 | A, D, E |
-| R05 | [Domain](domain-model.md), [contracts](application-contract.md) | 0015, 0027, 0034, 0040, 0046 | B |
+| R05 | [Domain](domain-model.md), [contracts](application-contract.md) | 0015, 0027, 0034, 0040, 0046, 0054 | B |
 | R06 | [Domain](domain-model.md), [Web](web-ui.md) | 0016, 0017, 0018, 0021, 0028, 0035, 0036, 0041, 0046 | A, D |
 | R07 | [Domain](domain-model.md), [integration](integration-contract.md) | 0019, 0028, 0035, 0041 | A, C |
 | R08 | [Domain](domain-model.md), [contracts](application-contract.md) | 0020, 0029, 0033, 0041, 0045 | A, C |
-| R09 | [Domain](domain-model.md), [contracts](application-contract.md) | 0012, 0019, 0026, 0032, 0039, 0044, 0045 | C |
-| R10 | [Web](web-ui.md), [contracts](application-contract.md) | 0024, 0025, 0026, 0027, 0028, 0029, 0030, 0031, 0032, 0033, 0034, 0035, 0036, 0045, 0046 | A, B, C, D, G |
-| R11 | [Hermes](hermes.md) | 0037, 0038, 0039, 0040, 0041, 0048 | A, B, C, D, G |
-| R12 | [Contracts](application-contract.md), [architecture](architecture.md) | 0007, 0012, 0025, 0026, 0027, 0028, 0029, 0038, 0039, 0040, 0041, 0045, 0046 | A, B, C, D |
-| R13 | [Architecture](architecture.md) | 0006, 0024, 0030, 0047 | G |
+| R09 | [Domain](domain-model.md), [contracts](application-contract.md) | 0012, 0019, 0026, 0032, 0039, 0044, 0045, 0053 | C |
+| R10 | [Web](web-ui.md), [contracts](application-contract.md) | 0024, 0025, 0026, 0027, 0028, 0029, 0030, 0031, 0032, 0033, 0034, 0035, 0036, 0045, 0046, 0050, 0060 | A, B, C, D, G |
+| R11 | [Hermes](hermes.md) | 0037, 0038, 0039, 0040, 0041, 0048, 0056 | A, B, C, D, G |
+| R12 | [Contracts](application-contract.md), [architecture](architecture.md) | 0007, 0012, 0025, 0026, 0027, 0028, 0029, 0038, 0039, 0040, 0041, 0045, 0046, 0057 | A, B, C, D |
+| R13 | [Architecture](architecture.md) | 0006, 0024, 0030, 0047, 0061 | G |
 | R14 | [Architecture](architecture.md), [requirements](product/requirements.md) | 0022, 0023, 0049, 0047 | F |
-| R15 | [Architecture](architecture.md), [risks](engineering/risk-register.md) | 0008, 0009, 0022, 0023, 0044 | B, C, F |
+| R15 | [Architecture](architecture.md), [risks](engineering/risk-register.md) | 0008, 0009, 0022, 0023, 0044, 0055, 0059 | B, C, F |
 | R16 | [Integration](integration-contract.md) | 0042, 0043 | E |
-| R17 | [Architecture](architecture.md), [technology](engineering/tech-options.md) | 0030, 0047, 0048 | F, G |
+| R17 | [Architecture](architecture.md), [technology](engineering/tech-options.md) | 0030, 0047, 0048, 0058 | F, G |
 | R18 | [Scope](scope.md), [integration](integration-contract.md), [contracts](application-contract.md) | 0012, 0019, 0020, 0032, 0041, 0045, 0048 | A, C, G |
 
 ## Planning verification boundary
 
-`python3 scripts/check-planning.py` checks the frozen planning snapshot: unique IDs, all 45 future tasks unclaimed todo, dependency existence/acyclicity, dependency table agreement, required task sections and runnable-command declarations, existing context paths, safe repo-relative allowed paths, requirement/acceptance coverage and local Markdown links. APK lint additionally parses the actual installed contract syntax/policy/path rules; doctor/sync check tooling health. Static checks do not prove domain implementation or runtime security. Independent review must inspect the whole candidate diff for semantic gaps, task size and interface parity.
+`python3 scripts/check-planning.py` checks the current task graph: unique IDs, dependency existence/acyclicity, inventory agreement, required task sections and runnable-command declarations, existing context paths, safe repo-relative allowed paths, requirement/acceptance coverage and local Markdown links. It no longer asserts a frozen planning state; APK owns lifecycle, ownership and verification evidence. Static checks do not prove domain implementation or runtime security. Independent review is required only when a task's policy says so.
 
-This phase never runs future Go/browser commands, claims future tasks, installs runtime dependencies or deploys. After implementation starts, the frozen todo-state check must be deliberately revised before being reused as an ongoing implementation check. Do not treat its planning-only state expectations as a permanent task lifecycle policy.
+The inventory's Initial state column records registration state. Current states, owners, evidence and gates are read from `pnpm exec apk status --detail`; do not infer them from this document.
