@@ -119,7 +119,7 @@ Tasks 0050–0063 were registered after a full repository and code review; owner
 - 0057 done — unclassified errors now render as generic codes with server-side logging in both MCP and HTTP; focused verification passed at candidate 72a954d.
 - 0058 done — manifest generated outside the staged tree; build script runs the ELF machine-type check; focused verification and a full local release build passed at candidate fadd9bd.
 - 0059 done — restore verifies the path chain before MkdirAll; scope expanded to add a thin exported guard in internal/store; focused verification passed at candidate 54a8782.
-- 0060 todo — freeze the QuickAdd retry payload with its request id.
+- 0060 done — QuickAdd actions carry their submitted payload, so retries reuse one canonical request_id/payload pair; focused verification passed at candidate acf29ab.
 - 0061 todo — align graceful-shutdown error semantics.
 - 0062 todo — refresh CLI usage text and doctor capability detection.
 - 0063 todo — refresh stale product and progress documentation.

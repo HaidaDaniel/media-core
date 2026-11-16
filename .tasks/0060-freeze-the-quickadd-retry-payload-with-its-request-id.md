@@ -1,7 +1,7 @@
 # Task 0060 - Freeze the QuickAdd retry payload with its request id
 
-State: todo
-Owner: none
+State: done
+Owner: opencode-media-fix-20261116
 Mode: mvp
 Lane: web
 Scope: web
