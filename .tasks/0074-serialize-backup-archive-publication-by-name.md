@@ -1,7 +1,7 @@
 # Task 0074 - Serialize backup archive publication by name
 
-State: todo
-Owner: none
+State: done
+Owner: opencode-media-fix-20261116
 Mode: mvp
 Lane: reliability
 Scope: reliability,storage
