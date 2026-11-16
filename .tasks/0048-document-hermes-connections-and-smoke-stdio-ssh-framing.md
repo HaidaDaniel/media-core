@@ -27,9 +27,10 @@ Prepare media-core to work with Hermes and any other MCP agent over both support
 - docs/hermes.md
 - tests/acceptance/hermes_test.go
 - internal/mcp/http.go
-- internal/mcp/server.go
 - internal/runtime/runtime.go
 - docs/progress.md
+- package.json
+- pnpm-lock.yaml
 
 - .tasks/0048-document-hermes-connections-and-smoke-stdio-ssh-framing.md
 
@@ -80,6 +81,7 @@ Prepare media-core to work with Hermes and any other MCP agent over both support
 ## Notes
 
 - Milestone: M5. See docs/implementation-plan.md for requirements and graph.
+- Verification-window note: the operator-ordered APK tooling upgrade (commit 71d70a9, v0.5.2 to v0.6.0: package.json, pnpm-lock.yaml, docs/progress.md) was committed during this task's released state between claim and reclaim; the operator-approved verification epoch carries those tooling paths into this task's verification scope, so package.json and pnpm-lock.yaml are listed as allowed here and receive no further task-owned changes.
 - Hermes client is not installed on this machine (a stale data directory only); every client config example is labeled pending actual client validation, per the acceptance criteria.
 - The previous SSH-framing fixture step is superseded: Streamable HTTP is now the cross-host transport, and the SSH topology remains documented in docs/hermes.md as an alternative for clients that cannot reach the endpoint directly.
 - Only listed paths plus this task file may change. Do not edit other task contracts or generated agent instructions; task lifecycle is managed by APK.
