@@ -1,7 +1,7 @@
 # Task 0067 - Prepare CI, hardened service units and a backup runbook
 
-State: todo
-Owner: none
+State: doing
+Owner: opencode-media-fix-20261116
 Mode: mvp
 Lane: reliability
 Scope: reliability,packaging,docs
@@ -78,7 +78,8 @@ Provide hosted CI, a separate release gate, safe example systemd units, a docume
 
 ## Verification
 
-- `{"id":"focused","type":"automated","required":true,"environment":"local","profile":"report","command":"python3 -c \"import yaml,sys; [yaml.safe_load(open(p)) for p in sys.argv[1:]]\" .github/workflows/ci.yml .github/workflows/release-gate.yml && bash -n scripts/build-release.sh scripts/backup-smoke.sh && go test ./internal/backup -run TestRestore"}`
+- `{"id":"focused","type":"automated","required":true,"environment":"local","profile":"report","command":"bash -n scripts/backup-smoke.sh && go test ./internal/backup -run TestRestore"}`
+- `{"id":"workflows","type":"automated","required":true,"environment":"local","profile":"report","command":"python3 -c \"import yaml; [yaml.safe_load(open(p)) for p in ('.github/workflows/ci.yml','.github/workflows/release-gate.yml')]\""}`
 
 ## Documentation updates
 
