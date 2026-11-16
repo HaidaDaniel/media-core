@@ -35,6 +35,7 @@ the fields:
 
 ## Snapshot semantics
 
+- Concurrent publishers of the same archive name serialize on a `.media-core-archive.lock` file in the destination directory; it is an operational lock, not an archive.
 - The snapshot is taken with `VACUUM INTO` while holding the **shared**
   maintenance lock, so normal writers may keep running. The snapshot
   contains every commit made before the `VACUUM INTO` finished, including
