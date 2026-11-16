@@ -3,12 +3,17 @@ package runtime
 
 import (
 	"context"
+	"crypto/tls"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
+	"net"
+	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/HaidaDaniel/media-core/internal/app"
 	"github.com/HaidaDaniel/media-core/internal/buildinfo"
@@ -194,7 +199,7 @@ func parseServeArgs(args []string) (config.Options, error) {
 func runMCP(args []string, out io.Writer) error {
 	// Exit codes per docs/application-contract.md: 2 invalid input, 1
 	// config or runtime failure.
-	opts, err := parseMCPArgs(args)
+	opts, httpMode, err := parseMCPArgs(args)
 	if err != nil {
 		return &ExitCodeError{Exit: 2, Err: err}
 	}
@@ -211,29 +216,106 @@ func runMCP(args []string, out io.Writer) error {
 	srv := mcp.New(app.NewService(db), logger)
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
-	if err := srv.Run(ctx, os.Stdin, os.Stdout); err != nil {
+	if !httpMode {
+		if err := srv.Run(ctx, os.Stdin, os.Stdout); err != nil {
+			return &ExitCodeError{Exit: 1, Err: err}
+		}
+		return nil
+	}
+	if err := serveMCPHTTP(ctx, cfg, srv); err != nil {
 		return &ExitCodeError{Exit: 1, Err: err}
 	}
 	return nil
 }
 
+// serveMCPHTTP runs the opt-in Streamable HTTP transport: the same
+// in-process service as stdio, authenticated by the state directory's
+// owner secret, on the configured listener. It blocks until ctx is
+// cancelled, then stops accepting connections and drains in-flight
+// requests for up to 10 seconds.
+func serveMCPHTTP(ctx context.Context, cfg *config.Config, srv *mcp.Server) error {
+	handler := srv.StreamableHTTP(mcp.HTTPOptions{SecretReader: func() ([]byte, error) {
+		secret, err := httpapi.ReadOwnerSecretHex(cfg.StateDir)
+		if err != nil {
+			if errors.Is(err, httpapi.ErrOwnerSecretMissing) {
+				return nil, mcp.ErrSecretMissing
+			}
+			return nil, err
+		}
+		return []byte(secret), nil
+	}})
+	var ln net.Listener
+	var err error
+	if cfg.TLSCertFile != "" {
+		cert, certErr := tls.LoadX509KeyPair(cfg.TLSCertFile, cfg.TLSKeyFile)
+		if certErr != nil {
+			return fmt.Errorf("mcp http: load TLS certificate: %w", certErr)
+		}
+		ln, err = tls.Listen("tcp", cfg.ListenAddr, &tls.Config{Certificates: []tls.Certificate{cert}, MinVersion: tls.VersionTLS12})
+	} else {
+		ln, err = net.Listen("tcp", cfg.ListenAddr)
+	}
+	if err != nil {
+		return fmt.Errorf("mcp http: listen on %s: %w", cfg.ListenAddr, err)
+	}
+	mux := http.NewServeMux()
+	mux.Handle("/mcp", handler)
+	httpServer := &http.Server{
+		Handler:           mux,
+		ReadHeaderTimeout: 10 * time.Second,
+		ReadTimeout:       30 * time.Second,
+		WriteTimeout:      30 * time.Second,
+		IdleTimeout:       2 * time.Minute,
+	}
+	errCh := make(chan error, 1)
+	go func() { errCh <- httpServer.Serve(ln) }()
+	select {
+	case <-ctx.Done():
+	case err := <-errCh:
+		return err
+	}
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	if err := httpServer.Shutdown(shutdownCtx); err != nil {
+		return err
+	}
+	return nil
+}
+
 // parseMCPArgs maps mcp flags onto explicit configuration options. The
-// only flag is the state dir; there is no listener because the transport
-// is stdio and no native remote listener exists.
-func parseMCPArgs(args []string) (config.Options, error) {
-	const mcpUsage = "usage: media-core mcp [--state-dir <dir>]"
+// transport is stdio unless --http selects the opt-in Streamable HTTP
+// listener; the listener flags and the remote trio then apply exactly as
+// they do for serve.
+func parseMCPArgs(args []string) (config.Options, bool, error) {
+	const mcpUsage = "usage: media-core mcp [--state-dir <dir>] [--http] [--listen <addr>] [--allow-remote] [--public-origin <url>] [--tls-cert <file>] [--tls-key <file>]"
 	var opts config.Options
+	var httpMode bool
 	for i := 0; i < len(args); i++ {
 		switch args[i] {
-		case "--state-dir":
+		case "--state-dir", "--listen", "--public-origin", "--tls-cert", "--tls-key":
 			if i+1 >= len(args) {
-				return opts, fmt.Errorf("media-core mcp: --state-dir requires a value")
+				return opts, httpMode, fmt.Errorf("media-core mcp: %s requires a value (%s)", args[i], mcpUsage)
 			}
 			i++
-			opts.StateDir = args[i]
+			switch args[i-1] {
+			case "--state-dir":
+				opts.StateDir = args[i]
+			case "--listen":
+				opts.ListenAddr = args[i]
+			case "--public-origin":
+				opts.PublicOrigin = args[i]
+			case "--tls-cert":
+				opts.TLSCertFile = args[i]
+			case "--tls-key":
+				opts.TLSKeyFile = args[i]
+			}
+		case "--allow-remote":
+			opts.AllowRemote = true
+		case "--http":
+			httpMode = true
 		default:
-			return opts, fmt.Errorf("media-core mcp: unknown argument %q (%s)", args[i], mcpUsage)
+			return opts, httpMode, fmt.Errorf("media-core mcp: unknown argument %q (%s)", args[i], mcpUsage)
 		}
 	}
-	return opts, nil
+	return opts, httpMode, nil
 }
