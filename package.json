@@ -3,6 +3,6 @@
   "private": true,
   "type": "module",
   "devDependencies": {
-    "agentic-project-kit": "github:HaidaDaniel/AgenticProjectKit#v0.5.2"
+    "agentic-project-kit": "github:HaidaDaniel/AgenticProjectKit#v0.6.0"
   }
 }
