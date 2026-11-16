@@ -1,7 +1,7 @@
 # Task 0053 - Reserve the idempotency key on identity-match no-ops
 
-State: todo
-Owner: none
+State: done
+Owner: opencode-media-fix-20261116
 Mode: mvp
 Lane: application
 Scope: application

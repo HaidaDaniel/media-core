@@ -1,7 +1,7 @@
 # Task 0054 - Bound progress decimal parsing against int64 overflow
 
-State: todo
-Owner: none
+State: done
+Owner: opencode-media-fix-20261116
 Mode: mvp
 Lane: domain
 Scope: domain,storage
@@ -45,7 +45,7 @@ Reject oversized decimal positions before int64 accumulation can wrap into an ac
 
 ## Acceptance criteria
 
-- `18446744073709551616` and other wrapping literals are rejected with `invalid_argument`
+- 18446744073709551616` and other wrapping literals are rejected with `invalid_argument
 - `1000000000` and `1000000000.000` remain accepted
 - No stored position can exceed the documented bound regardless of input length
 

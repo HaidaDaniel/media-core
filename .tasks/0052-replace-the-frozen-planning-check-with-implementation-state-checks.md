@@ -1,7 +1,7 @@
 # Task 0052 - Replace the frozen planning check with implementation-state checks
 
-State: todo
-Owner: none
+State: done
+Owner: opencode-media-fix-20261116
 Mode: mvp
 Lane: planning
 Scope: docs,planning
