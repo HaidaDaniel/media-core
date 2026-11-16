@@ -58,6 +58,6 @@ Vite builds static files; Go embeds a staged build under `internal/webassets/dis
 
 ## Remote Hermes and boundaries
 
-Same host: Hermes launches `media-core mcp`. Different host: Hermes launches SSH without a PTY to run the NAS binary and carry stdio, with a dedicated OS account/key and host-key verification; SQLite remains local to NAS. Exact deployment and client smoke tests belong to [Hermes](hermes.md). Streamable HTTP MCP is a future adapter only if a client cannot launch SSH/stdio; it would require authenticated TLS and MCP Origin protections and reuse these same services, not open a second DB over the network.
+Same host: Hermes launches `media-core mcp`. Different host: Hermes launches SSH without a PTY to run the NAS binary and carry stdio, with a dedicated OS account/key and host-key verification; SQLite remains local to NAS. Exact deployment and client smoke tests belong to [Hermes](hermes.md). Streamable HTTP MCP is an implemented opt-in adapter for clients that cannot launch SSH/stdio (`media-core mcp --http`): it reuses the same in-process services, mounts only `/mcp`, authenticates every request with the state directory's owner secret and configures the SDK's cross-origin guard. Non-loopback use still requires the explicit allow-remote + authenticated TLS + public-origin trio; it never opens a second database over the network.
 
 Release Watcher integration is file/stdin JSON import, never a shared DB or shell tool invoked by MCP. Translation/content providers stay external and optional. No general plugin runtime is designed.

@@ -15,7 +15,7 @@
 
 ## Deferred
 
-Native remote Streamable HTTP MCP (SSH suffices for initial NAS use), metadata/cover fetching, provider-specific title normalization, vector search, full graph visualization, content acquisition/rendering/delivery, translation execution, OCR/inpainting, hosted sync, social features and recommendation engines.
+Metadata/cover fetching, provider-specific title normalization, vector search, full graph visualization, content acquisition/rendering/delivery, translation execution, OCR/inpainting, hosted sync, social features and recommendation engines. Native remote Streamable HTTP MCP is implemented as an opt-in, authenticated transport for clients that cannot launch SSH/stdio; SSH remains the recommended NAS connection.
 
 `ContentReference`, `ContentAsset`, `ContentProvider` and `DeliveryTarget` remain documented extension concepts. No tables or plugin framework are required for unused future concepts. A source or translation-project reference can already be an ExternalReference.
 

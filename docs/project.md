@@ -1,6 +1,6 @@
 # Media Core project
 
-Status: target product specified; no Go application, HTTP API, Web UI or MCP implementation yet.
+Status: MVP implemented — Go binary with SQLite, CLI, authenticated HTTP/Web UI, MCP over stdio and opt-in authenticated Streamable HTTP. Not deployed or published; see [progress](progress.md) for per-task evidence.
 
 Media Core is a single person's persistent library of encountered, consumed and saved media. Its primary purpose is to answer what I watched/read, where I stopped and what I thought. Future interests, negative impressions and possible translation candidates are ordinary library information, not a rejection or recommendation workflow.
 

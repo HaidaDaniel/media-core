@@ -2,7 +2,9 @@
 
 Status vocabulary: planned, implemented, tested, deployed, blocked. Documentation is not application implementation.
 
-## Current planning phase (2026-11-10)
+## Planning phase (history, 2026-11-10)
+
+The following planning-phase notes are retained as history and do not describe the current state; see the implementation and remediation sections below.
 
 Task 0004 is done, owner codex-media-plan-20261110. Initial worktree was clean on main at 7acb2f0458bdfff33bd48c4312b2eb2be944b56d. Existing 0001 canceled / 0002 done / 0003 todo are preserved.
 
@@ -10,9 +12,9 @@ Task 0003 is done, owner opencode-media-20261110. The adoption documentation rev
 
 Product/domain/architecture revised for personal history, distinct state dimensions, explicit sources/editions and equal Web + Hermes/MCP scope. ADR-0009–0013 amend earlier target decisions without deleting their history. 45 future implementation tasks 0005–0049 are unclaimed todo; [inventory/coverage/dependencies](implementation-plan.md).
 
-## Planned
+## Milestones (completed)
 
-M1 persistent CLI/SQLite/backup; M2 usable responsive Web UI; M3 equivalent basic MCP; M4 practical sources/relations/opinions/intentions; M5 imports, parity, complete restore and embedded packaging. See [roadmap](roadmap.md). First implementation task: 0005, only after 0004's review/gate/done.
+M1 persistent CLI/SQLite/backup; M2 usable responsive Web UI; M3 equivalent basic MCP; M4 practical sources/relations/opinions/intentions; M5 imports, parity, complete restore and embedded packaging. All five milestones are implemented by tasks 0005–0049; see [roadmap](roadmap.md) and [implementation plan](implementation-plan.md). The first implementation task was 0005, after 0004 passed its gate.
 
 ## Implementation phase (2026-11-10)
 
@@ -132,10 +134,10 @@ Go bootstrap executable (0005), configuration and state-path resolution (0006), 
 
 ## Verification
 
-Initial APK doctor/lint/sync passed; doctor warned about no application stack, no quality capabilities, missing license and missing .env.example. These are observed planning-repository limitations. Final committed candidate: 25d0faa0c8ac63cd516b833b9b038862f8c2f032. Canonical verification run verify-1794345139970-vpmrr5 passed all five checks: planning script, APK lint, doctor, sync-check and full baseline-to-candidate git diff --check. Static checks cover 49 unique task IDs, 45 unclaimed todo tasks, valid acyclic dependencies, 18 requirements/scenarios A–G, existing context paths and documentation links. Scope attribution passed with no unrelated files.
+The planning-phase verification above is retained as history. Implementation tasks 0005–0049 and remediation tasks 0050–0062 each recorded focused, candidate-bound verification through `apk task verify`; high-risk fixes also passed an independent reviewer with a different registered identity. Machine evidence and provenance are local under `.agentic/evidence.jsonl` and are intentionally ignored by Git.
 
-Independent reviewer codex-media-review-20261110 inspected the complete candidate and all 45 contracts. The first review requested two corrections (0043 parent/API wiring scope; 0044 final-schema prerequisite); both were fixed with static regressions. Fresh review work-1794345141460-habp9l passed with no findings, evidence evidence-1794345200809-ilxpnc. APK gate passed and 0004 was marked done by its registered owner. Detailed machine evidence/provenance is local under .agentic/evidence.jsonl and .agentic/sessions/work/0004/; these operational files are intentionally ignored by Git. This final progress/task-state update is separate lifecycle bookkeeping; it does not alter the reviewed design or future task graph. No application tests have been run or claimed.
+Current repository-wide checks: `go build ./...`, `go vet ./...` and `go test ./...` pass; `pnpm --dir web exec tsc --noEmit` passes; `pnpm --dir web exec vitest run` passes 125 unit tests; `python3 scripts/check-planning.py` passes; `apk doctor` passes with the warnings documented above. `apk lint` still reports the stale generated `AGENTS.md`, which task 0051 owns after this documentation task. These checks are evidence for the implemented code, not a deployment claim.
 
 ## Deployed / blocked
 
-No runtime artifact or deployment. Runtime work is intentionally unstarted, not technically blocked. Real Hermes/NAS connectivity and supported dependency versions require implementation-time verification; manual/local operation has no external provider prerequisite. License choice remains an operator decision.
+No deployment, tag, push or publication has been performed. `scripts/build-release.sh` produces local, gitignored `linux/amd64` and `linux/arm64` binaries with the embedded UI; both ELF machine types are verified and the host-matching binary is smoked. Connecting a real Hermes client or NAS deployment remains an operator action; manual/local operation has no external provider prerequisite. License choice remains an operator decision.
