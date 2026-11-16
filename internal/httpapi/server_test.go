@@ -551,3 +551,45 @@ func selfSignedTLS(t *testing.T) (string, string) {
 	}
 	return certFile, keyFile
 }
+
+func TestShutdownTimedOutDrainForcesCloseAndExitsCleanly(t *testing.T) {
+	previous := shutdownDrain
+	shutdownDrain = 100 * time.Millisecond
+	t.Cleanup(func() { shutdownDrain = previous })
+
+	srv, err := New(loopbackConfig(t, t.TempDir()))
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan error, 1)
+	go func() { done <- srv.Serve(ctx) }()
+	var addr net.Addr
+	for addr == nil {
+		select {
+		case err := <-done:
+			t.Fatalf("Serve exited early: %v", err)
+		case <-time.After(5 * time.Millisecond):
+			addr = srv.Addr()
+		}
+	}
+	conn, err := net.DialTimeout("tcp", addr.String(), 500*time.Millisecond)
+	if err != nil {
+		t.Fatalf("dial: %v", err)
+	}
+	defer conn.Close()
+	// Leave a request header unfinished so the connection stays active and
+	// the drain deadline is reached.
+	if _, err := conn.Write([]byte("GET / HTTP/1.1\r\nHost: 127.0.0.1\r\n")); err != nil {
+		t.Fatalf("write partial request: %v", err)
+	}
+	cancel()
+	select {
+	case err := <-done:
+		if err != nil {
+			t.Fatalf("Serve after timed-out drain: %v, want nil", err)
+		}
+	case <-time.After(3 * time.Second):
+		t.Fatal("Serve did not force-close after the drain deadline")
+	}
+}

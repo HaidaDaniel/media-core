@@ -24,6 +24,10 @@ import (
 	"github.com/HaidaDaniel/media-core/internal/webassets"
 )
 
+// mcpShutdownDrain bounds the Streamable HTTP listener's graceful drain;
+// tests shorten it to exercise the deadline branch without a long wait.
+var mcpShutdownDrain = 10 * time.Second
+
 // ResolveConfig resolves process configuration for a mode. It is pure: no
 // state directory is created and no secret value is rendered. The reserved
 // serve and mcp lifecycles will use it when implemented.
@@ -274,11 +278,14 @@ func serveMCPHTTP(ctx context.Context, cfg *config.Config, srv *mcp.Server) erro
 	case err := <-errCh:
 		return err
 	}
-	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), mcpShutdownDrain)
 	defer cancel()
 	if err := httpServer.Shutdown(shutdownCtx); err != nil {
-		return err
+		// Match serve: an exhausted drain force-closes and still exits
+		// cleanly rather than reporting a failed shutdown.
+		_ = httpServer.Close()
 	}
+	<-errCh
 	return nil
 }
 

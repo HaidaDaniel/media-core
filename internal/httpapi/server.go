@@ -18,6 +18,10 @@ import (
 // requests before giving up.
 const drainTimeout = 10 * time.Second
 
+// shutdownDrain is the bounded drain used on cancellation; tests shorten it
+// to exercise the deadline branch without holding a connection for ten secs.
+var shutdownDrain = drainTimeout
+
 // Server is the media-core HTTP server: lifecycle, routes and the security
 // boundary for the single-owner session. Only the /api/v1/session endpoints
 // exist in this milestone; every other route is a JSON 404, so there is no
@@ -152,9 +156,13 @@ func (s *Server) Serve(ctx context.Context) error {
 	go func() { errCh <- s.httpServer.Serve(ln) }()
 	select {
 	case <-ctx.Done():
-		shutdownCtx, cancel := context.WithTimeout(context.Background(), drainTimeout)
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), shutdownDrain)
 		defer cancel()
-		_ = s.httpServer.Shutdown(shutdownCtx)
+		if err := s.httpServer.Shutdown(shutdownCtx); err != nil {
+			// A client that ignores the drain must not keep the process
+			// alive or turn a SIGTERM into a failed exit.
+			_ = s.httpServer.Close()
+		}
 		<-errCh
 		return nil
 	case err := <-errCh:
