@@ -1,6 +1,6 @@
 # Task 0059 - Verify restore paths before creating directories
 
-State: doing
+State: done
 Owner: opencode-media-fix-20261116
 Mode: mvp
 Lane: reliability
