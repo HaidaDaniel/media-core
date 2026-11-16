@@ -111,7 +111,7 @@ Tasks 0050–0063 were registered after a full repository and code review; owner
 
 - 0050 done — Vitest excludes Playwright e2e specs; focused verification passed at candidate 057ebd0.
 - 0051 todo — regenerate generated agent instructions.
-- 0052 todo — replace the frozen planning check and extend the inventory.
+- 0052 done — structural planning check replaces the frozen todo snapshot; inventory extended to 0050–0063; focused verification passed at candidate b6ae3f3.
 - 0053 todo — reserve the idempotency key on identity-match no-ops.
 - 0054 todo — bound progress decimal parsing against int64 overflow.
 - 0055 todo — verify the full migration ledger in CheckSchema.
