@@ -355,6 +355,12 @@ const statusForm = (page: Page) =>
 const notesForm = (page: Page) =>
   page.locator("form").filter({ has: page.getByLabel("Note action") });
 
+const notesList = (page: Page) =>
+  page
+    .getByRole("heading", { name: "Notes", exact: true })
+    .locator("xpath=following-sibling::div[1]")
+    .locator("ul.library-list");
+
 // A wrapping label's text content includes the select's option texts, so a
 // label-matching locator cannot hit the bare "Note" or "Rating" controls;
 // the label's own span is the exact-text anchor instead.
@@ -476,13 +482,13 @@ test("scenario D: a dropped anime keeps its negative opinions and stays findable
   // A negative note, then an explicit revision that keeps the old text.
   await notesForm(page).getByLabel("Note text").fill(noteOld);
   await notesForm(page).getByRole("button", { name: "Add note" }).click();
-  await expect(page.getByText(noteOld, { exact: true })).toBeVisible();
+  await expect(notesList(page).getByText(noteOld, { exact: true })).toBeVisible();
 
   await notesForm(page).getByLabel("Note action").selectOption({ label: "edit note" });
   await noteSelect(page).selectOption({ index: 1 });
   await notesForm(page).getByLabel("Note text").fill(noteNew);
   await notesForm(page).getByRole("button", { name: "Save revision" }).click();
-  await expect(page.getByText(noteNew, { exact: true })).toBeVisible();
+  await expect(notesList(page).getByText(noteNew, { exact: true })).toBeVisible();
 
   // The negative rating.
   await ratingSelect(page).selectOption("2");
