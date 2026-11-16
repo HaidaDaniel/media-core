@@ -101,8 +101,41 @@ fails as a conflict and leaves the destination byte-identical. The
 validated snapshot is staged in a temporary file inside the destination
 state directory (same filesystem) and replaces the database file with one
 atomic rename, after the old database's WAL sidecars are removed. The
-destination state directory is never cleared: only the database file and
-its sidecars are replaced, so an owner secret or any other state file is
-retained. A failure at any point — validation, staging, locking or
-publishing — leaves the previous database usable with a distinguishable
-error and no staging debris.
+ destination state directory is never cleared: only the database file and
+ its sidecars are replaced, so an owner secret or any other state file is
+ retained. A failure at any point — validation, staging, locking or
+ publishing — leaves the previous database usable with a distinguishable
+ error and no staging debris.
+
+## Complete data coverage (task 0047)
+
+Scenario F (`tests/acceptance/backup_test.go`) exercises the contract
+against the complete M5 dataset, not a subset: works with aliases,
+editions, consumption, intention, progress with an explicit correction,
+notes with a superseded revision, ratings, references, a confirmed and a
+proposed relation, a confirmed origin, and the import/binding history. It
+verifies, in order:
+
+- a consistent backup taken while a second process keeps committing
+  (the snapshot provably contains post-fixture commits and the snapshot
+  boundary is respected);
+- the archive holds exactly the database and the manifest — no owner
+  secret, no state file;
+- each invalid archive — a symlinked (traversal) database entry, a
+  corrupted hash, a size-mismatching manifest, and a newer schema — is
+  rejected with the right error **before** the destination is touched,
+  leaving the destination byte-identical;
+- the restore into a fresh isolated state directory retains the
+  destination's own owner secret byte-identically with its 0600 mode,
+  the state directory at 0700 and the database at 0600;
+- the restored state re-asserts the complete fixture through the shared
+  service, including retained history rows and their correction labels;
+- the Web API and MCP report the same normalized state (ids and instants
+  stripped) for the works list, a work detail, an edition detail, an
+  edition history, work relations, and the activity feed;
+- an active handle blocks the replacement with the locked error, and a
+  refused overwrite leaves the destination byte-identical.
+
+The readable export carries the same complete dataset: the export
+registry is required to cover every live table in the schema ledger, and
+`internal/app` asserts that invariant (`TestExportRegistryCoversSchema`).

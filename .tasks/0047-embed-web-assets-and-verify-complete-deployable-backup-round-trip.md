@@ -1,7 +1,7 @@
 # Task 0047 - Embed Web assets and verify complete deployable backup round trip
 
-State: todo
-Owner: none
+State: doing
+Owner: opencode-media-20261110
 Mode: mvp
 Lane: packaging
 Scope: packaging
@@ -23,6 +23,7 @@ Produce local release artifacts with embedded UI and verify complete-state resto
 - docs/product/requirements.md
 
 ## Files allowed to edit
+
 - internal/webassets/**
 - internal/httpapi/assets.go
 - internal/httpapi/assets_test.go
@@ -36,7 +37,6 @@ Produce local release artifacts with embedded UI and verify complete-state resto
 - internal/app/export.go
 - internal/app/export_test.go
 - docs/progress.md
-
 - .tasks/0047-embed-web-assets-and-verify-complete-deployable-backup-round-trip.md
 
 ## Files forbidden to edit
@@ -76,6 +76,7 @@ Produce local release artifacts with embedded UI and verify complete-state resto
 - `{"id":"focused","type":"automated","required":true,"environment":"local","profile":"report","command":"bash scripts/build-release.sh && go test ./internal/httpapi ./tests/packaging ./tests/acceptance -run \"Test(Assets|Package|ScenarioF)\""}`
 
 ## Documentation updates
+
 - Update docs/progress.md on lifecycle changes.
 
 ## Notes

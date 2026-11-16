@@ -341,3 +341,69 @@ func TestExportIsNotRestoreInput(t *testing.T) {
 		t.Fatalf("restore created files before rejecting: %v", entries)
 	}
 }
+
+// TestExportRegistryCoversSchema pins the full-coverage invariant of the
+// readable export: every table in the live schema has a registry entry,
+// no registry entry names a table that does not exist, and every ORDER BY
+// column of the registry exists on its table — so a migration that adds a
+// table or drops a sort column fails here before the gap ships.
+func TestExportRegistryCoversSchema(t *testing.T) {
+	s := newTestService(t)
+	db := s.db.DB()
+
+	names, err := db.Query(`SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' ORDER BY name`)
+	if err != nil {
+		t.Fatalf("query sqlite_master: %v", err)
+	}
+	defer names.Close()
+	live := map[string]bool{}
+	for names.Next() {
+		var n string
+		if err := names.Scan(&n); err != nil {
+			t.Fatalf("scan table name: %v", err)
+		}
+		live[n] = true
+	}
+	if err := names.Err(); err != nil {
+		t.Fatalf("read table names: %v", err)
+	}
+
+	registry := map[string]bool{}
+	for _, table := range exportTableRegistry {
+		if registry[table.Name] {
+			t.Fatalf("the registry lists %s twice", table.Name)
+		}
+		registry[table.Name] = true
+		if !live[table.Name] {
+			t.Fatalf("the registry names table %s, which is not in the live schema", table.Name)
+		}
+		cols, err := db.Query(`PRAGMA table_info(` + table.Name + `)`)
+		if err != nil {
+			t.Fatalf("table_info %s: %v", table.Name, err)
+		}
+		have := map[string]bool{}
+		for cols.Next() {
+			var (
+				cid, notnull, pk int
+				name, dft        any
+				ctype            string
+			)
+			if err := cols.Scan(&cid, &name, &ctype, &notnull, &dft, &pk); err != nil {
+				t.Fatalf("scan table_info %s: %v", table.Name, err)
+			}
+			have[name.(string)] = true
+		}
+		cols.Close()
+		for _, order := range strings.Split(table.OrderBy, ",") {
+			col := strings.TrimSpace(order)
+			if !have[col] {
+				t.Fatalf("registry ORDER BY %q for %s: column is not in the live schema", table.OrderBy, table.Name)
+			}
+		}
+	}
+	for name := range live {
+		if !registry[name] {
+			t.Fatalf("the live table %s is missing from the export registry", name)
+		}
+	}
+}

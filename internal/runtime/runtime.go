@@ -16,6 +16,7 @@ import (
 	"github.com/HaidaDaniel/media-core/internal/httpapi"
 	"github.com/HaidaDaniel/media-core/internal/mcp"
 	"github.com/HaidaDaniel/media-core/internal/store"
+	"github.com/HaidaDaniel/media-core/internal/webassets"
 )
 
 // ResolveConfig resolves process configuration for a mode. It is pure: no
@@ -135,6 +136,11 @@ func runServe(args []string, out io.Writer) error {
 	}
 	defer db.Close()
 	srv.WithCatalog(app.NewService(db))
+	// Finalize the route table after the catalog is attached: the catch-all
+	// then serves the embedded UI same-origin, so one listener carries both
+	// the API and the SPA. WithAssets must follow WithCatalog because the
+	// catalog routes are only known once the service is attached.
+	srv.WithAssets(webassets.FS)
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 	if err := srv.Serve(ctx); err != nil {

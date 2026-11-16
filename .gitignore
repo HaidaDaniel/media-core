@@ -18,6 +18,17 @@ node_modules/
 *.db-wal
 *.db-shm
 *.rwbackup
+# Staged production web build (task 0047): only the committed placeholder
+# index.html is tracked; scripts/build-release.sh stages the real Vite
+# build locally for release links.
+/internal/webassets/dist/*
+!/internal/webassets/dist/index.html
+# Local release artifacts (task 0047); built by scripts/build-release.sh,
+# never published from the repository.
+/release/
+# Frontend build output (task 0047); produced by vite build, staged into
+# internal/webassets/dist by scripts/build-release.sh.
+/web/dist/
 .agentic/agents.jsonl
 .agentic/runs.jsonl
 docs/audit-report.md
