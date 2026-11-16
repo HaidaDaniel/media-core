@@ -143,7 +143,7 @@ A fresh audit reproduced five findings on committed main; each has its own task 
 
 Three findings were reproduced on HEAD 5c42bc5 and registered as tasks; all start as todo.
 
-- 0070 todo — P1: backup unit relies on PATH for the media-core binary; reproduced with a cleared environment (`command not found`, exit 127).
+- 0070 done — backup unit pins MEDIA_CORE_BIN to an absolute path; script rejects relative/missing binaries; unit invariants and systemd-like smoke covered by TestDeploymentUnits; independent review passed at candidate 540d3a5.
 - 0071 todo — P2: daily timer accumulates archives without retention.
 - 0072 todo — P3: manifest verifier ignores unregistered files in nested directories; reproduced with an extra `assets/extra.js`.
 

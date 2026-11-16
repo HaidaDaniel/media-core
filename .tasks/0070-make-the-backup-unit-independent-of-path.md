@@ -1,7 +1,7 @@
 # Task 0070 - Make the backup unit independent of PATH
 
-State: todo
-Owner: none
+State: done
+Owner: opencode-media-fix-20261116
 Mode: mvp
 Lane: reliability
 Scope: reliability,packaging
