@@ -75,7 +75,7 @@ Bound the daily backup archive count with explicit, auditable retention (7 daily
 
 ## Verification
 
-- `{"id":"focused","type":"automated","required":true,"environment":"local","profile":"report","command":"python3 -m unittest discover -s scripts -p 'test_backup_retention.py' && bash -n scripts/backup-smoke.sh scripts/build-release.sh"}`
+- `{"id":"focused","type":"automated","required":true,"environment":"local","profile":"report","command":"PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s scripts -p 'test_backup_retention.py' && bash -n scripts/backup-smoke.sh scripts/build-release.sh"}`
 
 ## Documentation updates
 
