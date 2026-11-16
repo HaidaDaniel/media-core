@@ -1,7 +1,7 @@
 # Task 0075 - Advance session generation before awaiting login or logout
 
-State: todo
-Owner: none
+State: doing
+Owner: opencode-media-fix-20261116
 Mode: mvp
 Lane: web
 Scope: web
@@ -64,7 +64,7 @@ Close the narrow window in which a mount-time session inspection can still overw
 
 ## Verification
 
-- `{"id":"focused","type":"automated","required":true,"environment":"local","profile":"report","command":"pnpm --dir web exec vitest run src/auth src/api -count=1"}`
+- `{"id":"focused","type":"automated","required":true,"environment":"local","profile":"report","command":"pnpm --dir web exec vitest run src/auth src/api"}`
 
 ## Documentation updates
 
