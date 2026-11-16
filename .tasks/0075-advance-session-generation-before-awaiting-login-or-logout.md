@@ -1,6 +1,6 @@
 # Task 0075 - Advance session generation before awaiting login or logout
 
-State: doing
+State: done
 Owner: opencode-media-fix-20261116
 Mode: mvp
 Lane: web

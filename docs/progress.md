@@ -155,7 +155,7 @@ An independent review of HEAD 76f4195 confirmed three further defects; each has 
 
 - 0073 done — staged snapshot is fsynced before rename; sync-failure regression leaves destination untouched; independent review passed at candidate ff6eddb.
 - 0074 done — destination publish lock serializes same-name archives; 8-way race regression fails without the fix; independent review passed at candidate 681aea4.
-- 0075 todo — P2: the web session generation advanced after the awaited login/logout call, leaving a narrow stale-GET clobber window.
+- 0075 done — session generation now advances before the awaited action with guarded rollback on failure; controlled-order regression fails on old code; independent review passed at candidate 9fbbf47.
 
 ## Implemented
 
