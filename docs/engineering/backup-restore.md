@@ -100,7 +100,10 @@ contains a database requires an explicit force; without it the restore
 fails as a conflict and leaves the destination byte-identical. The
 validated snapshot is staged in a temporary file inside the destination
 state directory (same filesystem) and replaces the database file with one
-atomic rename, after the old database's WAL sidecars are removed. The
+atomic rename. Before the old database's WAL sidecars are removed, restore
+checkpoints the destination under the exclusive maintenance lock so an
+acknowledged transaction that a crashed writer left only in the WAL becomes
+part of the main file; the rename is followed by a directory sync. The
  destination state directory is never cleared: only the database file and
  its sidecars are replaced, so an owner secret or any other state file is
  retained. A failure at any point — validation, staging, locking or

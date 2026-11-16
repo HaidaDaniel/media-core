@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net/url"
 	"os"
 	"path/filepath"
 	"time"
@@ -136,8 +137,18 @@ func Restore(ctx context.Context, opts RestoreOptions) (*RestoreResult, error) {
 		return nil, fmt.Errorf("backup: chmod staged snapshot: %w", err)
 	}
 
-	// Drop the old database's WAL sidecars; the exclusive lock guarantees
-	// no writer holds them, and the staged snapshot is a single file.
+	// Checkpoint the destination before touching its sidecars. A process
+	// killed after committing but before a checkpoint leaves acknowledged
+	// data only in the WAL; deleting the sidecars first would lose it if
+	// the restore is interrupted before publish. The exclusive maintenance
+	// lock already excludes other writers, so this connection needs no
+	// second maintenance-lock acquisition.
+	if err := checkpointDestination(final); err != nil {
+		return nil, err
+	}
+
+	// With every acknowledged transaction now in the main file, the old
+	// sidecars can be dropped before the single-file snapshot is published.
 	for _, sidecar := range []string{final + "-wal", final + "-shm"} {
 		if err := os.Remove(sidecar); err != nil && !os.IsNotExist(err) {
 			return nil, fmt.Errorf("backup: remove %s: %w", filepath.Base(sidecar), err)
@@ -149,6 +160,9 @@ func Restore(ctx context.Context, opts RestoreOptions) (*RestoreResult, error) {
 	}
 	if err := os.Rename(stagedName, final); err != nil {
 		return nil, fmt.Errorf("backup: publish restored database: %w", err)
+	}
+	if err := syncDirectory(opts.StateDir); err != nil {
+		return nil, err
 	}
 	return &RestoreResult{
 		StateDir: opts.StateDir,
@@ -317,4 +331,47 @@ func SyntheticArchive(dir string, schema int, createdAt time.Time) (string, erro
 		_ = os.Remove(sidecar)
 	}
 	return dbPath, nil
+}
+
+// checkpointDestination folds every acknowledged WAL frame into the main
+// database before the sidecars are removed. It runs while the caller holds
+// the exclusive maintenance lock, so no other process can hold a writer.
+func checkpointDestination(dbPath string) error {
+	if _, err := os.Stat(dbPath); err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return fmt.Errorf("backup: stat destination database: %w", err)
+	}
+	u := &url.URL{Scheme: "file", Path: dbPath}
+	db, err := sql.Open("sqlite", u.String()+"?_pragma=busy_timeout(5000)")
+	if err != nil {
+		return fmt.Errorf("backup: open destination for checkpoint: %w", err)
+	}
+	var busy, logged, checkpointed int
+	err = db.QueryRow(`PRAGMA wal_checkpoint(TRUNCATE)`).Scan(&busy, &logged, &checkpointed)
+	closeErr := db.Close()
+	if err != nil {
+		return fmt.Errorf("backup: checkpoint destination: %w", err)
+	}
+	if closeErr != nil {
+		return fmt.Errorf("backup: close destination checkpoint: %w", closeErr)
+	}
+	if busy != 0 {
+		return fmt.Errorf("backup: checkpoint destination: database is busy")
+	}
+	return nil
+}
+
+// syncDirectory makes the publication rename durable before Restore returns.
+func syncDirectory(dir string) error {
+	f, err := os.Open(dir)
+	if err != nil {
+		return fmt.Errorf("backup: open state dir for sync: %w", err)
+	}
+	defer f.Close()
+	if err := f.Sync(); err != nil {
+		return fmt.Errorf("backup: sync state dir: %w", err)
+	}
+	return nil
 }

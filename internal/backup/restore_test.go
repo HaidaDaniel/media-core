@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"testing"
 	"time"
@@ -433,5 +434,98 @@ func TestRestoreRejectsSymlinkedParentBeforeCreation(t *testing.T) {
 	}
 	if len(entries) != 0 {
 		t.Fatalf("symlink target gained %d entries", len(entries))
+	}
+}
+
+const walCrashRoleEnv = "MC_BACKUP_WAL_CRASH_ROLE"
+const walCrashDirEnv = "MC_BACKUP_WAL_CRASH_DIR"
+
+// walCrashWriterRole commits one write and exits without closing SQLite, so
+// the acknowledged row stays in the WAL and never reaches the main file.
+func walCrashWriterRole(dir string) {
+	db, err := store.Open(dir)
+	if err != nil {
+		os.Exit(11)
+	}
+	now := time.Now().UTC().Format("2006-01-02T15:04:05.000Z")
+	if _, err := db.DB().Exec(`INSERT INTO works (id, revision, created_at, updated_at) VALUES ('work-wal-only', 0, ?, ?)`, now, now); err != nil {
+		os.Exit(12)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "committed"), []byte("ok"), 0o600); err != nil {
+		os.Exit(13)
+	}
+	os.Exit(0)
+}
+
+func rowsInMainFileOnly(t *testing.T, stateDir string) int {
+	t.Helper()
+	raw, err := os.ReadFile(filepath.Join(stateDir, store.DBFileName))
+	if err != nil {
+		t.Fatalf("read destination database: %v", err)
+	}
+	path := filepath.Join(t.TempDir(), "main-only.db")
+	if err := os.WriteFile(path, raw, 0o600); err != nil {
+		t.Fatalf("stage main-only copy: %v", err)
+	}
+	db, err := sql.Open("sqlite", "file:"+path)
+	if err != nil {
+		t.Fatalf("open main-only copy: %v", err)
+	}
+	defer db.Close()
+	var count int
+	if err := db.QueryRow(`SELECT COUNT(*) FROM works WHERE id = 'work-wal-only'`).Scan(&count); err != nil {
+		t.Fatalf("query main-only copy: %v", err)
+	}
+	return count
+}
+
+func TestRestoreInterruptedAfterCheckpointKeepsData(t *testing.T) {
+	if role := os.Getenv(walCrashRoleEnv); role == "writer" {
+		walCrashWriterRole(os.Getenv(walCrashDirEnv))
+		return
+	}
+	dir := t.TempDir()
+	maint, err := store.OpenForMaintenance(dir)
+	if err != nil {
+		t.Fatalf("OpenForMaintenance: %v", err)
+	}
+	if _, err := store.RunMigrations(maint.DB()); err != nil {
+		maint.Close()
+		t.Fatalf("RunMigrations: %v", err)
+	}
+	if err := maint.Close(); err != nil {
+		t.Fatalf("Close maintenance: %v", err)
+	}
+
+	bin, err := os.Executable()
+	if err != nil {
+		t.Fatalf("os.Executable: %v", err)
+	}
+	cmd := exec.Command(bin, "-test.run=TestRestoreInterruptedAfterCheckpointKeepsData")
+	cmd.Env = append(os.Environ(), walCrashRoleEnv+"=writer", walCrashDirEnv+"="+dir)
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("crash writer: %v (%s)", err, out)
+	}
+	if _, err := os.Stat(filepath.Join(dir, store.DBFileName+"-wal")); err != nil {
+		t.Fatalf("WAL sidecar missing after abrupt exit: %v", err)
+	}
+	if got := rowsInMainFileOnly(t, dir); got != 0 {
+		t.Fatalf("committed row is already checkpointed: %d, want 0", got)
+	}
+
+	src, srcDB := seedProbeState(t, 2)
+	archive := makeArchive(t, src, "wal-crash")
+	srcDB.Close()
+	oldHook := prePublishHook
+	prePublishHook = func(staged string) { _ = os.Remove(staged) }
+	defer func() { prePublishHook = oldHook }()
+	if _, err := Restore(context.Background(), RestoreOptions{Archive: archive, StateDir: dir, Force: true}); err == nil {
+		t.Fatal("interrupted restore unexpectedly succeeded")
+	}
+	if got := rowsInMainFileOnly(t, dir); got != 1 {
+		t.Fatalf("committed row after interrupted restore = %d, want 1", got)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "marker"), []byte("x"), 0o600); err != nil {
+		t.Fatalf("write marker: %v", err)
 	}
 }
