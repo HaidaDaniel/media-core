@@ -7,6 +7,7 @@ package packaging
 import (
 	"bufio"
 	"bytes"
+	"crypto/sha256"
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
@@ -320,6 +321,9 @@ func TestPackageReleaseArtifacts(t *testing.T) {
 	amd64 := filepath.Join(release, "media-core-linux-amd64")
 	arm64 := filepath.Join(release, "media-core-linux-arm64")
 	if _, err := os.Stat(amd64); err != nil {
+		if os.Getenv(releaseGateEnv) == "1" {
+			t.Fatalf("release gate requires %s; run scripts/build-release.sh first", amd64)
+		}
 		t.Skip("release artifacts are not staged; run scripts/build-release.sh first")
 	}
 	if _, err := os.Stat(arm64); err != nil {
@@ -374,21 +378,81 @@ func osArch(t *testing.T) string {
 	return strings.TrimSpace(string(out))
 }
 
-// TestReleaseManifestCannotIncludeItself pins the staging order: the manifest
-// is generated outside the staged tree and moved in only after enumeration,
-// so no manifest entry can describe the file being written.
-func TestPackageReleaseArtifactsManifestCannotIncludeItself(t *testing.T) {
-	raw, err := os.ReadFile(filepath.Join(repoRoot(t), "scripts", "build-release.sh"))
-	if err != nil {
-		t.Fatalf("read build script: %v", err)
+const releaseGateEnv = "MEDIA_CORE_RELEASE_GATE"
+const stageDirEnv = "MEDIA_CORE_STAGE_DIR"
+
+type webAssetEntry struct {
+	Name   string `json:"name"`
+	Size   int64  `json:"size"`
+	SHA256 string `json:"sha256"`
+}
+
+type webAssetsManifest struct {
+	Format string          `json:"format"`
+	Files  []webAssetEntry `json:"files"`
+}
+
+// TestPackageReleaseArtifactsManifest verifies a real manifest against real
+// staged files. The build script sets the staging directory while the files
+// still exist; a missing, malformed or self-referential manifest fails there.
+func TestPackageReleaseArtifactsManifest(t *testing.T) {
+	stage := os.Getenv(stageDirEnv)
+	if stage == "" {
+		t.Skip("staging directory is not set; run scripts/build-release.sh")
 	}
-	script := string(raw)
-	for _, needle := range []string{`MANIFEST_TMP=$(mktemp)`, `} > "$MANIFEST_TMP"`, `mv "$MANIFEST_TMP" "$STAGING_TMP/manifest.json"`} {
-		if !strings.Contains(script, needle) {
-			t.Fatalf("build script no longer contains %q", needle)
+	raw, err := os.ReadFile(filepath.Join(stage, "manifest.json"))
+	if err != nil {
+		t.Fatalf("read web asset manifest: %v", err)
+	}
+	var manifest webAssetsManifest
+	if err := json.Unmarshal(raw, &manifest); err != nil {
+		t.Fatalf("parse web asset manifest: %v", err)
+	}
+	if manifest.Format != "media-core-webassets-v1" {
+		t.Fatalf("manifest format = %q, want media-core-webassets-v1", manifest.Format)
+	}
+	listed := map[string]bool{}
+	for _, entry := range manifest.Files {
+		if entry.Name == "manifest.json" {
+			t.Fatal("manifest contains a self-entry")
+		}
+		if entry.Name == "" || filepath.Clean(entry.Name) != entry.Name || filepath.IsAbs(entry.Name) {
+			t.Fatalf("unsafe manifest entry name %q", entry.Name)
+		}
+		if listed[entry.Name] {
+			t.Fatalf("duplicate manifest entry %q", entry.Name)
+		}
+		listed[entry.Name] = true
+		path := filepath.Join(stage, entry.Name)
+		info, err := os.Lstat(path)
+		if err != nil {
+			t.Fatalf("manifest entry %s is absent: %v", entry.Name, err)
+		}
+		if !info.Mode().IsRegular() {
+			t.Fatalf("manifest entry %s is not a regular file", entry.Name)
+		}
+		if info.Size() != entry.Size {
+			t.Fatalf("manifest entry %s size = %d, want %d", entry.Name, info.Size(), entry.Size)
+		}
+		contents, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatalf("read manifest entry %s: %v", entry.Name, err)
+		}
+		sum := sha256.Sum256(contents)
+		if fmt.Sprintf("%x", sum) != entry.SHA256 {
+			t.Fatalf("manifest entry %s SHA-256 mismatch", entry.Name)
 		}
 	}
-	if strings.Contains(script, `> "$STAGING_TMP/manifest.json"`) {
-		t.Fatal("manifest is written directly into the enumerated staging tree")
+	entries, err := os.ReadDir(stage)
+	if err != nil {
+		t.Fatalf("read staging directory: %v", err)
+	}
+	for _, e := range entries {
+		if e.Name() == "manifest.json" || e.IsDir() {
+			continue
+		}
+		if !listed[e.Name()] {
+			t.Fatalf("staged file %s is absent from the manifest", e.Name())
+		}
 	}
 }

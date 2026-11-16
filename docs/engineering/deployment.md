@@ -18,7 +18,12 @@ validates the assets before embedding them. The script:
 2. Stages the build in a temporary directory and validates it: the index
    shell is non-empty, it references no external `http(s)` resources, and
    every local reference resolves to a staged file. A manifest with each
-   file's name, size and SHA-256 is written alongside.
+   file's name, size and SHA-256 is written alongside and then verified at
+   runtime against the real staged files: complete file set, no self-entry,
+   matching sizes and hashes. An artifact gate run with
+   `MEDIA_CORE_RELEASE_GATE=1 go test ./tests/packaging -run TestPackageReleaseArtifacts`
+   fails if either release binary is missing; without the flag a local test
+   run may skip when artifacts are absent.
 3. Swaps the validated build into `internal/webassets/dist` only after the
    validation passes, then links `CGO_ENABLED=0` binaries for
    `linux/amd64` and `linux/arm64` with the build identity
