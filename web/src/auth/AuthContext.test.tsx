@@ -7,6 +7,7 @@ import { MemoryRouter } from "react-router-dom";
 import { AuthProvider, useAuth } from "./AuthContext";
 import { Shell } from "../shell/Shell";
 import { LoginPage } from "./LoginPage";
+import { ApiError } from "../api/client";
 
 const { mockInspectSession, mockLogin, mockLogout, mockSetCSRFToken } = vi.hoisted(() => ({
   mockInspectSession: vi.fn(),
@@ -15,12 +16,16 @@ const { mockInspectSession, mockLogin, mockLogout, mockSetCSRFToken } = vi.hoist
   mockSetCSRFToken: vi.fn(),
 }));
 
-vi.mock("../api/client", () => ({
-  inspectSession: (...args: unknown[]) => mockInspectSession(...args),
-  login: (...args: unknown[]) => mockLogin(...args),
-  logout: (...args: unknown[]) => mockLogout(...args),
-  setCSRFToken: (...args: unknown[]) => mockSetCSRFToken(...args),
-}));
+vi.mock("../api/client", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../api/client")>();
+  return {
+    ...actual,
+    inspectSession: (...args: unknown[]) => mockInspectSession(...args),
+    login: (...args: unknown[]) => mockLogin(...args),
+    logout: (...args: unknown[]) => mockLogout(...args),
+    setCSRFToken: (...args: unknown[]) => mockSetCSRFToken(...args),
+  };
+});
 
 function StatusProbe(): JSX.Element {
   const { status } = useAuth();
@@ -197,4 +202,65 @@ describe("AuthProvider", () => {
     await act(async () => undefined);
     expect((screen.getByTestId("status")).textContent).toBe("authenticated");
   });
+  it("expires the inspection generation before the login promise resolves", async () => {
+    let resolveInspect: (live: boolean) => void = () => undefined;
+    let resolveLogin: () => void = () => undefined;
+    let guard: (() => boolean) | undefined;
+    mockInspectSession.mockImplementationOnce((shouldApply: () => boolean) => {
+      guard = shouldApply;
+      return new Promise<boolean>((resolve) => {
+        resolveInspect = resolve;
+      });
+    });
+    mockLogin.mockImplementationOnce(
+      () =>
+        new Promise<void>((resolve) => {
+          resolveLogin = resolve;
+        }),
+    );
+    render(
+      <AuthProvider>
+        <LoginPage />
+        <StatusProbe />
+      </AuthProvider>,
+    );
+    const input = (await screen.findByLabelText("Owner secret")) as HTMLInputElement;
+    fireEvent.change(input, { target: { value: "secret" } });
+    fireEvent.click(screen.getByRole("button", { name: /sign in/i }));
+    expect(guard?.()).toBe(false);
+    await act(async () => {
+      resolveInspect(true);
+    });
+    expect((screen.getByTestId("status")).textContent).toBe("inspecting");
+    await act(async () => {
+      resolveLogin();
+    });
+    expect((screen.getByTestId("status")).textContent).toBe("authenticated");
+  });
+
+  it("lets the initial inspection settle after a failed login", async () => {
+    let resolveInspect: (live: boolean) => void = () => undefined;
+    mockInspectSession.mockImplementationOnce(
+      () =>
+        new Promise<boolean>((resolve) => {
+          resolveInspect = resolve;
+        }),
+    );
+    mockLogin.mockRejectedValueOnce(new ApiError("unauthorized", 401, "bad secret", false));
+    render(
+      <AuthProvider>
+        <LoginPage />
+        <StatusProbe />
+      </AuthProvider>,
+    );
+    const input = (await screen.findByLabelText("Owner secret")) as HTMLInputElement;
+    fireEvent.change(input, { target: { value: "wrong" } });
+    fireEvent.click(screen.getByRole("button", { name: /sign in/i }));
+    await vi.waitFor(() => expect(screen.queryByRole("alert")).not.toBeNull());
+    await act(async () => {
+      resolveInspect(false);
+    });
+    expect((screen.getByTestId("status")).textContent).toBe("anonymous");
+  });
+
 });

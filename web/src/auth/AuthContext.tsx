@@ -45,17 +45,33 @@ export function AuthProvider({ children }: { children: ReactNode }): JSX.Element
   }, []);
 
   const login = useCallback(async (ownerSecret: string) => {
-    await apiLogin(ownerSecret);
+    const previous = generation.current;
     generation.current += 1;
-    setStatus("authenticated");
+    try {
+      await apiLogin(ownerSecret);
+      setStatus("authenticated");
+    } catch (err) {
+      if (generation.current === previous + 1) {
+        generation.current = previous;
+      }
+      throw err;
+    }
   }, []);
 
   // A failed logout throws to the caller and keeps the live session
   // state: the server session is invalidated only on success.
   const logout = useCallback(async () => {
-    await apiLogout();
+    const previous = generation.current;
     generation.current += 1;
-    setStatus("anonymous");
+    try {
+      await apiLogout();
+      setStatus("anonymous");
+    } catch (err) {
+      if (generation.current === previous + 1) {
+        generation.current = previous;
+      }
+      throw err;
+    }
   }, []);
 
   const value = useMemo(() => ({ status, login, logout }), [status, login, logout]);
