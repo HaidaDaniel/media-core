@@ -2,6 +2,7 @@ package httpapi
 
 import (
 	"errors"
+	"log/slog"
 	"net/http"
 
 	"github.com/HaidaDaniel/media-core/internal/app"
@@ -101,5 +102,6 @@ func catalogTyped(err error) *app.AppError {
 	if errors.As(err, &ae) {
 		return ae
 	}
-	return app.NewAppError(app.ErrStorageError, err.Error())
+	slog.Error("httpapi: unclassified service error", "error", err)
+	return app.NewAppError(app.ErrStorageError, "storage operation failed")
 }

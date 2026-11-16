@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/HaidaDaniel/media-core/internal/app"
@@ -73,8 +74,11 @@ func TestMCPError(t *testing.T) {
 		if !isError {
 			t.Fatalf("an unclassified failure must be a tool error")
 		}
-		if payload["code"] != "internal_error" || payload["message"] != "something odd happened" || payload["retryable"] != false {
-			t.Fatalf("unclassified failure must map to internal_error: %v", payload)
+		if payload["code"] != "internal_error" || payload["message"] != "internal error" || payload["retryable"] != false {
+			t.Fatalf("unclassified failure must map to a generic internal_error: %v", payload)
+		}
+		if strings.Contains(fmt.Sprint(payload), "something odd happened") {
+			t.Fatalf("raw internal error leaked to the client: %v", payload)
 		}
 	})
 
@@ -133,4 +137,17 @@ func TestMCPError(t *testing.T) {
 			t.Fatalf("round-trip mismatch: got %+v, want %+v", back, view)
 		}
 	})
+}
+
+func TestErrorUnclassifiedMessageIsGeneric(t *testing.T) {
+	payload, isError := decodeToolJSON(t, Failure(errors.New("SQLITE_CANTOPEN: /state/owner-secret.db")))
+	if !isError {
+		t.Fatal("an unclassified failure must be a tool error")
+	}
+	if payload["code"] != "internal_error" || payload["message"] != "internal error" {
+		t.Fatalf("unclassified failure must map to a generic internal_error: %v", payload)
+	}
+	if strings.Contains(fmt.Sprint(payload), "SQLITE_CANTOPEN") || strings.Contains(fmt.Sprint(payload), "/state/") {
+		t.Fatalf("raw internal detail leaked to the client: %v", payload)
+	}
 }

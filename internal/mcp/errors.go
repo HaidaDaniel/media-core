@@ -10,6 +10,7 @@ package mcp
 import (
 	"encoding/json"
 	"errors"
+	"log/slog"
 
 	"github.com/HaidaDaniel/media-core/internal/app"
 	mcpsdk "github.com/modelcontextprotocol/go-sdk/mcp"
@@ -21,7 +22,8 @@ import (
 func Result(payload any) *mcpsdk.CallToolResult {
 	data, err := json.Marshal(payload)
 	if err != nil {
-		return Failure(app.NewAppError(app.ErrInternalError, "rendering the tool result: "+err.Error()))
+		slog.Error("mcp: cannot render tool result", "error", err)
+		return Failure(app.NewAppError(app.ErrInternalError, "rendering the tool result"))
 	}
 	return &mcpsdk.CallToolResult{
 		Content: []mcpsdk.Content{&mcpsdk.TextContent{Text: string(data)}},
@@ -38,13 +40,12 @@ func Failure(err error) *mcpsdk.CallToolResult {
 	if errors.As(err, &ae) {
 		return errorResult(ae.WireError())
 	}
-	message := "internal error"
 	if err != nil {
-		message = err.Error()
+		slog.Error("mcp: unclassified tool error", "error", err)
 	}
 	return errorResult(&app.Error{
 		Code:    string(app.ErrInternalError),
-		Message: message,
+		Message: "internal error",
 	})
 }
 
