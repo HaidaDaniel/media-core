@@ -1,7 +1,7 @@
 # Task 0068 - Reconcile operator documentation with the implemented CLI
 
-State: todo
-Owner: none
+State: done
+Owner: opencode-media-fix-20261116
 Mode: mvp
 Lane: planning
 Scope: docs
