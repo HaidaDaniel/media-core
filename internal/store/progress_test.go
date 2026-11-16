@@ -208,6 +208,9 @@ func TestProgressInvalidValues(t *testing.T) {
 		{Unit: domain.UnitChapter, Position: "1.5.5"},
 		{Unit: domain.UnitChapter, Position: "1."},
 		{Unit: domain.UnitChapter, Position: "0."},
+		{Unit: domain.UnitChapter, Position: "18446744073709551616"},
+		{Unit: domain.UnitChapter, Position: "999999999999999999999"},
+		{Unit: domain.UnitChapter, Position: "10000000000"},
 	}
 	for _, in := range cases {
 		_, err := db.RecordProgress(ctx(t), now.Add(2*time.Second), e.ID, e.Revision, in, progressActor(), nil)

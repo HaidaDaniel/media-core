@@ -62,7 +62,9 @@ type ProgressObservation struct {
 // ParseProgressDecimal parses one exact decimal value of at most
 // 1,000,000,000 with up to three fractional digits. It accepts neither a
 // sign, nor leading zeros, nor more than three fractional digits, and
-// returns the value scaled by 1000.
+// returns the value scaled by 1000. The integer part is length-bounded before
+// accumulation so an oversized literal cannot wrap int64 into an accepted
+// value.
 func ParseProgressDecimal(s string) (int64, bool) {
 	if s == "" {
 		return 0, false
@@ -85,7 +87,7 @@ func ParseProgressDecimal(s string) (int64, bool) {
 			frac *= 10
 		}
 	}
-	if intPart == "" || (len(intPart) > 1 && intPart[0] == '0') {
+	if intPart == "" || (len(intPart) > 1 && intPart[0] == '0') || len(intPart) > 10 {
 		return 0, false
 	}
 	var n int64
