@@ -144,7 +144,7 @@ A fresh audit reproduced five findings on committed main; each has its own task 
 Three findings were reproduced on HEAD 5c42bc5 and registered as tasks; all start as todo.
 
 - 0070 done — backup unit pins MEDIA_CORE_BIN to an absolute path; script rejects relative/missing binaries; unit invariants and systemd-like smoke covered by TestDeploymentUnits; independent review passed at candidate 540d3a5.
-- 0071 todo — P2: daily timer accumulates archives without retention.
+- 0071 done — automatic archives get verified markers; 7/4/3 UTC retention with dry-run, lock and symlink-safe deletion; 9 unit tests and independent review passed at candidate 5137f08.
 - 0072 todo — P3: manifest verifier ignores unregistered files in nested directories; reproduced with an extra `assets/extra.js`.
 
 GitHub Actions CI for HEAD 5c42bc5 completed successfully (`verify`, conclusion success). Two non-failing annotations were reported: deprecation of Node 20 targets for pinned action majors and the upcoming `ubuntu-latest` Ubuntu 26 migration.

@@ -1,6 +1,6 @@
 # Task 0071 - Add safe backup retention with dry-run
 
-State: doing
+State: done
 Owner: opencode-media-fix-20261116
 Mode: mvp
 Lane: reliability
