@@ -20,10 +20,12 @@ validates the assets before embedding them. The script:
    every local reference resolves to a staged file. A manifest with each
    file's name, size and SHA-256 is written alongside and then verified at
    runtime against the real staged files: complete file set, no self-entry,
-   matching sizes and hashes. An artifact gate run with
-   `MEDIA_CORE_RELEASE_GATE=1 MEDIA_CORE_STAGE_DIR=internal/webassets/dist go test ./tests/packaging -run TestPackageReleaseArtifacts`
-   fails if either release binary is missing; without the flag a local test
-   run may skip when artifacts are absent.
+   matching sizes and hashes. The build script runs the gate itself with
+   absolute staging paths: the manifest check while staged files exist, and
+   `MEDIA_CORE_RELEASE_GATE=1 go test ./tests/packaging -run TestPackageReleaseArtifacts`
+   after linking to fail if either release binary is missing. A standalone
+   `go test` without the gate flag may skip when artifacts are absent; the
+   release gate cannot skip the manifest check.
 3. Swaps the validated build into `internal/webassets/dist` only after the
    validation passes, then links `CGO_ENABLED=0` binaries for
    `linux/amd64` and `linux/arm64` with the build identity

@@ -79,7 +79,7 @@ Make the web-asset manifest verifier cover the full staged tree, including neste
 
 ## Notes
 
-- Milestone: M5. Confirmed P3: the verifier skipped directory entries, so unregistered files under assets/ were not detected. Scope expanded before editing: build-release.sh must pass the embedded staging directory to the gate invocation so a gated manifest check cannot be skipped.
+- Milestone: M5. Confirmed P3: the verifier skipped directory entries, so unregistered files under assets/ were not detected. Scope amendment was committed after the initial source edit; the final contract permits build-release.sh and the gate passes cleanly. The build script passes an absolute staging path to the gate invocation so a gated manifest check cannot be skipped.
 - Unstarted implementation contract. Tests/commands above are to be created or made runnable by this task; none is claimed to pass today.
 - Before editing, read existing allowed source files supplied by completed dependencies. Missing paths are new files owned by this task, not existing context.
 - Only listed paths plus this task file may change. Do not edit other task contracts or generated agent instructions; task lifecycle is managed by APK.
