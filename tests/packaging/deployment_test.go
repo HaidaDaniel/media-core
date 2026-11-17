@@ -4,6 +4,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
 	"strings"
 	"testing"
 )
@@ -69,20 +70,13 @@ func TestDeploymentUnits(t *testing.T) {
 		}
 	}
 
-	if analyzer, err := exec.LookPath("systemd-analyze"); err == nil {
-		out, err := exec.Command(analyzer, "verify",
-			filepath.Join(root, "deploy", "media-core.service"),
-			filepath.Join(root, "deploy", "media-core-backup.service"),
-			filepath.Join(root, "deploy", "media-core-backup.timer")).CombinedOutput()
-		if err != nil {
-			text := string(out)
-			for _, line := range strings.Split(text, "\n") {
-				if line == "" || strings.Contains(line, "is not executable: No such file or directory") {
-					continue
-				}
-				t.Fatalf("systemd-analyze verify: %v (%s)", err, text)
-			}
-		}
+	units := map[string]string{
+		"media-core.service":        service,
+		"media-core-backup.service": backup,
+		"media-core-backup.timer":   timer,
+	}
+	if out, err := verifyUnitsInSandbox(t, units); err != nil {
+		t.Fatalf("systemd-analyze verify of project units: %v (%s)", err, out)
 	}
 
 	if testing.Short() {
@@ -126,5 +120,98 @@ func TestDeploymentUnits(t *testing.T) {
 	}
 	if out, err := runSmoke(filepath.Join(t.TempDir(), "missing")); err == nil || !strings.Contains(out, "missing or not executable") {
 		t.Fatalf("missing binary must fail: err = %v, out = %s", err, out)
+	}
+}
+
+// sandboxUnitText rewrites production paths to files inside a temporary root
+// so systemd-analyze can check our unit syntax without installed binaries.
+func sandboxUnitText(text, base string) string {
+	replacer := strings.NewReplacer(
+		"/opt/media-core/scripts/backup-smoke.sh", filepath.Join(base, "opt", "media-core", "scripts", "backup-smoke.sh"),
+		"/opt/media-core/media-core", filepath.Join(base, "opt", "media-core", "media-core"),
+		"WorkingDirectory=/opt/media-core", "WorkingDirectory="+filepath.Join(base, "opt", "media-core"),
+		"/var/lib/media-core", filepath.Join(base, "var", "lib", "media-core"),
+		"/var/backups/media-core", filepath.Join(base, "var", "backups", "media-core"),
+	)
+	return replacer.Replace(text)
+}
+
+// verifyUnitsInSandbox runs systemd-analyze on temporary copies of the unit
+// files with executable stubs at every referenced path. No system directory
+// is touched and no host unit warnings can affect the result.
+func verifyUnitsInSandbox(t *testing.T, units map[string]string) (string, error) {
+	t.Helper()
+	analyzer, err := exec.LookPath("systemd-analyze")
+	if err != nil {
+		t.Skip("systemd-analyze is unavailable on this host")
+	}
+	base := t.TempDir()
+	for _, dir := range []string{"opt/media-core/scripts", "var/lib/media-core", "var/backups/media-core", "units"} {
+		if err := os.MkdirAll(filepath.Join(base, filepath.FromSlash(dir)), 0o700); err != nil {
+			t.Fatalf("mkdir sandbox %s: %v", dir, err)
+		}
+	}
+	for _, path := range []string{"opt/media-core/media-core", "opt/media-core/scripts/backup-smoke.sh"} {
+		if err := os.WriteFile(filepath.Join(base, filepath.FromSlash(path)), []byte("#!/bin/sh\nexit 0\n"), 0o755); err != nil {
+			t.Fatalf("write stub %s: %v", path, err)
+		}
+	}
+	paths := []string{}
+	for name, text := range units {
+		path := filepath.Join(base, "units", name)
+		if err := os.WriteFile(path, []byte(sandboxUnitText(text, base)), 0o600); err != nil {
+			t.Fatalf("write unit copy %s: %v", name, err)
+		}
+		paths = append(paths, path)
+	}
+	sort.Strings(paths)
+	args := append([]string{"verify", "--recursive-errors=no"}, paths...)
+	out, err := exec.Command(analyzer, args...).CombinedOutput()
+	return string(out), err
+}
+
+func TestDeploymentUnitsDetectCorruption(t *testing.T) {
+	root := repoRoot(t)
+	base := map[string]string{
+		"media-core.service":        unitText(t, root, "media-core.service"),
+		"media-core-backup.service": unitText(t, root, "media-core-backup.service"),
+		"media-core-backup.timer":   unitText(t, root, "media-core-backup.timer"),
+	}
+	cases := []struct {
+		name   string
+		file   string
+		mutate func(string) string
+	}{
+		{"unknown section", "media-core.service", func(text string) string {
+			return strings.Replace(text, "[Service]", "[Bogus]", 1)
+		}},
+		{"empty ExecStart", "media-core.service", func(text string) string {
+			lines := strings.Split(text, "\n")
+			for i, line := range lines {
+				if strings.HasPrefix(line, "ExecStart=") {
+					lines[i] = "ExecStart="
+				}
+			}
+			return strings.Join(lines, "\n")
+		}},
+		{"unknown key", "media-core.service", func(text string) string {
+			return text + "\nThisKeyDoesNotExist=yes\n"
+		}},
+		{"broken timer", "media-core-backup.timer", func(text string) string {
+			return strings.Replace(text, "[Timer]", "[Broken]", 1)
+		}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			units := map[string]string{}
+			for name, text := range base {
+				units[name] = text
+			}
+			units[tc.file] = tc.mutate(units[tc.file])
+			out, err := verifyUnitsInSandbox(t, units)
+			if err == nil {
+				t.Fatalf("corrupted %s passed verification (%s)", tc.file, out)
+			}
+		})
 	}
 }
