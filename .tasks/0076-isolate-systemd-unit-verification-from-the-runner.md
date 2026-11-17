@@ -1,7 +1,7 @@
 # Task 0076 - Isolate systemd unit verification from the runner
 
-State: todo
-Owner: none
+State: done
+Owner: opencode-media-fix-20261116
 Mode: mvp
 Lane: acceptance
 Scope: acceptance,packaging

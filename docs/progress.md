@@ -163,7 +163,7 @@ All 9 final-readiness tasks (0064–0075 range: 0064–0075 minus already-closed
 
 ## CI fix (2026-11-17)
 
-GitHub Actions run 44038755260 failed at step "Go checks" on HEAD f8ec527: TestDeploymentUnits invoked systemd-analyze verify on production unit paths absent on the runner and could pick up unrelated host unit warnings. Task 0076 starts as todo.
+GitHub Actions run 44038755260 failed at step "Go checks" on HEAD f8ec527: TestDeploymentUnits invoked systemd-analyze verify on production unit paths absent on the runner and could pick up unrelated host unit warnings. Task 0076 done: unit verification runs on sandboxed copies with executable stubs; production-path assertions and backup smoke remain; four corruption regressions pass; missing analyzer is now a hard failure; independent review passed at candidate 9365232.
 
 ## Implemented
 
