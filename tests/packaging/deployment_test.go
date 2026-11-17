@@ -70,15 +70,6 @@ func TestDeploymentUnits(t *testing.T) {
 		}
 	}
 
-	units := map[string]string{
-		"media-core.service":        service,
-		"media-core-backup.service": backup,
-		"media-core-backup.timer":   timer,
-	}
-	if out, err := verifyUnitsInSandbox(t, units); err != nil {
-		t.Fatalf("systemd-analyze verify of project units: %v (%s)", err, out)
-	}
-
 	if testing.Short() {
 		t.Skip("skipping systemd-like integration smoke in short mode")
 	}
@@ -121,6 +112,15 @@ func TestDeploymentUnits(t *testing.T) {
 	if out, err := runSmoke(filepath.Join(t.TempDir(), "missing")); err == nil || !strings.Contains(out, "missing or not executable") {
 		t.Fatalf("missing binary must fail: err = %v, out = %s", err, out)
 	}
+
+	units := map[string]string{
+		"media-core.service":        service,
+		"media-core-backup.service": backup,
+		"media-core-backup.timer":   timer,
+	}
+	if out, err := verifyUnitsInSandbox(t, units); err != nil {
+		t.Fatalf("systemd-analyze verify of project units: %v (%s)", err, out)
+	}
 }
 
 // sandboxUnitText rewrites production paths to files inside a temporary root
@@ -143,7 +143,7 @@ func verifyUnitsInSandbox(t *testing.T, units map[string]string) (string, error)
 	t.Helper()
 	analyzer, err := exec.LookPath("systemd-analyze")
 	if err != nil {
-		t.Skip("systemd-analyze is unavailable on this host")
+		t.Fatalf("systemd-analyze is required for unit verification: %v", err)
 	}
 	base := t.TempDir()
 	for _, dir := range []string{"opt/media-core/scripts", "var/lib/media-core", "var/backups/media-core", "units"} {
