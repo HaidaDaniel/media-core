@@ -20,7 +20,6 @@ Make the web-asset manifest verifier cover the full staged tree, including neste
 - docs/task-system.md
 - scripts/build-release.sh
 - tests/packaging/packaging_test.go
-- scripts/build-release.sh
 - docs/engineering/deployment.md
 
 ## Files allowed to edit
