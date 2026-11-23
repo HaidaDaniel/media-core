@@ -86,6 +86,8 @@ Each row lists direct dependencies; numbering is not execution order (0049 is an
 
 | [0077](../.tasks/0077-trusted-lan-local-dns-access-and-deployment-readiness.md) | Trusted LAN, local DNS access and deployment readiness | none | high | M5 | todo |
 
+| [0078](../.tasks/0078-publish-verified-linux-release-assets-from-version-tags.md) | Publish verified Linux release assets from version tags | none | high | M5 | todo |
+
 ## Execution path and observable increments
 
 First five recommended implementation tasks: **0005 → 0006 → 0007 → 0008 → 0009**. After 0005, 0006 and 0007 may run in separate worktrees. Task 0004 must pass review/gate and be done before 0005 is claimable. Do not start 0003 implicitly or mark it done as part of this plan.
@@ -129,7 +131,7 @@ Every requirement has implementation ownership. Scenarios A–G live in docs/pro
 | R14 | [Architecture](architecture.md), [requirements](product/requirements.md) | 0022, 0023, 0049, 0047, 0064, 0070, 0071, 0073, 0074 | F |
 | R15 | [Architecture](architecture.md), [risks](engineering/risk-register.md) | 0008, 0009, 0022, 0023, 0044, 0055, 0059 | B, C, F |
 | R16 | [Integration](integration-contract.md) | 0042, 0043 | E |
-| R17 | [Architecture](architecture.md), [technology](engineering/tech-options.md) | 0030, 0047, 0048, 0058, 0066, 0067, 0072 | F, G |
+| R17 | [Architecture](architecture.md), [technology](engineering/tech-options.md) | 0030, 0047, 0048, 0058, 0066, 0067, 0072, 0078 | F, G |
 | R18 | [Scope](scope.md), [integration](integration-contract.md), [contracts](application-contract.md) | 0012, 0019, 0020, 0032, 0041, 0045, 0048 | A, C, G |
 
 ## Planning verification boundary

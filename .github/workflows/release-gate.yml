@@ -11,8 +11,20 @@ permissions:
 jobs:
   gate:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      publish: ${{ steps.identity.outputs.publish }}
+      version: ${{ steps.identity.outputs.version }}
+      tag: ${{ steps.identity.outputs.tag }}
+      commit: ${{ steps.identity.outputs.commit }}
+      short_sha: ${{ steps.identity.outputs.short_sha }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          fetch-tags: true
       - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
@@ -28,6 +40,41 @@ jobs:
         run: |
           pnpm install --frozen-lockfile
           pnpm --dir web install --frozen-lockfile
+      - name: Resolve build identity
+        id: identity
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          REF_NAME: ${{ github.ref_name }}
+          EXPECTED_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          actual_sha=$(git rev-parse HEAD)
+          if [ "$actual_sha" != "$EXPECTED_SHA" ]; then
+            echo "error: checkout HEAD $actual_sha does not match $EXPECTED_SHA" >&2
+            exit 1
+          fi
+          short_sha=$(git rev-parse --short "$EXPECTED_SHA")
+          if [ "$EVENT_NAME" = "push" ] && [[ "$REF_NAME" == v* ]]; then
+            tag="$REF_NAME"
+            version="$REF_NAME"
+            publish="true"
+            tag_sha=$(git rev-list -n 1 "${tag}^{commit}")
+            if [ "$tag_sha" != "$EXPECTED_SHA" ]; then
+              echo "error: tag $tag resolves to $tag_sha, not $EXPECTED_SHA" >&2
+              exit 1
+            fi
+          else
+            tag=""
+            version="dev-$short_sha"
+            publish="false"
+          fi
+          {
+            echo "publish=$publish"
+            echo "version=$version"
+            echo "tag=$tag"
+            echo "commit=$EXPECTED_SHA"
+            echo "short_sha=$short_sha"
+          } >> "$GITHUB_OUTPUT"
       - name: Full verification
         run: |
           go build ./...
@@ -40,8 +87,43 @@ jobs:
           pnpm --dir web exec playwright test
       - name: Build release artifacts
         env:
-          MEDIA_CORE_VERSION: ${{ github.ref_name }}
+          MEDIA_CORE_VERSION: ${{ steps.identity.outputs.version }}
         run: bash scripts/build-release.sh
+      - name: Verify build identity in both artifacts
+        env:
+          EXPECTED_VERSION: ${{ steps.identity.outputs.version }}
+          EXPECTED_SHORT_SHA: ${{ steps.identity.outputs.short_sha }}
+        run: |
+          set -euo pipefail
+          binaries="release/media-core-linux-amd64 release/media-core-linux-arm64"
+          for bin in $binaries; do
+            test -s "$bin"
+            info=$(go version -m "$bin")
+            grep -Fq -- "-X github.com/HaidaDaniel/media-core/internal/buildinfo.Version=$EXPECTED_VERSION" <<< "$info"
+            grep -Fq -- "-X github.com/HaidaDaniel/media-core/internal/buildinfo.Commit=$EXPECTED_SHORT_SHA" <<< "$info"
+            echo "$bin: version=$EXPECTED_VERSION commit=$EXPECTED_SHORT_SHA"
+          done
+          case "$(uname -m)" in
+            x86_64) host_bin=release/media-core-linux-amd64 ;;
+            aarch64) host_bin=release/media-core-linux-arm64 ;;
+            *) host_bin="" ;;
+          esac
+          if [ -n "$host_bin" ]; then
+            line=$("$host_bin" version)
+            echo "$host_bin version output: $line"
+            case "$line" in
+              "media-core $EXPECTED_VERSION (commit $EXPECTED_SHORT_SHA, "*) ;;
+              *) echo "error: $host_bin reports an unexpected identity" >&2; exit 1 ;;
+            esac
+          else
+            echo "host arch $(uname -m) cannot execute either artifact; metadata check only"
+          fi
+      - name: Generate SHA256SUMS
+        run: |
+          set -euo pipefail
+          cd release
+          sha256sum media-core-linux-amd64 media-core-linux-arm64 > SHA256SUMS
+          cat SHA256SUMS
       - name: Upload local artifacts only
         uses: actions/upload-artifact@v4
         with:
@@ -49,4 +131,89 @@ jobs:
           path: |
             release/media-core-linux-amd64
             release/media-core-linux-arm64
+            release/SHA256SUMS
           if-no-files-found: error
+
+  publish:
+    needs: gate
+    if: needs.gate.outputs.publish == 'true' && github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download verified artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: media-core-linux
+          path: release
+      - name: Verify artifact checksums before upload
+        run: |
+          set -euo pipefail
+          cd release
+          test -s media-core-linux-amd64
+          test -s media-core-linux-arm64
+          test -s SHA256SUMS
+          sha256sum -c SHA256SUMS
+      - name: Refuse to overwrite an existing release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPOSITORY: ${{ github.repository }}
+          TAG: ${{ needs.gate.outputs.tag }}
+        run: |
+          set -euo pipefail
+          if gh release view "$TAG" --repo "$GH_REPOSITORY" >/dev/null 2>&1; then
+            echo "error: release $TAG already exists; refusing to overwrite it" >&2
+            exit 1
+          fi
+      - name: Create release and upload assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPOSITORY: ${{ github.repository }}
+          TAG: ${{ needs.gate.outputs.tag }}
+          VERSION: ${{ needs.gate.outputs.version }}
+          COMMIT: ${{ needs.gate.outputs.commit }}
+        run: |
+          set -euo pipefail
+          cd release
+          notes=$(mktemp)
+          {
+            echo "media-core $VERSION"
+            echo
+            echo "Source commit: $COMMIT"
+            echo "Built from a v* tag after the full release gate passed."
+            echo
+            echo "Assets: media-core-linux-amd64, media-core-linux-arm64, SHA256SUMS"
+            echo "Verify: sha256sum -c SHA256SUMS"
+          } > "$notes"
+          gh release create "$TAG" \
+            --repo "$GH_REPOSITORY" \
+            --title "media-core $VERSION" \
+            --notes-file "$notes" \
+            --verify-tag \
+            media-core-linux-amd64 media-core-linux-arm64 SHA256SUMS
+      - name: Verify anonymous HTTPS access and published checksums
+        env:
+          GH_REPOSITORY: ${{ github.repository }}
+          TAG: ${{ needs.gate.outputs.tag }}
+        run: |
+          set -euo pipefail
+          page="https://github.com/$GH_REPOSITORY/releases/tag/$TAG"
+          base="https://github.com/$GH_REPOSITORY/releases/download/$TAG"
+          curl --fail --silent --show-error --location --max-time 60 \
+            --retry 5 --retry-delay 5 --retry-connrefused \
+            --output /dev/null "$page"
+          tmp=$(mktemp -d)
+          trap 'rm -rf "$tmp"' EXIT
+          for asset in SHA256SUMS media-core-linux-amd64 media-core-linux-arm64; do
+            code=$(curl --fail --silent --show-error --location --max-time 300 \
+              --retry 5 --retry-delay 5 --retry-connrefused \
+              --output "$tmp/$asset" --write-out '%{http_code}' "$base/$asset")
+            if [ "$code" != "200" ]; then
+              echo "error: anonymous HTTPS download of $asset returned $code" >&2
+              exit 1
+            fi
+            test -s "$tmp/$asset"
+            echo "$asset: anonymous HTTPS 200"
+          done
+          cmp release/SHA256SUMS "$tmp/SHA256SUMS"
+          (cd "$tmp" && sha256sum -c SHA256SUMS)
