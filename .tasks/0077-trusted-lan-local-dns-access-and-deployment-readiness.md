@@ -132,7 +132,7 @@ Enable explicit Trusted LAN HTTP access on a configured private interface and lo
 - `{"id":"release-build","type":"automated","required":true,"environment":"local","profile":"report","command":"bash scripts/build-release.sh"}`
 - `{"id":"apk-lint","type":"automated","required":true,"environment":"local","profile":"report","apkOperation":"lint"}`
 - `{"id":"apk-doctor","type":"automated","required":true,"environment":"local","profile":"report","apkOperation":"doctor"}`
-- `{"id":"apk-status","type":"automated","required":true,"environment":"local","profile":"report","apkOperation":"status"}`
+- `{"id":"apk-status","type":"automated","required":true,"environment":"local","profile":"report","command":"git status --short >/dev/null && pnpm exec apk status"}`
 
 ## Documentation updates
 
@@ -146,3 +146,4 @@ Enable explicit Trusted LAN HTTP access on a configured private interface and lo
 - Unstarted implementation contract. Tests/commands above are to be created or made runnable by this task; none is claimed to pass today.
 - No NAS deployment, host network/system configuration change, DNS router change, force push or publication is authorized.
 - If no private network interface is available locally, record the real-network HTTP session smoke as unverified and prepare a reproducible NAS smoke rather than substituting loopback.
+- Verification note: build-release.sh restores the tracked asset placeholder with a fresh mtime, so the first `apk status` after it can trip the APK diagnostic snapshot on a stale Git index. The apk-status check refreshes the index with a read-only `git status` before invoking `apk status`; the status check itself is unchanged.
