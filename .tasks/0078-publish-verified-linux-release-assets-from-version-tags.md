@@ -1,6 +1,6 @@
 # Task 0078 - Publish verified Linux release assets from version tags
 
-State: doing
+State: done
 Owner: opencode-release-20261123
 Mode: mvp
 Lane: implementation
