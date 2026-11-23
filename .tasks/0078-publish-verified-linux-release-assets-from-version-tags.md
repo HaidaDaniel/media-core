@@ -104,8 +104,9 @@ Publish Linux amd64/arm64 binaries and SHA256SUMS as public GitHub Release asset
 
 ## Verification
 
-- `{"id":"yaml-parse","type":"automated","required":true,"environment":"local","profile":"report","command":"python3 -c \"import yaml,pathlib; yaml.safe_load(pathlib.Path('.github/workflows/release-gate.yml').read_text())\""}`
-- `{"id":"publish-contract","type":"automated","required":true,"environment":"local","profile":"report","command":"python3 -c \"import yaml,pathlib; w=yaml.safe_load(pathlib.Path('.github/workflows/release-gate.yml').read_text()); j=w['jobs']; assert j['gate']['permissions']['contents']=='read'; p=j['publish']; assert p['permissions']['contents']=='write'; assert p['needs']=='gate'; assert 'refs/tags/v' in p['if']\""}`
+- `{"id":"yaml-parse","type":"automated","required":true,"environment":"local","profile":"report","command":"python3 -c \"import yaml;yaml.safe_load(open('.github/workflows/release-gate.yml'))\""}`
+- `{"id":"publish-perms","type":"automated","required":true,"environment":"local","profile":"report","command":"python3 -c \"import yaml;w=yaml.safe_load(open('.github/workflows/release-gate.yml'));j=w['jobs'];assert j['gate']['permissions']['contents']=='read' and j['publish']['permissions']['contents']=='write'\""}`
+- `{"id":"publish-trigger","type":"automated","required":true,"environment":"local","profile":"report","command":"python3 -c \"import yaml;w=yaml.safe_load(open('.github/workflows/release-gate.yml'));p=w['jobs']['publish'];assert p['needs']=='gate' and 'refs/tags/v' in p['if'] and 'event_name' in p['if']\""}`
 - `{"id":"planning-links","type":"automated","required":true,"environment":"local","profile":"report","command":"python3 scripts/check-planning.py"}`
 - `{"id":"apk-lint","type":"automated","required":true,"environment":"local","profile":"report","apkOperation":"lint"}`
 - `{"id":"apk-doctor","type":"automated","required":true,"environment":"local","profile":"report","apkOperation":"doctor"}`
