@@ -1,6 +1,6 @@
 # Task 0077 - Trusted LAN, local DNS access and deployment readiness
 
-State: doing
+State: done
 Owner: opencode-lan-20261123
 Mode: mvp
 Lane: implementation
