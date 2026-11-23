@@ -15,6 +15,8 @@ values.
 | Allow remote | explicit flag | — | `false` |
 | TLS certificate file | explicit flag | — | unset |
 | TLS key file | explicit flag | — | unset |
+| Trusted LAN | explicit flag | — | `false` |
+| LAN host | explicit flag | — | unset |
 
 ## State directory
 
@@ -39,6 +41,14 @@ values.
   enforcing the TLS files happens in the `serve` lifecycle.
 - The public origin must use https; credentials in the origin are
   rejected.
+- Trusted LAN is explicit (`--trusted-lan`) and is never inferred from a
+  private IP. It binds one concrete RFC1918 IPv4 or IPv6 ULA address on an
+  explicit port; wildcards, public, loopback, link-local, multicast and
+  hostname listeners are rejected. `--lan-host` is one lowercase DNS name
+  without scheme, port or path. Trusted LAN cannot be combined with
+  allow-remote, public origin or TLS files. In this mode the cookie is not
+  `Secure` because HTTP is not a secure context; see
+  [deployment](deployment.md#trusted-lan-deployment).
 
 ## Serve lifecycle (task 0024)
 
@@ -58,14 +68,18 @@ values.
 - Security boundary: every response carries a self-only CSP (no inline or
   eval), `nosniff`, `frame-ancestors 'none'`/`DENY`, and
   `Referrer-Policy: no-referrer`; no CORS headers are sent. The `Host`
-  header must match the configured listener (loopback) or the public
-  origin host (remote); unsafe requests (POST/PUT/PATCH/DELETE) require an
-  exact `Origin` match, and a missing Origin is never treated as a
-  non-browser bypass. Authenticated mutations require the per-session
-  `X-CSRF-Token` header. Request bodies are limited to 1 MiB.
+  header must match the configured listener (loopback), the public
+  origin host (remote), or in Trusted LAN mode the listener IP and the one
+  configured `--lan-host` on the same port; unsafe requests
+  (POST/PUT/PATCH/DELETE) require an exact `http://` `Origin` match for
+  loopback/LAN (the https public origin in remote mode), and a missing
+  Origin is never treated as a non-browser bypass. Authenticated mutations
+  require the per-session `X-CSRF-Token` header. Request bodies are limited
+  to 1 MiB.
 - Login is rate limited; the session cookie is `HttpOnly`,
-  `SameSite=Strict`, `Path=/`, `Secure` on TLS (local loopback HTTP is the
-  sole exception), and bounded by the 12-hour absolute expiry. Idle
+  `SameSite=Strict`, `Path=/`, `Secure` on TLS (local loopback HTTP and
+  explicit Trusted LAN HTTP are the exceptions), and bounded by the 12-hour
+  absolute expiry. Idle
   sessions expire after 30 minutes; a new login rotates the single
   session.
 

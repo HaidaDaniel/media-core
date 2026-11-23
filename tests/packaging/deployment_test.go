@@ -27,11 +27,14 @@ func requireUnitLines(t *testing.T, name, text string, lines ...string) {
 	}
 }
 
+const trustedLanDropIn = "media-core.service.d/trusted-lan.conf"
+
 func TestDeploymentUnits(t *testing.T) {
 	root := repoRoot(t)
 	service := unitText(t, root, "media-core.service")
 	backup := unitText(t, root, "media-core-backup.service")
 	timer := unitText(t, root, "media-core-backup.timer")
+	dropIn := unitText(t, root, trustedLanDropIn)
 
 	requireUnitLines(t, "media-core.service", service,
 		"User=media-core", "Group=media-core", "WorkingDirectory=/opt/media-core",
@@ -48,7 +51,19 @@ func TestDeploymentUnits(t *testing.T) {
 		"OnCalendar=daily", "Persistent=true", "Unit=media-core-backup.service",
 		"WantedBy=timers.target")
 
-	for name, text := range map[string]string{"service": service, "backup": backup, "timer": timer} {
+	// The default unit stays loopback-only; Trusted LAN is a verified
+	// optional drop-in that the operator installs deliberately.
+	requireUnitLines(t, "media-core.service", service,
+		"ExecStart=/opt/media-core/media-core serve --state-dir /var/lib/media-core --listen 127.0.0.1:8787")
+	requireUnitLines(t, trustedLanDropIn, dropIn,
+		"Wants=network-online.target", "After=network-online.target",
+		"ExecStart=",
+		"ExecStart=/opt/media-core/media-core serve --state-dir /var/lib/media-core --trusted-lan --listen 192.168.1.100:8787 --lan-host media.home.arpa")
+	if strings.Count(dropIn, "ExecStart=") != 2 {
+		t.Fatalf("%s must clear the default ExecStart before setting the LAN one", trustedLanDropIn)
+	}
+
+	for name, text := range map[string]string{"service": service, "backup": backup, "timer": timer, "trusted LAN drop-in": dropIn} {
 		for _, secret := range []string{"SECRET=", "PASSWORD=", "TOKEN=", "owner_secret"} {
 			if strings.Contains(strings.ToLower(text), strings.ToLower(secret)) {
 				t.Fatalf("%s contains a secret-like value %q", name, secret)
@@ -117,6 +132,7 @@ func TestDeploymentUnits(t *testing.T) {
 		"media-core.service":        service,
 		"media-core-backup.service": backup,
 		"media-core-backup.timer":   timer,
+		trustedLanDropIn:            dropIn,
 	}
 	if out, err := verifyUnitsInSandbox(t, units); err != nil {
 		t.Fatalf("systemd-analyze verify of project units: %v (%s)", err, out)
@@ -158,11 +174,16 @@ func verifyUnitsInSandbox(t *testing.T, units map[string]string) (string, error)
 	}
 	paths := []string{}
 	for name, text := range units {
-		path := filepath.Join(base, "units", name)
+		path := filepath.Join(base, "units", filepath.FromSlash(name))
+		if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+			t.Fatalf("mkdir unit dir for %s: %v", name, err)
+		}
 		if err := os.WriteFile(path, []byte(sandboxUnitText(text, base)), 0o600); err != nil {
 			t.Fatalf("write unit copy %s: %v", name, err)
 		}
-		paths = append(paths, path)
+		if filepath.Ext(name) == ".service" || filepath.Ext(name) == ".timer" {
+			paths = append(paths, path)
+		}
 	}
 	sort.Strings(paths)
 	args := append([]string{"verify", "--recursive-errors=no"}, paths...)
@@ -176,6 +197,7 @@ func TestDeploymentUnitsDetectCorruption(t *testing.T) {
 		"media-core.service":        unitText(t, root, "media-core.service"),
 		"media-core-backup.service": unitText(t, root, "media-core-backup.service"),
 		"media-core-backup.timer":   unitText(t, root, "media-core-backup.timer"),
+		trustedLanDropIn:            unitText(t, root, trustedLanDropIn),
 	}
 	cases := []struct {
 		name   string
@@ -208,6 +230,11 @@ func TestDeploymentUnitsDetectCorruption(t *testing.T) {
 				units[name] = text
 			}
 			units[tc.file] = tc.mutate(units[tc.file])
+			if tc.name == "empty ExecStart" {
+				// A drop-in legitimately replaces ExecStart, so the base
+				// unit must be verified alone for this counterexample.
+				delete(units, trustedLanDropIn)
+			}
 			out, err := verifyUnitsInSandbox(t, units)
 			if err == nil {
 				t.Fatalf("corrupted %s passed verification (%s)", tc.file, out)

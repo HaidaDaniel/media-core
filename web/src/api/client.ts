@@ -86,8 +86,20 @@ export function getCSRFToken(): string | null {
 
 // newRequestID mints the idempotency key of one mutation; the same key
 // must be reused when a request is retried after a lost response.
+//
+// crypto.randomUUID() is a secure-context API and is unavailable on plain
+// HTTP LAN origins. crypto.getRandomValues() is available in every browser
+// context, so build a version 4 UUID from 16 cryptographically random bytes:
+// set the version nibble to 4 and the variant bits to 10. There is no
+// Math.random fallback: an unavailable RNG must fail loudly, not weaken the
+// idempotency key.
 export function newRequestID(): string {
-  return crypto.randomUUID();
+  const bytes = new Uint8Array(16);
+  crypto.getRandomValues(bytes);
+  bytes[6] = (bytes[6]! & 0x0f) | 0x40;
+  bytes[8] = (bytes[8]! & 0x3f) | 0x80;
+  const hex = Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
 }
 
 const API_PREFIX = "/api/v1";

@@ -84,6 +84,45 @@ func TestDispatchServeFailsBeforeListen(t *testing.T) {
 	}
 }
 
+func TestParseServeTrustedLANFlags(t *testing.T) {
+	opts, err := parseServeArgs([]string{
+		"--state-dir", "/var/lib/media-core", "--trusted-lan",
+		"--listen", "192.168.1.100:8787", "--lan-host", "media.home.arpa",
+	})
+	if err != nil {
+		t.Fatalf("parseServeArgs: %v", err)
+	}
+	if !opts.TrustedLAN || opts.LANHost != "media.home.arpa" || opts.ListenAddr != "192.168.1.100:8787" || opts.StateDir != "/var/lib/media-core" {
+		t.Fatalf("parsed options = %+v, want explicit trusted LAN values", opts)
+	}
+
+	plain, err := parseServeArgs([]string{"--state-dir", "/var/lib/media-core"})
+	if err != nil || plain.TrustedLAN || plain.LANHost != "" {
+		t.Fatalf("default serve flags = %+v, %v; want no trusted LAN", plain, err)
+	}
+	if _, err := parseServeArgs([]string{"--lan-host"}); err == nil {
+		t.Fatal("--lan-host without a value must fail")
+	}
+}
+
+func TestDispatchServeTrustedLANRequiresPrivateListen(t *testing.T) {
+	err := Dispatch([]string{"serve", "--trusted-lan", "--lan-host", "media.home.arpa"}, &bytes.Buffer{})
+	if err == nil || !strings.Contains(err.Error(), "trusted LAN listen") {
+		t.Fatalf("trusted LAN without --listen: err = %v, want listener guidance", err)
+	}
+	err = Dispatch([]string{"serve", "--trusted-lan", "--listen", "8.8.8.8:8787", "--lan-host", "media.home.arpa"}, &bytes.Buffer{})
+	if err == nil || !strings.Contains(err.Error(), "public IPv4") {
+		t.Fatalf("trusted LAN on public IP: err = %v, want public IP rejection", err)
+	}
+	// A valid trusted LAN configuration reaches the schema boundary; an
+	// uninitialized state directory still fails before binding.
+	dir := t.TempDir()
+	err = Dispatch([]string{"serve", "--state-dir", dir, "--trusted-lan", "--listen", "192.168.1.100:8787", "--lan-host", "media.home.arpa"}, &bytes.Buffer{})
+	if err == nil || !strings.Contains(err.Error(), "run media-core init") {
+		t.Fatalf("trusted LAN with empty state: err = %v, want schema guidance", err)
+	}
+}
+
 func TestDispatchServeUninitializedStateDir(t *testing.T) {
 	// A state directory without an initialized database fails with the
 	// schema guidance before any listener is created.

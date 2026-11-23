@@ -200,4 +200,45 @@ describe("idempotency keys", () => {
     const ids = new Set(Array.from({ length: 50 }, () => newRequestID()));
     expect(ids.size).toBe(50);
   });
+
+  it("mints a valid v4 UUID with crypto.getRandomValues and no randomUUID", () => {
+    const randomUUID = vi.fn(() => {
+      throw new Error("crypto.randomUUID is not available on HTTP LAN origins");
+    });
+    const getRandomValues = vi.fn((array: Uint8Array) => {
+      for (let i = 0; i < array.length; i += 1) {
+        array[i] = (i * 17 + 3) % 256;
+      }
+      return array;
+    });
+    vi.stubGlobal("crypto", { getRandomValues, randomUUID });
+    const mathRandom = vi.spyOn(Math, "random").mockImplementation(() => {
+      throw new Error("Math.random must never be used for request ids");
+    });
+
+    const id = newRequestID();
+    const randomArg = getRandomValues.mock.calls[0][0];
+    expect(randomArg).toBeInstanceOf(Uint8Array);
+    expect(randomArg.length).toBe(16);
+    expect(randomUUID).not.toHaveBeenCalled();
+    expect(mathRandom).not.toHaveBeenCalled();
+    expect(id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
+
+    mathRandom.mockRestore();
+  });
+
+  it("uses fresh random bytes for every id", () => {
+    let counter = 0;
+    const getRandomValues = vi.fn((array: Uint8Array) => {
+      for (let i = 0; i < array.length; i += 1) {
+        counter = (counter + 1) % 251;
+        array[i] = counter + 1;
+      }
+      return array;
+    });
+    vi.stubGlobal("crypto", { getRandomValues });
+    const ids = new Set(Array.from({ length: 100 }, () => newRequestID()));
+    expect(ids.size).toBe(100);
+    expect(getRandomValues).toHaveBeenCalledTimes(100);
+  });
 });

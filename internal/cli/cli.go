@@ -52,7 +52,7 @@ commands:
   export   write a readable versioned JSON export of the library
   doctor   diagnose configuration, schema and permissions without writes
   owner    generate or show the owner secret for HTTP session login
-  serve    run the HTTP server (loopback by default) with session login
+  serve    run the HTTP server (loopback by default, explicit Trusted LAN, or authenticated TLS) with session login
   mcp      run MCP over stdio, or opt-in authenticated Streamable HTTP (--http)
 
 Run "media-core version" to print the build identity.

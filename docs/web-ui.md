@@ -20,6 +20,7 @@ Library filter state lives in URL parameters for refresh/back; debounce search w
 ## Interactions
 
 - Quick add is title-first; optional edition details are inline. A URL-only or ID-only entry asks for a manual title if no local identity exists, without pretending to fetch it. Duplicate candidates appear before committing. An exact reference opens the existing edition; conflicting fields require correction. Creation retries keep the request_id until a definitive result.
+- HTTP LAN origins are not secure contexts: `crypto.randomUUID` can be absent. The API client builds UUID v4 request ids from `crypto.getRandomValues` with correct version/variant bits and no `Math.random` fallback, so quick add, retries and session handling work unchanged at `http://media.home.arpa:8787`.
 - Status/position are separate controls on the edition page and compact card where useful. Updating chapter 42 to 48 appends history. No implicit completed transition. Saved/planned is visibly distinct from in-progress/dropped.
 - All forms keep user input on failure, show field errors, and handle stale revisions with reload/compare; never silently overwrite. Buttons are disabled while a request is pending; idempotency remains necessary for lost responses.
 - A history drawer shows observed time and recorded time, old/current/superseded states, and explicit “Correct mistake” versus “Record new update”. No raw observation deletion button.

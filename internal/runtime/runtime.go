@@ -116,9 +116,11 @@ func Dispatch(args []string, out io.Writer) error {
 }
 
 // runServe runs the resident HTTP lifecycle. Configuration is resolved
-// first, so a non-loopback bind without the explicit remote trio (allow
-// remote, https public origin, TLS certificate and key) fails before any
-// listener is created. The state database is then opened under the shared
+// first: a non-loopback bind requires either explicit Trusted LAN mode on a
+// single private interface with an optional local DNS host, or the complete
+// remote HTTPS trio (allow remote, https public origin, TLS certificate and
+// key). Invalid combinations fail before any listener is created. The state
+// database is then opened under the shared
 // lifetime maintenance lock, which enforces the schema boundary: a missing
 // or drifted schema fails before any listener exists. The server serves
 // until SIGINT or SIGTERM, stops accepting connections, drains in-flight
@@ -162,11 +164,11 @@ func runServe(args []string, out io.Writer) error {
 // parseServeArgs maps serve flags onto explicit configuration options; the
 // loopback default and the remote trio come from config resolution.
 func parseServeArgs(args []string) (config.Options, error) {
-	const serveUsage = "usage: media-core serve [--state-dir <dir>] [--listen <addr>] [--allow-remote] [--public-origin <url>] [--tls-cert <file>] [--tls-key <file>]"
+	const serveUsage = "usage: media-core serve [--state-dir <dir>] [--listen <addr>] [--trusted-lan [--lan-host <name>]] [--allow-remote --public-origin <url> --tls-cert <file> --tls-key <file>]"
 	var opts config.Options
 	for i := 0; i < len(args); i++ {
 		switch args[i] {
-		case "--state-dir", "--listen", "--public-origin", "--tls-cert", "--tls-key":
+		case "--state-dir", "--listen", "--public-origin", "--tls-cert", "--tls-key", "--lan-host":
 			if i+1 >= len(args) {
 				return opts, fmt.Errorf("media-core serve: %s requires a value", args[i])
 			}
@@ -182,9 +184,13 @@ func parseServeArgs(args []string) (config.Options, error) {
 				opts.TLSCertFile = args[i]
 			case "--tls-key":
 				opts.TLSKeyFile = args[i]
+			case "--lan-host":
+				opts.LANHost = args[i]
 			}
 		case "--allow-remote":
 			opts.AllowRemote = true
+		case "--trusted-lan":
+			opts.TrustedLAN = true
 		default:
 			return opts, fmt.Errorf("media-core serve: unknown argument %q (%s)", args[i], serveUsage)
 		}

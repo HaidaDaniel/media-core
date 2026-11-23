@@ -12,6 +12,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 )
 
 // DefaultListenAddr is the loopback listener used when none is provided.
@@ -37,6 +38,8 @@ type Options struct {
 	AllowRemote  bool
 	TLSCertFile  string
 	TLSKeyFile   string
+	TrustedLAN   bool
+	LANHost      string
 	Env          map[string]string
 }
 
@@ -57,6 +60,8 @@ type Config struct {
 	AllowRemote  bool
 	TLSCertFile  string
 	TLSKeyFile   string
+	TrustedLAN   bool
+	LANHost      string
 	OwnerSecret  Secret
 }
 
@@ -67,6 +72,8 @@ func Resolve(opts Options) (*Config, error) {
 		AllowRemote: opts.AllowRemote,
 		TLSCertFile: opts.TLSCertFile,
 		TLSKeyFile:  opts.TLSKeyFile,
+		TrustedLAN:  opts.TrustedLAN,
+		LANHost:     strings.TrimSpace(opts.LANHost),
 	}
 	if err := cfg.resolveStateDir(opts.StateDir, opts.lookup); err != nil {
 		return nil, err
@@ -77,8 +84,17 @@ func Resolve(opts Options) (*Config, error) {
 	if err := cfg.resolvePublicOrigin(opts.PublicOrigin); err != nil {
 		return nil, err
 	}
-	if err := cfg.validateRemote(); err != nil {
-		return nil, err
+	if cfg.TrustedLAN {
+		if err := cfg.validateTrustedLAN(); err != nil {
+			return nil, err
+		}
+	} else {
+		if cfg.LANHost != "" {
+			return nil, fmt.Errorf("lan host %q requires --trusted-lan", cfg.LANHost)
+		}
+		if err := cfg.validateRemote(); err != nil {
+			return nil, err
+		}
 	}
 	return cfg, nil
 }
@@ -202,6 +218,111 @@ func (c *Config) validateRemote() error {
 	return nil
 }
 
+// validateTrustedLAN keeps the explicit LAN mode separate from the remote
+// HTTPS trio: a private IP never infers LAN mode, and LAN mode never borrows
+// the public-origin or TLS settings.
+func (c *Config) validateTrustedLAN() error {
+	if c.AllowRemote || c.PublicOrigin != "" || c.TLSCertFile != "" || c.TLSKeyFile != "" {
+		return fmt.Errorf("trusted LAN cannot be combined with --allow-remote, --public-origin or TLS files")
+	}
+	if err := ValidateTrustedLANListen(c.ListenAddr); err != nil {
+		return err
+	}
+	if c.LANHost == "" {
+		return nil
+	}
+	return ValidateLANHost(c.LANHost)
+}
+
+// ValidateTrustedLANListen checks that a trusted LAN listener binds exactly
+// one explicit private interface address: RFC1918 IPv4 or an IPv6 ULA in
+// fc00::/7. Wildcards, public, loopback, link-local and multicast addresses
+// are rejected so enabling LAN mode cannot silently expose a wider surface.
+func ValidateTrustedLANListen(addr string) error {
+	host, port, err := net.SplitHostPort(addr)
+	if err != nil {
+		return fmt.Errorf("trusted LAN listen addr %q: %w", addr, err)
+	}
+	n, err := strconv.ParseUint(port, 10, 16)
+	if err != nil || n == 0 {
+		return fmt.Errorf("trusted LAN listen addr %q: explicit port from 1 to 65535 is required", addr)
+	}
+	if host == "" {
+		return fmt.Errorf("trusted LAN listen addr %q: an explicit private IP is required, not a wildcard", addr)
+	}
+	ip := net.ParseIP(host)
+	if ip == nil {
+		return fmt.Errorf("trusted LAN listen addr %q: an explicit private IP is required, not %q", addr, host)
+	}
+	if ip.IsUnspecified() || ip.IsLoopback() || ip.IsMulticast() || ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast() {
+		return fmt.Errorf("trusted LAN listen addr %q: wildcard, loopback, link-local and multicast addresses are not allowed", addr)
+	}
+	if v4 := ip.To4(); v4 != nil {
+		if strings.Contains(host, ":") {
+			return fmt.Errorf("trusted LAN listen addr %q: use a plain IPv4 address, not an IPv4-mapped IPv6 address", addr)
+		}
+		rfc1918 := v4[0] == 10 ||
+			(v4[0] == 172 && v4[1] >= 16 && v4[1] <= 31) ||
+			(v4[0] == 192 && v4[1] == 168)
+		if !rfc1918 {
+			return fmt.Errorf("trusted LAN listen addr %q: public IPv4 addresses are not allowed; use an RFC1918 address", addr)
+		}
+		return nil
+	}
+	if ip[0]&0xfe == 0xfc {
+		return nil
+	}
+	return fmt.Errorf("trusted LAN listen addr %q: IPv6 requires a ULA address in fc00::/7", addr)
+}
+
+// ValidateLANHost checks one explicit local DNS name. A scheme, port, path,
+// wildcard, IP literal or mDNS .local name is rejected: only the configured
+// hostname can be accepted by the HTTP Host/Origin boundary.
+func ValidateLANHost(host string) error {
+	host = strings.TrimSpace(host)
+	if host == "" {
+		return fmt.Errorf("lan host must not be empty")
+	}
+	if strings.ContainsAny(host, ":/?#@[] \t\r\n") || strings.Contains(host, "*") {
+		return fmt.Errorf("lan host %q must be one DNS name without scheme, port, path or wildcard", host)
+	}
+	if strings.HasSuffix(host, ".") {
+		return fmt.Errorf("lan host %q must not have a trailing dot", host)
+	}
+	if net.ParseIP(host) != nil {
+		return fmt.Errorf("lan host %q must be a DNS name, not an IP address", host)
+	}
+	if strings.HasSuffix(strings.ToLower(host), ".local") {
+		return fmt.Errorf("lan host %q uses .local mDNS; use a local DNS name in home.arpa instead", host)
+	}
+	if host != strings.ToLower(host) {
+		return fmt.Errorf("lan host %q must be lowercase", host)
+	}
+	labels := strings.Split(host, ".")
+	if len(labels) < 2 {
+		return fmt.Errorf("lan host %q must be a fully qualified name such as media.home.arpa", host)
+	}
+	for _, label := range labels {
+		if len(label) < 1 || len(label) > 63 {
+			return fmt.Errorf("lan host %q has an invalid label length", host)
+		}
+		for i, r := range label {
+			alnum := r >= 'a' && r <= 'z' || r >= '0' && r <= '9'
+			if i == 0 || i == len(label)-1 {
+				if !alnum {
+					return fmt.Errorf("lan host %q has an invalid label %q", host, label)
+				}
+			} else if !alnum && r != '-' {
+				return fmt.Errorf("lan host %q has an invalid label %q", host, label)
+			}
+		}
+	}
+	if len(host) > 253 {
+		return fmt.Errorf("lan host %q exceeds the DNS name length limit", host)
+	}
+	return nil
+}
+
 func isLoopbackAddr(addr string) bool {
 	host, _, err := net.SplitHostPort(addr)
 	if err != nil {
@@ -221,6 +342,10 @@ func (c *Config) Diagnostics() string {
 	if origin == "" {
 		origin = "<unset>"
 	}
-	return fmt.Sprintf("stateDir=%s listen=%s publicOrigin=%s allowRemote=%t tlsCertFile=%s tlsKeyFile=%s ownerSecret=%s",
-		c.StateDir, c.ListenAddr, origin, c.AllowRemote, c.TLSCertFile, c.TLSKeyFile, c.OwnerSecret)
+	lanHost := c.LANHost
+	if lanHost == "" {
+		lanHost = "<unset>"
+	}
+	return fmt.Sprintf("stateDir=%s listen=%s publicOrigin=%s allowRemote=%t tlsCertFile=%s tlsKeyFile=%s trustedLan=%t lanHost=%s ownerSecret=%s",
+		c.StateDir, c.ListenAddr, origin, c.AllowRemote, c.TLSCertFile, c.TLSKeyFile, c.TrustedLAN, lanHost, c.OwnerSecret)
 }

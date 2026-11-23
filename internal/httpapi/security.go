@@ -5,8 +5,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
 
 	"github.com/HaidaDaniel/media-core/internal/app"
@@ -26,7 +28,9 @@ const MaxRequestBody = 1 << 20
 // mode the single public origin host is the only valid host; in loopback
 // mode the configured listener spelling and the bound listener address are
 // accepted (they differ only for name-resolving hosts and port-0 test
-// binds). An attacker-controlled host matches neither.
+// binds). Trusted LAN mode adds exactly one configured local DNS host on the
+// same port, alongside the private IP spelling. An attacker-controlled host
+// matches neither.
 func (s *Server) acceptedHosts() []string {
 	if s.cfg.PublicOrigin != "" {
 		if u, err := url.Parse(s.cfg.PublicOrigin); err == nil && u.Host != "" {
@@ -34,11 +38,22 @@ func (s *Server) acceptedHosts() []string {
 		}
 	}
 	hosts := []string{s.cfg.ListenAddr}
+	port := ""
+	if _, p, err := net.SplitHostPort(s.cfg.ListenAddr); err == nil {
+		port = p
+	}
 	s.mu.Lock()
 	if s.ln != nil {
-		hosts = append(hosts, s.ln.Addr().String())
+		bound := s.ln.Addr().String()
+		hosts = append(hosts, bound)
+		if _, p, err := net.SplitHostPort(bound); err == nil {
+			port = p
+		}
 	}
 	s.mu.Unlock()
+	if s.cfg.TrustedLAN && s.cfg.LANHost != "" && port != "" {
+		hosts = append(hosts, net.JoinHostPort(s.cfg.LANHost, port))
+	}
 	return hosts
 }
 
@@ -58,10 +73,12 @@ func (s *Server) acceptedOrigins() []string {
 	return origins
 }
 
-// hostAllowed reports whether a Host header matches an accepted host.
+// hostAllowed reports whether a Host header matches an accepted host. DNS
+// names are case-insensitive, so comparison folds case but stays exact: no
+// suffix, wildcard or alternative spelling is accepted.
 func hostAllowed(provided string, accepted []string) bool {
 	for _, a := range accepted {
-		if provided == a {
+		if strings.EqualFold(provided, a) {
 			return true
 		}
 	}

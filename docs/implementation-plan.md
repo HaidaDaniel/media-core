@@ -1,6 +1,6 @@
 # Implementation plan and requirement coverage
 
-This is the inventory of **72 implementation tasks, 0005–0076**: the original 45 MVP tasks, 14 post-implementation remediation tasks, 6 post-implementation audit tasks and 6 final readiness/reliability tasks. Tasks 0005–0075 are implemented and done; 0076 starts as todo. Existing 0001 canceled, 0002 done and 0003 todo remain unchanged. No task here authorizes production deployment.
+This is the inventory of **73 implementation tasks, 0005–0077**: the original 45 MVP tasks, 14 post-implementation remediation tasks, 6 post-implementation audit tasks, 6 final readiness/reliability tasks and one Trusted LAN deployment-readiness task. Tasks 0005–0076 are implemented and done; 0077 starts as todo. Existing 0001 canceled, 0002 done and 0003 todo remain unchanged. No task here authorizes production deployment.
 
 The task Markdown is the execution contract: context, narrow allowed paths, steps, invariants, acceptance, negative cases, focused verification and review questions. Verification entries are JSON objects; each task records its own evidence when run. Use the installed APK 0.6.0 syntax.
 
@@ -84,6 +84,8 @@ Each row lists direct dependencies; numbering is not execution order (0049 is an
 
 | [0076](../.tasks/0076-isolate-systemd-unit-verification-from-the-runner.md) | Isolate systemd unit verification from the runner | 0070 | medium | M5 | todo |
 
+| [0077](../.tasks/0077-trusted-lan-local-dns-access-and-deployment-readiness.md) | Trusted LAN, local DNS access and deployment readiness | none | high | M5 | todo |
+
 ## Execution path and observable increments
 
 First five recommended implementation tasks: **0005 → 0006 → 0007 → 0008 → 0009**. After 0005, 0006 and 0007 may run in separate worktrees. Task 0004 must pass review/gate and be done before 0005 is claimable. Do not start 0003 implicitly or mark it done as part of this plan.
@@ -123,7 +125,7 @@ Every requirement has implementation ownership. Scenarios A–G live in docs/pro
 | R10 | [Web](web-ui.md), [contracts](application-contract.md) | 0024, 0025, 0026, 0027, 0028, 0029, 0030, 0031, 0032, 0033, 0034, 0035, 0036, 0045, 0046, 0050, 0060, 0065, 0069, 0075 | A, B, C, D, G |
 | R11 | [Hermes](hermes.md) | 0037, 0038, 0039, 0040, 0041, 0048, 0056 | A, B, C, D, G |
 | R12 | [Contracts](application-contract.md), [architecture](architecture.md) | 0007, 0012, 0025, 0026, 0027, 0028, 0029, 0038, 0039, 0040, 0041, 0045, 0046, 0057 | A, B, C, D |
-| R13 | [Architecture](architecture.md) | 0006, 0024, 0030, 0047, 0061, 0076 | G |
+| R13 | [Architecture](architecture.md) | 0006, 0024, 0030, 0047, 0061, 0076, 0077 | G |
 | R14 | [Architecture](architecture.md), [requirements](product/requirements.md) | 0022, 0023, 0049, 0047, 0064, 0070, 0071, 0073, 0074 | F |
 | R15 | [Architecture](architecture.md), [risks](engineering/risk-register.md) | 0008, 0009, 0022, 0023, 0044, 0055, 0059 | B, C, F |
 | R16 | [Integration](integration-contract.md) | 0042, 0043 | E |

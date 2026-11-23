@@ -7,7 +7,7 @@
 - Explicit provenance-bearing adaptation/translation/version/story relationships, origin claims and corrections; no fuzzy merges.
 - CLI, MCP stdio and HTTP over common application services. Web UI and Hermes/MCP are equally required before MVP completion.
 - Library, quick add, work/edition details, related media and recent history screens. Manual title-only entry always works.
-- Secure loopback HTTP by default, browser session protection, explicit authenticated TLS configuration for non-loopback access. No multi-user RBAC.
+- Secure loopback HTTP by default, browser session protection, explicit authenticated TLS configuration for non-loopback access, and an optional explicit Trusted LAN plain-HTTP mode on one private interface with one local DNS name (no proxy or embedded DNS). No multi-user RBAC.
 - Embedded React/TypeScript/Vite assets in one Go binary; no Node production dependency.
 - SQLite migrations, restart durability, readable JSON export, consistent backup/restore, cross-process access tests.
 - Idempotent Release Watcher file/stdin imports, explicit edition binding, pending imports and release history. Imported publication information never advances personal progress.

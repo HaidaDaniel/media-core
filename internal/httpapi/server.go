@@ -49,12 +49,31 @@ func (s *Server) WithCatalog(svc *app.Service) *Server {
 }
 
 // New builds the server for a resolved configuration. A non-loopback
-// listener requires the explicit remote trio (allow-remote, https public
-// origin, TLS certificate and key) and a loadable certificate; this fails
-// before any listener is created.
+// listener requires either explicit Trusted LAN mode (plain HTTP on one
+// private interface, no Secure cookie) or the remote trio (allow-remote,
+// https public origin, TLS certificate and key) with a loadable certificate;
+// invalid combinations fail before any listener is created.
 func New(cfg *config.Config) (*Server, error) {
 	if cfg == nil || cfg.StateDir == "" || cfg.ListenAddr == "" {
 		return nil, fmt.Errorf("httpapi: configuration is missing state dir or listen addr")
+	}
+	if cfg.TrustedLAN {
+		if err := config.ValidateTrustedLANListen(cfg.ListenAddr); err != nil {
+			return nil, fmt.Errorf("httpapi: trusted LAN: %w", err)
+		}
+		if cfg.LANHost != "" {
+			if err := config.ValidateLANHost(cfg.LANHost); err != nil {
+				return nil, fmt.Errorf("httpapi: trusted LAN: %w", err)
+			}
+		}
+		if cfg.AllowRemote || cfg.PublicOrigin != "" || cfg.TLSCertFile != "" || cfg.TLSKeyFile != "" {
+			return nil, fmt.Errorf("httpapi: trusted LAN cannot be combined with remote HTTPS mode")
+		}
+		return &Server{
+			cfg:          cfg,
+			sessions:     NewSessionStore(secretReader(cfg.StateDir)),
+			secureCookie: false,
+		}, nil
 	}
 	var tlsCfg *tls.Config
 	secure := false

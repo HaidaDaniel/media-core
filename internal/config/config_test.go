@@ -213,3 +213,150 @@ func TestDiagnosticsUnsetSecret(t *testing.T) {
 		t.Errorf("Diagnostics() %q does not show state dir and listener", d)
 	}
 }
+
+func TestTrustedLANIsExplicit(t *testing.T) {
+	cfg := mustResolve(t, Options{Env: isolatedEnv(t, nil)})
+	if cfg.TrustedLAN || cfg.LANHost != "" {
+		t.Errorf("default = trustedLan %t lanHost %q, want false and empty", cfg.TrustedLAN, cfg.LANHost)
+	}
+
+	// A private IP alone does not infer LAN mode: the remote trio is still
+	// required for a non-loopback listener.
+	if _, err := Resolve(Options{ListenAddr: "192.168.1.100:8787", Env: isolatedEnv(t, nil)}); err == nil {
+		t.Fatal("private IP without trusted LAN or remote trio: want error")
+	}
+
+	lan := mustResolve(t, Options{
+		TrustedLAN: true,
+		ListenAddr: "192.168.1.100:8787",
+		LANHost:    "media.home.arpa",
+		Env:        isolatedEnv(t, nil),
+	})
+	if !lan.TrustedLAN || lan.LANHost != "media.home.arpa" || lan.ListenAddr != "192.168.1.100:8787" {
+		t.Errorf("trusted LAN config = %+v, want explicit mode, host and listener", lan)
+	}
+	if lan.AllowRemote || lan.PublicOrigin != "" || lan.TLSCertFile != "" || lan.TLSKeyFile != "" {
+		t.Errorf("trusted LAN config borrowed remote HTTPS settings: %+v", lan)
+	}
+	if d := lan.Diagnostics(); !strings.Contains(d, "trustedLan=true") || !strings.Contains(d, "lanHost=media.home.arpa") {
+		t.Errorf("Diagnostics() %q must show trusted LAN mode and host", d)
+	}
+}
+
+func TestTrustedLANPrivateIPv4(t *testing.T) {
+	for _, addr := range []string{"10.0.0.1:8787", "10.255.255.254:8787", "172.16.0.1:8787", "172.31.255.254:8787", "192.168.0.1:8787", "192.168.255.254:8787"} {
+		cfg := mustResolve(t, Options{TrustedLAN: true, ListenAddr: addr, LANHost: "media.home.arpa", Env: isolatedEnv(t, nil)})
+		if cfg.ListenAddr != addr {
+			t.Errorf("listen %q: resolved to %q", addr, cfg.ListenAddr)
+		}
+	}
+}
+
+func TestTrustedLANRejectsUnsafeListeners(t *testing.T) {
+	cases := map[string]string{
+		"wildcard v4":      "0.0.0.0:8787",
+		"wildcard v6":      "[::]:8787",
+		"empty host":       ":8787",
+		"public v4":        "8.8.8.8:8787",
+		"just outside 172": "172.32.0.1:8787",
+		"just outside 192": "192.169.0.1:8787",
+		"link local":       "169.254.1.1:8787",
+		"multicast v4":     "224.0.0.1:8787",
+		"multicast v6":     "[ff02::1]:8787",
+		"loopback v4":      "127.0.0.1:8787",
+		"loopback v6":      "[::1]:8787",
+		"hostname":         "media.home.arpa:8787",
+		"mapped ipv4":      "[::ffff:192.168.1.10]:8787",
+		"public ipv6":      "[2001:db8::1]:8787",
+		"port zero":        "192.168.1.100:0",
+		"no port":          "192.168.1.100",
+	}
+	for name, addr := range cases {
+		_, err := Resolve(Options{TrustedLAN: true, ListenAddr: addr, LANHost: "media.home.arpa", Env: isolatedEnv(t, nil)})
+		if err == nil {
+			t.Errorf("%s (%q): want error, got nil", name, addr)
+		}
+		switch name {
+		case "port zero", "no port", "empty host":
+			// Malformed listener syntax is rejected during generic listener
+			// resolution before LAN-specific validation runs.
+		default:
+			if !strings.Contains(err.Error(), "trusted LAN listen") {
+				t.Errorf("%s (%q): error %q does not name the trusted LAN listener", name, addr, err)
+			}
+		}
+	}
+}
+
+func TestTrustedLANIPv6ULA(t *testing.T) {
+	for _, addr := range []string{"[fc00::1]:8787", "[fd12:3456::abcd]:8787", "[fdff:ffff:ffff:ffff:ffff:ffff:ffff:ffff]:8787"} {
+		cfg := mustResolve(t, Options{TrustedLAN: true, ListenAddr: addr, Env: isolatedEnv(t, nil)})
+		if !cfg.TrustedLAN {
+			t.Errorf("ULA %q: mode not retained", addr)
+		}
+	}
+	if _, err := Resolve(Options{TrustedLAN: true, ListenAddr: "[fe80::1]:8787", Env: isolatedEnv(t, nil)}); err == nil {
+		t.Fatal("link-local IPv6: want error")
+	}
+}
+
+func TestTrustedLANRequiresSuitableListen(t *testing.T) {
+	_, err := Resolve(Options{TrustedLAN: true, LANHost: "media.home.arpa", Env: isolatedEnv(t, nil)})
+	if err == nil || !strings.Contains(err.Error(), "trusted LAN listen") {
+		t.Errorf("trusted LAN without --listen: err = %v, want listener guidance", err)
+	}
+}
+
+func TestTrustedLANRejectsRemoteHTTPSCombination(t *testing.T) {
+	combinations := []Options{
+		{TrustedLAN: true, ListenAddr: "192.168.1.100:8787", AllowRemote: true, Env: isolatedEnv(t, nil)},
+		{TrustedLAN: true, ListenAddr: "192.168.1.100:8787", PublicOrigin: "https://media.example.org", Env: isolatedEnv(t, nil)},
+		{TrustedLAN: true, ListenAddr: "192.168.1.100:8787", TLSCertFile: "/tls/cert.pem", TLSKeyFile: "/tls/key.pem", Env: isolatedEnv(t, nil)},
+	}
+	for i, opts := range combinations {
+		if _, err := Resolve(opts); err == nil || !strings.Contains(err.Error(), "trusted LAN cannot be combined") {
+			t.Errorf("combination %d: err = %v, want explicit conflict", i, err)
+		}
+	}
+}
+
+func TestLANHostValidation(t *testing.T) {
+	for _, host := range []string{"media.home.arpa", "inventory.home.arpa", "a.b", "x1.y-2.arpa"} {
+		cfg := mustResolve(t, Options{TrustedLAN: true, ListenAddr: "192.168.1.100:8787", LANHost: host, Env: isolatedEnv(t, nil)})
+		if cfg.LANHost != host {
+			t.Errorf("lan host %q: resolved to %q", host, cfg.LANHost)
+		}
+	}
+	for _, host := range []string{
+		"http://media.home.arpa", "media.home.arpa:8787", "media.home.arpa/path",
+		"media.home.arpa?x=1", "*.home.arpa", "a..b", "-media.home.arpa",
+		"media-.home.arpa", "media.home.arpa.", "media_local.home.arpa",
+		"192.168.1.100", "Media.home.arpa", "media.local", "singlelabel",
+	} {
+		_, err := Resolve(Options{TrustedLAN: true, ListenAddr: "192.168.1.100:8787", LANHost: host, Env: isolatedEnv(t, nil)})
+		if err == nil {
+			t.Errorf("lan host %q: want error, got nil", host)
+		}
+	}
+	_, err := Resolve(Options{LANHost: "media.home.arpa", Env: isolatedEnv(t, nil)})
+	if err == nil || !strings.Contains(err.Error(), "requires --trusted-lan") {
+		t.Errorf("lan host without trusted LAN: err = %v", err)
+	}
+}
+
+func TestPublicHTTPSBehaviorUnchanged(t *testing.T) {
+	cfg := mustResolve(t, Options{
+		ListenAddr:   "0.0.0.0:8787",
+		AllowRemote:  true,
+		PublicOrigin: "https://media.example.org",
+		TLSCertFile:  "/tls/cert.pem",
+		TLSKeyFile:   "/tls/key.pem",
+		Env:          isolatedEnv(t, nil),
+	})
+	if cfg.TrustedLAN || cfg.LANHost != "" {
+		t.Errorf("remote HTTPS config = trustedLan %t lanHost %q, want off", cfg.TrustedLAN, cfg.LANHost)
+	}
+	if _, err := Resolve(Options{TrustedLAN: true, ListenAddr: "192.168.1.100:8787", LANHost: "media.home.arpa", PublicOrigin: "http://media.home.arpa", Env: isolatedEnv(t, nil)}); err == nil {
+		t.Fatal("trusted LAN with http public origin: want error")
+	}
+}
