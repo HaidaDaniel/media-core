@@ -99,8 +99,8 @@ jobs:
           for bin in $binaries; do
             test -s "$bin"
             info=$(go version -m "$bin")
-            grep -Fq -- "-X github.com/HaidaDaniel/media-core/internal/buildinfo.Version=$EXPECTED_VERSION" <<< "$info"
-            grep -Fq -- "-X github.com/HaidaDaniel/media-core/internal/buildinfo.Commit=$EXPECTED_SHORT_SHA" <<< "$info"
+            grep -Fq -- "-X github.com/HaidaDaniel/media-core/internal/buildinfo.Version=$EXPECTED_VERSION " <<< "$info"
+            grep -Fq -- "-X github.com/HaidaDaniel/media-core/internal/buildinfo.Commit=$EXPECTED_SHORT_SHA " <<< "$info"
             echo "$bin: version=$EXPECTED_VERSION commit=$EXPECTED_SHORT_SHA"
           done
           case "$(uname -m)" in
@@ -154,15 +154,25 @@ jobs:
           test -s media-core-linux-arm64
           test -s SHA256SUMS
           sha256sum -c SHA256SUMS
-      - name: Refuse to overwrite an existing release
+      - name: Refuse to overwrite an existing release and recheck the tag target
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPOSITORY: ${{ github.repository }}
           TAG: ${{ needs.gate.outputs.tag }}
+          COMMIT: ${{ needs.gate.outputs.commit }}
         run: |
           set -euo pipefail
           if gh release view "$TAG" --repo "$GH_REPOSITORY" >/dev/null 2>&1; then
             echo "error: release $TAG already exists; refusing to overwrite it" >&2
+            exit 1
+          fi
+          ref="repos/$GH_REPOSITORY/git/ref/tags/$TAG"
+          object_sha=$(gh api "$ref" --jq '.object.sha')
+          if [ "$(gh api "$ref" --jq '.object.type')" = "tag" ]; then
+            object_sha=$(gh api "repos/$GH_REPOSITORY/git/tags/$object_sha" --jq '.object.sha')
+          fi
+          if [ "$object_sha" != "$COMMIT" ]; then
+            echo "error: tag $TAG now resolves to $object_sha, not the verified commit $COMMIT" >&2
             exit 1
           fi
       - name: Create release and upload assets
@@ -200,13 +210,13 @@ jobs:
           page="https://github.com/$GH_REPOSITORY/releases/tag/$TAG"
           base="https://github.com/$GH_REPOSITORY/releases/download/$TAG"
           curl --fail --silent --show-error --location --max-time 60 \
-            --retry 5 --retry-delay 5 --retry-connrefused \
+            --retry 5 --retry-delay 5 --retry-all-errors \
             --output /dev/null "$page"
           tmp=$(mktemp -d)
           trap 'rm -rf "$tmp"' EXIT
           for asset in SHA256SUMS media-core-linux-amd64 media-core-linux-arm64; do
             code=$(curl --fail --silent --show-error --location --max-time 300 \
-              --retry 5 --retry-delay 5 --retry-connrefused \
+              --retry 5 --retry-delay 5 --retry-all-errors \
               --output "$tmp/$asset" --write-out '%{http_code}' "$base/$asset")
             if [ "$code" != "200" ]; then
               echo "error: anonymous HTTPS download of $asset returned $code" >&2

@@ -399,8 +399,8 @@ was not verified. Optionally verify the embedded identity too:
 ./media-core-linux-amd64 version
 ```
 
-The version must equal the release tag and the short commit must equal the
-commit shown on the release page.
+The version must equal the release tag and the short commit must be a prefix
+of the full source commit shown on the release page.
 
 ## Installing a published release on the NAS
 
