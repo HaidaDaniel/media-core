@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"sort"
 	"strings"
@@ -367,7 +368,16 @@ func (s *Service) GetEdition(ctx context.Context, editionID string) (EditionView
 	if err != nil {
 		return EditionView{}, mapStoreError(err, base)
 	}
-	return editionViewFrom(e), nil
+	view := editionViewFrom(e)
+	cover, err := s.db.ArtworkForEdition(ctx, editionID)
+	if err != nil && !errors.Is(err, store.ErrArtworkNotFound) {
+		return EditionView{}, mapStoreError(err, base)
+	}
+	if err == nil {
+		artwork := ArtworkViewFromStore(cover)
+		view.Artwork = &artwork
+	}
+	return view, nil
 }
 
 // consumptionViewFrom presents the current consumption observation; an

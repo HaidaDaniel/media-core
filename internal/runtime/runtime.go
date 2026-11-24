@@ -173,7 +173,7 @@ func runServe(args []string, out io.Writer) error {
 // parseServeArgs maps serve flags onto explicit configuration options; the
 // loopback default and the remote trio come from config resolution.
 func parseServeArgs(args []string) (config.Options, error) {
-	const serveUsage = "usage: media-core serve [--state-dir <dir>] [--listen <addr>] [--trusted-lan [--lan-host <name>]] [--allow-remote --public-origin <url> --tls-cert <file> --tls-key <file>] [--no-artwork]"
+	const serveUsage = "usage: media-core serve [--state-dir <dir>] [--listen <addr>] [--trusted-lan [--lan-host <name>]] [--allow-remote --public-origin <url> --tls-cert <file> --tls-key <file>] [--artwork|--no-artwork]"
 	var opts config.Options
 	for i := 0; i < len(args); i++ {
 		switch args[i] {
@@ -201,7 +201,11 @@ func parseServeArgs(args []string) (config.Options, error) {
 		case "--trusted-lan":
 			opts.TrustedLAN = true
 		case "--no-artwork":
-			opts.NoArtwork = true
+			opts.Artwork = false
+			opts.ArtworkSet = true
+		case "--artwork":
+			opts.Artwork = true
+			opts.ArtworkSet = true
 		default:
 			return opts, fmt.Errorf("media-core serve: unknown argument %q (%s)", args[i], serveUsage)
 		}

@@ -136,6 +136,7 @@ export function CoverPicker({
 
   function candidateCard(candidate: ArtworkCandidate, key: string): JSX.Element {
     const source = safeSource(candidate.attribution_url);
+    const selectable = (candidate.preview_token || previewTokenFromImageUrl(candidate.image_url)) !== "";
     return (
       <li className="artwork-candidate" key={key}>
         <CoverImage src={candidate.image_url} label={candidate.title} className="artwork-candidate-cover" />
@@ -144,6 +145,7 @@ export function CoverPicker({
           <Badge>{candidate.kind}</Badge>
           <span>{candidate.provider}</span>
           {candidate.reason !== "" && <span className="login-hint">{candidate.reason}</span>}
+          {!selectable && <span className="login-hint">Preview unavailable; search again to select.</span>}
           {source !== null && (
             <a href={source} target="_blank" rel="noopener noreferrer">
               Source
@@ -153,7 +155,7 @@ export function CoverPicker({
         <Button
           size="sm"
           variant="primary"
-          disabled={saving}
+          disabled={saving || !selectable}
           onClick={() => void choose(candidate)}
         >
           Use this cover

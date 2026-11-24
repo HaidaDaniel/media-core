@@ -200,7 +200,11 @@ export function FindMissingCovers({ onCoverSelected }: FindMissingCoversProps): 
                             <Badge>{candidate.kind}</Badge>
                             <span>{candidate.provider}</span>
                           </div>
-                          <Button size="sm" onClick={() => void choose(item.work, candidate)}>
+                          <Button
+                            size="sm"
+                            disabled={(candidate.preview_token || previewTokenFromImageUrl(candidate.image_url)) === ""}
+                            onClick={() => void choose(item.work, candidate)}
+                          >
                             Use this cover
                           </Button>
                         </li>

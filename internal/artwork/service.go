@@ -143,6 +143,13 @@ func (s *Service) Search(ctx context.Context, in SearchInput) ([]ScoredCandidate
 	if len(scored) < previewCount {
 		previewCount = len(scored)
 	}
+	for i := range scored {
+		if i >= previewCount {
+			// Never hand an unvalidated provider URL to the browser and never
+			// offer a candidate that has no local preview to select.
+			scored[i].ImageURL = ""
+		}
+	}
 	for i := 0; i < previewCount; i++ {
 		if scored[i].ImageURL == "" {
 			continue

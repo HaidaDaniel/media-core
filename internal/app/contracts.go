@@ -368,6 +368,7 @@ type EditionView struct {
 	Tags        []string            `json:"tags"`
 	References  []ExternalReference `json:"references"`
 	Notes       []Note              `json:"notes"`
+	Artwork     *ArtworkView        `json:"artwork,omitempty"`
 }
 
 // ResolveOutcome is the outcome of ResolveAddition.

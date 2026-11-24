@@ -75,22 +75,27 @@ func (l *limiter) wait(ctx context.Context) error {
 // non-public literal IPs at request time and verifies resolved addresses at
 // dial time, and caps bytes read with LimitReader.
 type safeClient struct {
-	client      *http.Client
-	limits      map[string]*limiter
-	userAgent   string
+	client       *http.Client
+	limits       map[string]*limiter
+	userAgent    string
 	allowPrivate bool // tests only, never set by production wiring
-	mu          sync.Mutex
+	mu           sync.Mutex
 }
 
 func newSafeClient(userAgent string) *safeClient {
 	c := &safeClient{limits: map[string]*limiter{}, userAgent: userAgent}
 	dialer := &net.Dialer{Timeout: connectTimeout, KeepAlive: 30 * time.Second}
 	transport := &http.Transport{
-		DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
+		// DialTLSContext resolves and checks the address, then dials the
+		// verified IP directly while keeping the hostname for certificate
+		// verification. This closes the usual DNS-rebinding gap between a
+		// checked DialContext and a second resolution inside net/http.
+		DialTLSContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
 			host, port, err := net.SplitHostPort(addr)
 			if err != nil {
 				return nil, fmt.Errorf("%w: bad dial address", ErrNetworkURL)
 			}
+			target := host
 			if !c.allowPrivate {
 				ips, err := net.DefaultResolver.LookupIPAddr(ctx, host)
 				if err != nil || len(ips) == 0 {
@@ -101,10 +106,23 @@ func newSafeClient(userAgent string) *safeClient {
 						return nil, fmt.Errorf("%w: non-public address", ErrNetworkURL)
 					}
 				}
+				target = ips[0].IP.String()
 			}
-			return dialer.DialContext(ctx, network, net.JoinHostPort(host, port))
+			raw, err := dialer.DialContext(ctx, network, net.JoinHostPort(target, port))
+			if err != nil {
+				return nil, err
+			}
+			tlsConfig := &tls.Config{MinVersion: tls.VersionTLS12, ServerName: host}
+			if c.allowPrivate {
+				tlsConfig.InsecureSkipVerify = true
+			}
+			conn := tls.Client(raw, tlsConfig)
+			if err := conn.HandshakeContext(ctx); err != nil {
+				_ = raw.Close()
+				return nil, err
+			}
+			return conn, nil
 		},
-		TLSClientConfig:     &tls.Config{MinVersion: tls.VersionTLS12},
 		TLSHandshakeTimeout: connectTimeout,
 		MaxIdleConnsPerHost: 2,
 		IdleConnTimeout:     15 * time.Second,
@@ -193,6 +211,7 @@ func (c *safeClient) fetch(ctx context.Context, provider, rawURL string, allowed
 	}
 	var lastErr error
 	var got fetchResult
+	var retryDelay time.Duration
 	for attempt := 0; attempt < maxProviderTries; attempt++ {
 		req, err := http.NewRequestWithContext(ctx, http.MethodGet, u.String(), nil)
 		if err != nil {
@@ -222,6 +241,7 @@ func (c *safeClient) fetch(ctx context.Context, provider, rawURL string, allowed
 				return
 			}
 			if resp.StatusCode == http.StatusTooManyRequests || resp.StatusCode >= 500 {
+				retryDelay = parseRetryAfter(resp.Header.Get("Retry-After"))
 				lastErr = fmt.Errorf("%w: status %d", ErrUpstreamRetry, resp.StatusCode)
 				return
 			}
@@ -257,7 +277,11 @@ func (c *safeClient) fetch(ctx context.Context, provider, rawURL string, allowed
 			break
 		}
 		if attempt+1 < maxProviderTries {
-			time.Sleep(400 * time.Millisecond)
+			delay := 400 * time.Millisecond
+			if retryDelay > delay {
+				delay = retryDelay
+			}
+			time.Sleep(delay)
 		}
 	}
 	if lastErr == nil {
