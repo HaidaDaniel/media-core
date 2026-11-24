@@ -146,7 +146,7 @@ export function FindMissingCovers({ onCoverSelected }: FindMissingCoversProps): 
 
       {started && (
         <p className="artwork-progress" aria-live="polite">
-          {items.length} checked · {total ?? "?"} remaining
+          {items.length} checked · {total ?? "?"} missing now
         </p>
       )}
 

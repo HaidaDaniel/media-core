@@ -80,6 +80,7 @@ type Service struct {
 	previews *PreviewStore
 	db       *store.Database
 	now      func() time.Time
+	selectMu sync.Mutex
 }
 
 func NewService(db *store.Database, registry *Registry, client *safeClient, cache *Cache) *Service {
@@ -231,6 +232,10 @@ func referenceBoost(source string, references []string) bool {
 // by a short-lived preview token; the server never accepts a URL from the
 // browser. An existing user selection is replaced only on explicit request.
 func (s *Service) Select(ctx context.Context, workID, editionID, token string, replace bool) (store.ArtworkRecord, error) {
+	// Keep AllLocalRefs -> Put -> SaveArtwork atomic so a concurrent selection
+	// cannot treat a just-accepted cover as unreferenced and evict it.
+	s.selectMu.Lock()
+	defer s.selectMu.Unlock()
 	if workID == "" {
 		return store.ArtworkRecord{}, fmt.Errorf("%w: work id is required", ErrInvalidInput)
 	}
@@ -402,7 +407,13 @@ func ParseKind(raw string) (Kind, bool) {
 }
 
 // ClearCache removes regenerable image bytes without touching SQLite rows.
-func (s *Service) ClearCache() (int, int64, error) { return s.cache.Clear() }
+// It shares the selection critical section so a concurrent save cannot leave
+// a row pointing at a file that was cleared between Put and SaveArtwork.
+func (s *Service) ClearCache() (int, int64, error) {
+	s.selectMu.Lock()
+	defer s.selectMu.Unlock()
+	return s.cache.Clear()
+}
 
 // CacheStats reports cache usage for diagnostics.
 func (s *Service) CacheStats() (int, int64, error) { return s.cache.Stats() }

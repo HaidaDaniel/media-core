@@ -172,7 +172,7 @@ describe("library grid and discovery", () => {
     expect(await screen.findByText("Static Bloom")).not.toBeNull();
     const panel = screen.getByRole("region", { name: "Cover discovery" });
     fireEvent.click(within(panel).getByRole("button", { name: "Find missing covers" }));
-    expect(await within(panel).findByText(/1 checked · 7 remaining/)).not.toBeNull();
+    expect(await within(panel).findByText(/1 checked · 7 missing now/)).not.toBeNull();
     fireEvent.click(within(panel).getByRole("button", { name: "Check next 5" }));
     await vi.waitFor(() =>
       expect(mockFindMissing).toHaveBeenLastCalledWith({ limit: 5, cursor: "cursor-1" }, expect.any(AbortSignal)),

@@ -86,8 +86,10 @@ The archive packages the snapshot database, the manifest and only the
 `artwork-cache/` files referenced by active `work_artwork` rows. Orphaned
 previews, owner secrets, session material and TLS keys never enter the
 archive. The selected cover bytes are user-visible state, not disposable
-temporary data, so they travel with the snapshot; the hard 64 MiB cache cap
-bounds the archive growth. If a referenced cache file is already missing at
+temporary data, so they travel with the snapshot. New cache writes are
+bounded by the hard 64 MiB cap, which normally bounds archive growth; a
+legacy cache left over the cap by an earlier build is archived as-is rather
+than silently dropping a selection. If a referenced cache file is already missing at
 backup time, the manifest records it under `artwork.missing` and the
 database row still travels; the library shows a neutral placeholder after
 restore until the user explicitly selects a cover again.

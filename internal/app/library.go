@@ -381,6 +381,9 @@ func (s *Service) GetEdition(ctx context.Context, editionID string) (EditionView
 // including mutation responses, so the UI never drops it after an update.
 func (s *Service) editionViewWithArtwork(ctx context.Context, e store.Edition) (EditionView, error) {
 	view := editionViewFrom(e)
+	if !s.artworkServing {
+		return view, nil
+	}
 	cover, err := s.db.ArtworkForEdition(ctx, e.ID)
 	if err != nil && !errors.Is(err, store.ErrArtworkNotFound) {
 		return EditionView{}, mapStoreError(err, MutationBase{})

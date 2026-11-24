@@ -37,6 +37,44 @@ func TestArtworkServingCanBeDisabled(t *testing.T) {
 	}
 }
 
+func TestEditionViewOmitsArtworkWhenDisabled(t *testing.T) {
+	ctx := context.Background()
+	svc := newTestService(t)
+	now := time.Now().UTC()
+	work, err := svc.db.CreateWork(ctx, now, []store.TitleInput{{
+		Text: "No art edition", Kind: domain.TitleOriginal, Preferred: true, Provenance: "test",
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	edition, err := svc.db.AddEdition(ctx, now, work.ID, work.Revision, store.EditionInput{
+		Kind: domain.KindAnime,
+		Titles: []store.TitleInput{{
+			Text: "No art edition", Kind: domain.TitleOriginal, Preferred: true, Provenance: "test",
+		}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	id := edition.ID
+	if _, err := svc.db.SaveArtwork(ctx, store.ArtworkInput{
+		WorkID: work.ID, EditionID: &id, Provider: "kitsu", ExternalID: "1",
+		Title: "No art edition", SourceURL: "https://kitsu.io/anime/1",
+		AttributionURL: "https://kitsu.io/", Kind: "anime", LocalRef: "ref.img",
+		MIMEType: "image/jpeg", ByteSize: 1, Provenance: "artwork-search:kitsu",
+	}, now, false); err != nil {
+		t.Fatal(err)
+	}
+	disabled := NewService(svc.db, WithArtworkServing(false))
+	view, err := disabled.GetEdition(ctx, edition.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if view.Artwork != nil {
+		t.Fatalf("disabled artwork serving exposed edition artwork %+v", view.Artwork)
+	}
+}
+
 func TestEditionViewKeepsSavedArtwork(t *testing.T) {
 	ctx := context.Background()
 	svc := newTestService(t)

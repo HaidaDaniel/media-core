@@ -71,6 +71,71 @@ func TestCacheConcurrentPutAndClear(t *testing.T) {
 	}
 }
 
+func TestConcurrentSelectionsKeepBothCovers(t *testing.T) {
+	ctx := context.Background()
+	stateDir := t.TempDir()
+	maint, err := store.OpenForMaintenance(stateDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.RunMigrations(maint.DB()); err != nil {
+		t.Fatal(err)
+	}
+	if err := maint.Close(); err != nil {
+		t.Fatal(err)
+	}
+	db, err := store.Open(stateDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	now := time.Now().UTC()
+	works := make([]string, 0, 2)
+	for i := 0; i < 2; i++ {
+		w, err := db.CreateWork(ctx, now, []store.TitleInput{{
+			Text: fmt.Sprintf("Concurrent %d", i), Kind: domain.TitleOriginal, Preferred: true, Provenance: "test",
+		}})
+		if err != nil {
+			t.Fatal(err)
+		}
+		works = append(works, w.ID)
+	}
+	data := tinyJPEG(t)
+	cache, err := NewCache(stateDir, int64(len(data))*2, int64(len(data)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	svc := NewService(db, NewRegistry(), nil, cache)
+	tokens := make([]string, 0, 2)
+	for i := 0; i < 2; i++ {
+		candidate := ScoredCandidate{
+			Provider: "kitsu", ExternalID: fmt.Sprintf("%d", i), Title: "Cover",
+			Kind: string(KindManga), SourceURL: fmt.Sprintf("https://kitsu.io/manga/%d", i),
+			AttributionURL: "https://kitsu.io/",
+		}
+		tokens = append(tokens, svc.previews.Put(candidate, data, "image/jpeg", now))
+	}
+	var wg sync.WaitGroup
+	records := make([]store.ArtworkRecord, 2)
+	errs := make([]error, 2)
+	for i := range works {
+		wg.Add(1)
+		go func(index int) {
+			defer wg.Done()
+			records[index], errs[index] = svc.Select(ctx, works[index], "", tokens[index], false)
+		}(i)
+	}
+	wg.Wait()
+	for i := range errs {
+		if errs[i] != nil {
+			t.Fatalf("select %d: %v", i, errs[i])
+		}
+		if _, _, err := cache.Open(records[i].LocalRef); err != nil {
+			t.Fatalf("selection %d lost its accepted cover: %v", i, err)
+		}
+	}
+}
+
 func TestMatchUsesPairwiseUserAndCandidateTitles(t *testing.T) {
 	unrelated := Match(SearchInput{Title: "Completely Unrelated", Kind: KindManga}, []Candidate{{
 		Provider: "kitsu", ExternalID: "1", Title: "Different Work",
