@@ -1,6 +1,6 @@
 # Task 0080 - Remediate artwork cache pagination backup matching and request-boundary defects
 
-State: review
+State: done
 Owner: opencode-primary
 Mode: mvp
 Lane: implementation
