@@ -43,7 +43,10 @@ func artworkTestServer(t *testing.T, enabled bool) (*Server, *http.Cookie, strin
 	if err != nil {
 		t.Fatal(err)
 	}
-	registry, client := artwork.NewDefault()
+	// An empty registry keeps these HTTP-boundary tests deterministic: the
+	// provider adapters are covered with mocked fixtures in their own package.
+	registry := artwork.NewRegistry()
+	_, client := artwork.NewDefault()
 	srv.WithCatalog(app.NewService(db))
 	srv.WithArtwork(artwork.NewService(db, registry, client, cache))
 	ctx, cancel := context.WithCancel(context.Background())
