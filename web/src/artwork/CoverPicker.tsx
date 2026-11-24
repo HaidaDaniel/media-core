@@ -4,7 +4,7 @@
 // dismissible suggestion, several results are user choices, none leaves a
 // neutral fallback. Nothing is auto-selected and a failed search only shows
 // an error inside this dialog — it never blocks record creation.
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { JSX } from "react";
 import { ApiError } from "../api/client";
 import { Badge, Button, Dialog, Input } from "../ui";
@@ -71,8 +71,11 @@ export function CoverPicker({
   const [showList, setShowList] = useState(false);
   const [replace, setReplace] = useState(false);
   const [saving, setSaving] = useState(false);
+  const abortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
+    abortRef.current?.abort();
+    abortRef.current = null;
     if (!open) return;
     setStatus("idle");
     setCandidates([]);
@@ -80,9 +83,15 @@ export function CoverPicker({
     setShowList(false);
     setReplace(false);
     setSaving(false);
+    return () => {
+      abortRef.current?.abort();
+    };
   }, [open]);
 
   function search(): void {
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
     setStatus("searching");
     setError(null);
     setCandidates([]);
@@ -92,14 +101,23 @@ export function CoverPicker({
       kind: kind.trim().slice(0, 64),
       alternatives: bounded(alternatives, MAX_TEXT),
       references: bounded(references, MAX_TEXT * 2),
-    })
+    }, controller.signal)
       .then((result) => {
-        setCandidates(result.candidates ?? []);
+        const selectable = (result.candidates ?? []).filter(
+          (candidate) => (candidate.preview_token || previewTokenFromImageUrl(candidate.image_url)) !== "",
+        );
+        setCandidates(selectable);
         setStatus("ready");
       })
       .catch((err: unknown) => {
+        if ((err as { name?: string } | null)?.name === "AbortError") return;
         setError(errorMessage(err));
         setStatus("error");
+      })
+      .finally(() => {
+        if (abortRef.current === controller) {
+          abortRef.current = null;
+        }
       });
   }
 
@@ -133,10 +151,10 @@ export function CoverPicker({
   }
 
   const single = status === "ready" && candidates.length === 1 && !showList;
+  const confident = single && (candidates[0]?.score ?? 0) >= 0.9;
 
   function candidateCard(candidate: ArtworkCandidate, key: string): JSX.Element {
     const source = safeSource(candidate.attribution_url);
-    const selectable = (candidate.preview_token || previewTokenFromImageUrl(candidate.image_url)) !== "";
     return (
       <li className="artwork-candidate" key={key}>
         <CoverImage src={candidate.image_url} label={candidate.title} className="artwork-candidate-cover" />
@@ -145,7 +163,6 @@ export function CoverPicker({
           <Badge>{candidate.kind}</Badge>
           <span>{candidate.provider}</span>
           {candidate.reason !== "" && <span className="login-hint">{candidate.reason}</span>}
-          {!selectable && <span className="login-hint">Preview unavailable; search again to select.</span>}
           {source !== null && (
             <a href={source} target="_blank" rel="noopener noreferrer">
               Source
@@ -155,7 +172,7 @@ export function CoverPicker({
         <Button
           size="sm"
           variant="primary"
-          disabled={saving || !selectable}
+          disabled={saving}
           onClick={() => void choose(candidate)}
         >
           Use this cover
@@ -220,7 +237,11 @@ export function CoverPicker({
                 {candidateCard(candidates[0], candidates[0].external_id || "candidate-0")}
               </ul>
               <div>
-                <p>One confident match. Use it only if it is right.</p>
+                <p>
+                  {confident
+                    ? "One confident match. Use it only if it is right."
+                    : "One possible match. Use it only if it is right."}
+                </p>
                 <div className="quick-add-actions">
                   <Button variant="ghost" onClick={() => setShowList(true)}>
                     Choose another
@@ -234,7 +255,8 @@ export function CoverPicker({
           ) : (
             <>
               <p className="artwork-notice">
-                {candidates.length} candidates. Pick one or keep the record without a cover.
+                {candidates.length} {candidates.length === 1 ? "candidate" : "candidates"}. Pick one or
+                keep the record without a cover.
               </p>
               <ul className="artwork-candidates">
                 {candidates.map((candidate, index) =>

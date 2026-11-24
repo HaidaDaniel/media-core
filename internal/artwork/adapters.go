@@ -356,6 +356,7 @@ func NewDefault() (*Registry, *safeClient) {
 		&kitsuProvider{client: client, kind: KindAnime},
 		&shikimoriProvider{client: client, kind: KindAnime},
 		&kitsuProvider{client: client, kind: KindManga},
+		&shikimoriProvider{client: client, kind: KindManga},
 		&mangadexProvider{client: client},
 		&openLibraryProvider{client: client},
 	), client

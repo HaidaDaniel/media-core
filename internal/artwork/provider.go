@@ -98,15 +98,31 @@ func NewRegistry(providers ...Provider) *Registry {
 
 func (r *Registry) Providers() []ProviderInfo {
 	out := make([]ProviderInfo, 0, len(r.providers))
+	index := map[string]int{}
 	for _, p := range r.providers {
-		kinds := make([]string, 0, len(p.Kinds()))
-		for _, k := range p.Kinds() {
-			kinds = append(kinds, string(k))
+		info, exists := ProviderInfo{}, false
+		if at, ok := index[p.ID()]; ok {
+			info, exists = out[at], true
 		}
-		out = append(out, ProviderInfo{
-			ID: p.ID(), Label: p.Label(), Kinds: kinds,
-			AttributionURL: p.AttributionURL(), Required: true,
-		})
+		if !exists {
+			info = ProviderInfo{ID: p.ID(), Label: p.Label(), AttributionURL: p.AttributionURL(), Required: true}
+			index[p.ID()] = len(out)
+			out = append(out, info)
+		}
+		for _, kind := range p.Kinds() {
+			value := string(kind)
+			duplicate := false
+			for _, have := range info.Kinds {
+				if have == value {
+					duplicate = true
+					break
+				}
+			}
+			if !duplicate {
+				info.Kinds = append(info.Kinds, value)
+			}
+		}
+		out[index[p.ID()]] = info
 	}
 	return out
 }
@@ -243,8 +259,15 @@ func Match(in SearchInput, candidates []Candidate) []ScoredCandidate {
 		if c.Kind != in.Kind {
 			continue
 		}
-		all := append(append([]string{}, titles...), c.AlternativeTitles...)
-		score, reason := scoreTitle(all, c.Title)
+		candidateTitles := append([]string{c.Title}, c.AlternativeTitles...)
+		score, reason := 0.0, ""
+		for _, want := range titles {
+			for _, have := range candidateTitles {
+				if got, how := scoreTitle([]string{have}, want); got > score {
+					score, reason = got, how
+				}
+			}
+		}
 		if score < 0.35 {
 			continue
 		}

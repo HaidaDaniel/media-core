@@ -3,7 +3,7 @@
 // visible offset/total progress, a Cancel action and per-item user choice.
 // A cover is only written when the user picks a candidate, and replacing an
 // existing user-selected cover needs the explicit replace checkbox.
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { JSX } from "react";
 import { ApiError } from "../api/client";
 import { Badge, Button, Input } from "../ui";
@@ -31,6 +31,7 @@ function statusTone(status: MissingCoverItem["status"]): "success" | "warning" |
   if (status === "suggested") return "success";
   if (status === "ambiguous") return "warning";
   if (status === "error") return "danger";
+  if (status === "timeout") return "warning";
   return "info";
 }
 
@@ -38,43 +39,66 @@ function statusText(status: MissingCoverItem["status"]): string {
   if (status === "suggested") return "one suggestion";
   if (status === "ambiguous") return "several candidates";
   if (status === "error") return "lookup error";
+  if (status === "timeout") return "timed out; retry this batch";
   return "not found";
+}
+
+function isAbort(err: unknown): boolean {
+  return (err as { name?: string } | null)?.name === "AbortError";
 }
 
 export function FindMissingCovers({ onCoverSelected }: FindMissingCoversProps): JSX.Element {
   const [items, setItems] = useState<MissingCoverItem[]>([]);
-  const [offset, setOffset] = useState(0);
+  const [nextCursor, setNextCursor] = useState("");
   const [total, setTotal] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
   const [started, setStarted] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [replaceIds, setReplaceIds] = useState<Set<string>>(new Set());
   const [saved, setSaved] = useState<Record<string, string>>({});
-  const cancelled = useRef(false);
+  const abortRef = useRef<AbortController | null>(null);
 
-  async function run(nextOffset: number): Promise<void> {
+  useEffect(() => {
+    return () => {
+      abortRef.current?.abort();
+    };
+  }, []);
+
+  async function run(cursor: string): Promise<void> {
     if (busy) return;
-    cancelled.current = false;
+    const controller = new AbortController();
+    abortRef.current = controller;
     setBusy(true);
     setError(null);
     try {
-      const page = await findMissingCovers({ limit: PAGE_SIZE, offset: nextOffset });
-      if (cancelled.current) return;
-      setItems((prev) => (nextOffset === 0 ? page.items : [...prev, ...page.items]));
-      setOffset(page.next_offset);
+      const page = await findMissingCovers({ limit: PAGE_SIZE, cursor }, controller.signal);
+      setItems((prev) => (cursor === "" ? page.items : [...prev, ...page.items]));
+      setNextCursor(page.next_cursor);
       setTotal(page.total_missing);
       setStarted(true);
     } catch (err) {
-      if (!cancelled.current) setError(errorMessage(err));
+      if (!isAbort(err)) setError(errorMessage(err));
     } finally {
-      if (!cancelled.current) setBusy(false);
+      if (abortRef.current === controller) {
+        abortRef.current = null;
+        setBusy(false);
+      }
     }
   }
 
   function cancel(): void {
-    cancelled.current = true;
+    abortRef.current?.abort();
+    abortRef.current = null;
     setBusy(false);
     setError(null);
+  }
+
+  function startOver(): void {
+    setItems([]);
+    setNextCursor("");
+    setTotal(null);
+    setStarted(false);
+    void run("");
   }
 
   function toggleReplace(workId: string): void {
@@ -106,13 +130,13 @@ export function FindMissingCovers({ onCoverSelected }: FindMissingCoversProps): 
     }
   }
 
-  const hasMore = total !== null && offset < total;
+  const hasMore = nextCursor !== "";
 
   return (
     <section className="artwork-find-panel" aria-label="Cover discovery">
       <div className="artwork-find-heading">
         <h3>Find missing covers</h3>
-        <Button onClick={() => void run(0)} disabled={busy}>
+        <Button onClick={startOver} disabled={busy}>
           {started ? "Start over" : "Find missing covers"}
         </Button>
       </div>
@@ -122,14 +146,14 @@ export function FindMissingCovers({ onCoverSelected }: FindMissingCoversProps): 
 
       {started && (
         <p className="artwork-progress" aria-live="polite">
-          {items.length} of {total ?? "?"} checked · next offset {offset}
+          {items.length} checked · {total ?? "?"} remaining
         </p>
       )}
 
       {error !== null && (
         <div className="library-error" role="alert">
           <p>{error}</p>
-          <Button size="sm" onClick={() => void run(offset)}>
+          <Button size="sm" onClick={() => void run(nextCursor)}>
             Retry
           </Button>
         </div>
@@ -146,7 +170,7 @@ export function FindMissingCovers({ onCoverSelected }: FindMissingCoversProps): 
 
       {!busy && started && hasMore && (
         <div className="quick-add-actions">
-          <Button onClick={() => void run(offset)}>Check next {PAGE_SIZE}</Button>
+          <Button onClick={() => void run(nextCursor)}>Check next {PAGE_SIZE}</Button>
         </div>
       )}
 
@@ -168,11 +192,13 @@ export function FindMissingCovers({ onCoverSelected }: FindMissingCoversProps): 
                 </p>
                 {saved[item.work.id] !== undefined ? (
                   <p className="cover-pick-note">Cover saved: {saved[item.work.id]}</p>
-                ) : item.status === "not_found" || item.status === "error" ? (
+                ) : item.status === "not_found" || item.status === "error" || item.status === "timeout" ? (
                   <p className="artwork-notice">
                     {item.status === "error"
                       ? "This lookup failed; no cover was changed."
-                      : "No candidate met the match rules; nothing was changed."}
+                      : item.status === "timeout"
+                        ? "This lookup timed out; nothing was changed. Retry the batch."
+                        : "No candidate met the match rules; nothing was changed."}
                   </p>
                 ) : (
                   <>

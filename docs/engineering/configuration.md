@@ -17,7 +17,7 @@ values.
 | TLS key file | explicit flag | — | unset |
 | Trusted LAN | explicit flag | — | `false` |
 | LAN host | explicit flag | — | unset |
-| Cover discovery | `serve --artwork` / `--no-artwork` | `MEDIA_CORE_ARTWORK` | `true` (explicit actions only, no background work); an explicit flag overrides the environment |
+| Cover discovery | `serve --artwork` / `--no-artwork` | `MEDIA_CORE_ARTWORK` | `true` (explicit actions only, no background work); an explicit flag overrides the environment; `--no-artwork` also omits saved artwork URLs so the UI renders placeholders |
 
 ## State directory
 

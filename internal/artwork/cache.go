@@ -15,6 +15,7 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"sync"
 )
 
 // Cache bounds. A NAS with a small disk can still hold hundreds of covers;
@@ -23,7 +24,7 @@ const (
 	DefaultMaxCacheBytes int64 = 64 << 20
 	DefaultMaxImageBytes int64 = 2 << 20
 	MaxImageDimension          = 3000
-	cacheDirName               = "artwork-cache"
+	CacheDirName               = "artwork-cache"
 	cacheImageExt              = "img"
 )
 
@@ -31,6 +32,7 @@ var (
 	ErrCacheRef    = errors.New("artwork: invalid cache reference")
 	ErrCacheSize   = errors.New("artwork: image exceeds size limit")
 	ErrCacheFormat = errors.New("artwork: unsupported image format")
+	ErrCacheFull   = errors.New("artwork: cache is full; remove a selection or clear the cache before adding another cover")
 )
 
 var cacheRefPattern = regexp.MustCompile(`^[a-f0-9]{64}\.img$`)
@@ -38,10 +40,14 @@ var cacheRefPattern = regexp.MustCompile(`^[a-f0-9]{64}\.img$`)
 // Cache stores validated image bytes in the state directory. It is a cache,
 // not user data: deleting it never removes a selection from SQLite.
 type Cache struct {
+	mu       sync.Mutex
 	dir      string
 	maxBytes int64
 	maxImage int64
 }
+
+// ValidCacheRef reports whether ref is a safe content-addressed cache name.
+func ValidCacheRef(ref string) bool { return cacheRefPattern.MatchString(ref) }
 
 func NewCache(stateDir string, maxBytes, maxImage int64) (*Cache, error) {
 	if strings.TrimSpace(stateDir) == "" {
@@ -50,7 +56,7 @@ func NewCache(stateDir string, maxBytes, maxImage int64) (*Cache, error) {
 	if maxBytes <= 0 || maxImage <= 0 || maxImage > maxBytes {
 		return nil, fmt.Errorf("artwork: invalid cache limits")
 	}
-	return &Cache{dir: filepath.Join(stateDir, cacheDirName), maxBytes: maxBytes, maxImage: maxImage}, nil
+	return &Cache{dir: filepath.Join(stateDir, CacheDirName), maxBytes: maxBytes, maxImage: maxImage}, nil
 }
 
 // Ref is a stable, opaque name derived from the provider's source URL plus
@@ -94,19 +100,24 @@ func (c *Cache) validateImage(data []byte, mime string) (string, error) {
 	return expected, nil
 }
 
-// Put atomically stores a validated image and evicts old unreferenced files
-// until the cache is within its byte budget.
+// Put atomically stores a validated image. Unreferenced files are evicted
+// first; a selection that would push the total beyond the hard cap is
+// rejected instead of deleting another user-selected cover.
 func (c *Cache) Put(ref string, data []byte, mime string, protected map[string]bool) (int64, error) {
 	path, err := c.path(ref)
 	if err != nil {
 		return 0, err
 	}
-	cleanMIME, err := c.validateImage(data, mime)
-	if err != nil {
+	if _, err := c.validateImage(data, mime); err != nil {
 		return 0, err
 	}
 	if err := os.MkdirAll(c.dir, 0o700); err != nil {
 		return 0, fmt.Errorf("artwork: create cache dir: %w", err)
+	}
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if err := c.makeRoomLocked(ref, int64(len(data)), protected); err != nil {
+		return 0, err
 	}
 	tmp, err := os.CreateTemp(c.dir, ".tmp-*")
 	if err != nil {
@@ -132,10 +143,6 @@ func (c *Cache) Put(ref string, data []byte, mime string, protected map[string]b
 	if err := os.Rename(tmpName, path); err != nil {
 		return 0, fmt.Errorf("artwork: publish image: %w", err)
 	}
-	if err := c.evict(protected); err != nil {
-		return 0, err
-	}
-	_ = cleanMIME
 	return int64(len(data)), nil
 }
 
@@ -145,6 +152,8 @@ func (c *Cache) Open(ref string) ([]byte, string, error) {
 	if err != nil {
 		return nil, "", err
 	}
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	data, err := os.ReadFile(path)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
@@ -164,10 +173,10 @@ type cacheEntry struct {
 	info os.FileInfo
 }
 
-// evict removes the oldest unreferenced files until the cache fits. The
-// protected set comes from the database, so a saved selection is never
-// evicted by a newer search.
-func (c *Cache) evict(protected map[string]bool) error {
+// makeRoomLocked removes the oldest unreferenced files until the target ref
+// plus every protected selection fits. Protected files are counted in the
+// total, so the cap is a real limit rather than a budget for new files only.
+func (c *Cache) makeRoomLocked(target string, targetSize int64, protected map[string]bool) error {
 	entries, err := os.ReadDir(c.dir)
 	if err != nil {
 		return fmt.Errorf("artwork: list cache: %w", err)
@@ -175,22 +184,30 @@ func (c *Cache) evict(protected map[string]bool) error {
 	list := make([]cacheEntry, 0, len(entries))
 	var total int64
 	for _, e := range entries {
-		if e.IsDir() || !cacheRefPattern.MatchString(e.Name()) || protected[e.Name()] {
+		if e.IsDir() || !cacheRefPattern.MatchString(e.Name()) {
 			continue
 		}
 		info, err := e.Info()
 		if err != nil {
 			return err
 		}
-		list = append(list, cacheEntry{name: e.Name(), info: info})
 		total += info.Size()
+		if protected[e.Name()] || e.Name() == target {
+			continue
+		}
+		list = append(list, cacheEntry{name: e.Name(), info: info})
 	}
-	if total <= c.maxBytes {
+	if info, err := os.Stat(filepath.Join(c.dir, target)); err == nil {
+		total -= info.Size()
+	} else if !os.IsNotExist(err) {
+		return err
+	}
+	if total+targetSize <= c.maxBytes {
 		return nil
 	}
 	sort.Slice(list, func(i, j int) bool { return list[i].info.ModTime().Before(list[j].info.ModTime()) })
 	for _, e := range list {
-		if total <= c.maxBytes {
+		if total+targetSize <= c.maxBytes {
 			break
 		}
 		if err := os.Remove(filepath.Join(c.dir, e.name)); err != nil && !errors.Is(err, os.ErrNotExist) {
@@ -198,12 +215,17 @@ func (c *Cache) evict(protected map[string]bool) error {
 		}
 		total -= e.info.Size()
 	}
+	if total+targetSize > c.maxBytes {
+		return ErrCacheFull
+	}
 	return nil
 }
 
 // Clear deletes every cached image. Selection rows and provenance in SQLite
 // remain intact; a later explicit selection rebuilds the cache.
 func (c *Cache) Clear() (int, int64, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	entries, err := os.ReadDir(c.dir)
 	if errors.Is(err, os.ErrNotExist) {
 		return 0, 0, nil
@@ -231,6 +253,8 @@ func (c *Cache) Clear() (int, int64, error) {
 
 // Stats reports current cache usage, ignoring temporary files.
 func (c *Cache) Stats() (int, int64, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	entries, err := os.ReadDir(c.dir)
 	if errors.Is(err, os.ErrNotExist) {
 		return 0, 0, nil

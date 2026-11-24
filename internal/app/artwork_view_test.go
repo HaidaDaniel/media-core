@@ -9,6 +9,34 @@ import (
 	"github.com/HaidaDaniel/media-core/internal/store"
 )
 
+func TestArtworkServingCanBeDisabled(t *testing.T) {
+	ctx := context.Background()
+	svc := newTestService(t)
+	now := time.Now().UTC()
+	work, err := svc.db.CreateWork(ctx, now, []store.TitleInput{{
+		Text: "No art mode", Kind: domain.TitleOriginal, Preferred: true, Provenance: "test",
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := svc.db.SaveArtwork(ctx, store.ArtworkInput{
+		WorkID: work.ID, Provider: "kitsu", ExternalID: "1",
+		Title: "No art mode", SourceURL: "https://kitsu.io/anime/1",
+		AttributionURL: "https://kitsu.io/", Kind: "anime", LocalRef: "ref.img",
+		MIMEType: "image/jpeg", ByteSize: 1, Provenance: "artwork-search:kitsu",
+	}, now, false); err != nil {
+		t.Fatal(err)
+	}
+	disabled := NewService(svc.db, WithArtworkServing(false))
+	view, err := disabled.GetWork(ctx, work.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if view.Artwork != nil {
+		t.Fatalf("disabled artwork serving exposed %+v", view.Artwork)
+	}
+}
+
 func TestEditionViewKeepsSavedArtwork(t *testing.T) {
 	ctx := context.Background()
 	svc := newTestService(t)

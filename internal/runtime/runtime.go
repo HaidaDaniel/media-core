@@ -147,7 +147,7 @@ func runServe(args []string, out io.Writer) error {
 		return &ExitCodeError{Exit: 1, Err: err}
 	}
 	defer db.Close()
-	srv.WithCatalog(app.NewService(db))
+	srv.WithCatalog(app.NewService(db, app.WithArtworkServing(cfg.Artwork)))
 	if cfg.Artwork {
 		cache, err := artwork.NewCache(cfg.StateDir, artwork.DefaultMaxCacheBytes, artwork.DefaultMaxImageBytes)
 		if err != nil {

@@ -107,6 +107,7 @@ const API_PREFIX = "/api/v1";
 interface RequestOptions {
   method: string;
   body?: unknown;
+  signal?: AbortSignal;
 }
 
 // request performs one same-origin API call and returns the envelope data.
@@ -127,9 +128,13 @@ async function request<T>(path: string, options: RequestOptions): Promise<T> {
       method: options.method,
       headers,
       credentials: "same-origin",
+      signal: options.signal,
       body: options.body === undefined ? undefined : JSON.stringify(options.body),
     });
-  } catch {
+  } catch (err) {
+    if ((err as { name?: string } | null)?.name === "AbortError") {
+      throw err;
+    }
     throw new ApiError("internal_error", 0, "the API is unreachable", true);
   }
   let parsed: Envelope<T>;
@@ -151,20 +156,20 @@ async function request<T>(path: string, options: RequestOptions): Promise<T> {
   return parsed.data;
 }
 
-export function get<T>(path: string): Promise<T> {
-  return request<T>(path, { method: "GET" });
+export function get<T>(path: string, signal?: AbortSignal): Promise<T> {
+  return request<T>(path, { method: "GET", signal });
 }
 
-export function post<T>(path: string, body: unknown): Promise<T> {
-  return request<T>(path, { method: "POST", body });
+export function post<T>(path: string, body: unknown, signal?: AbortSignal): Promise<T> {
+  return request<T>(path, { method: "POST", body, signal });
 }
 
-export function patch<T>(path: string, body: unknown): Promise<T> {
-  return request<T>(path, { method: "PATCH", body });
+export function patch<T>(path: string, body: unknown, signal?: AbortSignal): Promise<T> {
+  return request<T>(path, { method: "PATCH", body, signal });
 }
 
-export function del<T>(path: string, body?: unknown): Promise<T> {
-  return request<T>(path, { method: "DELETE", body });
+export function del<T>(path: string, body?: unknown, signal?: AbortSignal): Promise<T> {
+  return request<T>(path, { method: "DELETE", body, signal });
 }
 
 // The session payload of POST and GET /session: the per-session CSRF token.

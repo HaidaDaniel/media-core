@@ -795,12 +795,6 @@ legend {
   margin: 0 0 var(--space-2);
 }
 
-.work-card-progress {
-  color: var(--muted-strong);
-  font-size: 0.85rem;
-  margin: 0 0 var(--space-2);
-}
-
 .work-editions {
   display: flex;
   flex-direction: column;

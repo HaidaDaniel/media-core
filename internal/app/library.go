@@ -257,11 +257,15 @@ func (s *Service) SearchLibrary(ctx context.Context, f LibraryFilter) (ListPaylo
 	for _, c := range cards {
 		ids = append(ids, c.ID)
 	}
-	artwork, err := s.db.ArtworkForWorks(ctx, ids)
-	if err != nil {
-		return ListPayload{}, mapStoreError(err, base)
-	}
 	items := make([]any, 0, len(cards))
+	var artwork map[string]store.ArtworkRecord
+	if s.artworkServing {
+		var err error
+		artwork, err = s.db.ArtworkForWorks(ctx, ids)
+		if err != nil {
+			return ListPayload{}, mapStoreError(err, base)
+		}
+	}
 	for _, c := range cards {
 		card := toAppCard(c)
 		if r, ok := artwork[c.ID]; ok {
@@ -327,13 +331,15 @@ func (s *Service) GetWork(ctx context.Context, workID string) (WorkView, error) 
 		return WorkView{}, mapStoreError(err, base)
 	}
 	view := workViewFrom(w, editions)
-	artwork, err := s.db.ArtworkForWorks(ctx, []string{workID})
-	if err != nil {
-		return WorkView{}, mapStoreError(err, base)
-	}
-	if r, ok := artwork[workID]; ok {
-		cover := ArtworkViewFromStore(r)
-		view.Artwork = &cover
+	if s.artworkServing {
+		artwork, err := s.db.ArtworkForWorks(ctx, []string{workID})
+		if err != nil {
+			return WorkView{}, mapStoreError(err, base)
+		}
+		if r, ok := artwork[workID]; ok {
+			cover := ArtworkViewFromStore(r)
+			view.Artwork = &cover
+		}
 	}
 	return view, nil
 }

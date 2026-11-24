@@ -76,18 +76,18 @@ export interface MissingWorkWire {
 
 export interface MissingCoverItem {
   work: MissingWorkWire;
-  status: "suggested" | "ambiguous" | "not_found" | "error";
+  status: "suggested" | "ambiguous" | "not_found" | "error" | "timeout";
   candidates: ArtworkCandidate[];
 }
 
 export interface FindMissingCoversInput {
   limit?: number;
-  offset?: number;
+  cursor?: string;
 }
 
 export interface FindMissingCoversWire {
   items: MissingCoverItem[];
-  next_offset: number;
+  next_cursor: string;
   total_missing: number;
 }
 
@@ -110,13 +110,16 @@ export function getProviders(): Promise<ProvidersWire> {
   return get<ProvidersWire>("/artwork/providers");
 }
 
-export function searchArtwork(input: SearchArtworkInput): Promise<SearchArtworkWire> {
+export function searchArtwork(
+  input: SearchArtworkInput,
+  signal?: AbortSignal,
+): Promise<SearchArtworkWire> {
   return post<SearchArtworkWire>("/artwork/search", {
     title: input.title,
     kind: input.kind,
     alternatives: input.alternatives,
     references: input.references,
-  });
+  }, signal);
 }
 
 export function selectArtwork(input: SelectArtworkInput): Promise<SelectArtworkWire> {
@@ -133,11 +136,14 @@ export function selectArtwork(input: SelectArtworkInput): Promise<SelectArtworkW
   return post<SelectArtworkWire>("/artwork/select", body);
 }
 
-export function findMissingCovers(input: FindMissingCoversInput = {}): Promise<FindMissingCoversWire> {
+export function findMissingCovers(
+  input: FindMissingCoversInput = {},
+  signal?: AbortSignal,
+): Promise<FindMissingCoversWire> {
   return post<FindMissingCoversWire>("/artwork/find-missing", {
     limit: input.limit ?? 5,
-    offset: input.offset ?? 0,
-  });
+    cursor: input.cursor ?? "",
+  }, signal);
 }
 
 export function clearArtworkCache(): Promise<ClearArtworkCacheWire> {

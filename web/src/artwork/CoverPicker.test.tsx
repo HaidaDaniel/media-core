@@ -66,12 +66,15 @@ describe("cover picker", () => {
     expect(mockSearch).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole("button", { name: "Search for covers" }));
     await vi.waitFor(() =>
-      expect(mockSearch).toHaveBeenCalledWith({
-        title: "Static Bloom",
-        kind: "manga",
-        alternatives: ["Static Bloom (JP)"],
-        references: ["https://example.org/work"],
-      }),
+      expect(mockSearch).toHaveBeenCalledWith(
+        {
+          title: "Static Bloom",
+          kind: "manga",
+          alternatives: ["Static Bloom (JP)"],
+          references: ["https://example.org/work"],
+        },
+        expect.any(AbortSignal),
+      ),
     );
   });
 
@@ -148,5 +151,23 @@ describe("cover picker", () => {
     );
     await vi.waitFor(() => expect(onSelected).toHaveBeenCalledTimes(1));
     expect(onClose).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("cover picker safety labels", () => {
+  it("does not call a weak single result confident", async () => {
+    mockSearch.mockResolvedValue({ candidates: [candidate({ score: 0.5 })] });
+    renderPicker();
+    fireEvent.click(screen.getByRole("button", { name: "Search for covers" }));
+    expect(await screen.findByText(/One possible match/)).not.toBeNull();
+    expect(screen.queryByText(/One confident match/)).toBeNull();
+  });
+
+  it("drops candidates that cannot be selected", async () => {
+    mockSearch.mockResolvedValue({ candidates: [candidate({ preview_token: "", image_url: null })] });
+    renderPicker();
+    fireEvent.click(screen.getByRole("button", { name: "Search for covers" }));
+    expect(await screen.findByText(/No cover candidates found/)).not.toBeNull();
+    expect(screen.queryByRole("button", { name: "Use this cover" })).toBeNull();
   });
 });

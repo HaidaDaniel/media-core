@@ -3,7 +3,9 @@ package artwork
 import (
 	"context"
 	"crypto/rand"
+	"encoding/base64"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"sync"
@@ -112,6 +114,11 @@ func validateSearchInput(in SearchInput) error {
 // a total failure is reported, and even then the caller may continue without
 // a cover.
 func (s *Service) Search(ctx context.Context, in SearchInput) ([]ScoredCandidate, error) {
+	canonical, ok := ParseKind(string(in.Kind))
+	if !ok {
+		return []ScoredCandidate{}, nil
+	}
+	in.Kind = canonical
 	if err := validateSearchInput(in); err != nil {
 		return nil, err
 	}
@@ -119,15 +126,32 @@ func (s *Service) Search(ctx context.Context, in SearchInput) ([]ScoredCandidate
 	if len(providers) == 0 {
 		return []ScoredCandidate{}, nil
 	}
+	type providerResult struct {
+		found []Candidate
+		err   error
+	}
+	results := make([]providerResult, len(providers))
+	var wg sync.WaitGroup
+	sem := make(chan struct{}, 3)
+	for i, provider := range providers {
+		wg.Add(1)
+		go func(index int, p Provider) {
+			defer wg.Done()
+			sem <- struct{}{}
+			defer func() { <-sem }()
+			found, err := p.Search(ctx, in.Title, in.Kind, searchLimit)
+			results[index] = providerResult{found: found, err: err}
+		}(i, provider)
+	}
+	wg.Wait()
 	all := []Candidate{}
 	failures := 0
-	for _, provider := range providers {
-		found, err := provider.Search(ctx, in.Title, in.Kind, searchLimit)
-		if err != nil {
+	for _, result := range results {
+		if result.err != nil {
 			failures++
 			continue
 		}
-		all = append(all, found...)
+		all = append(all, result.found...)
 	}
 	scored := Match(in, all)
 	for i := range scored {
@@ -143,13 +167,8 @@ func (s *Service) Search(ctx context.Context, in SearchInput) ([]ScoredCandidate
 	if len(scored) < previewCount {
 		previewCount = len(scored)
 	}
-	for i := range scored {
-		if i >= previewCount {
-			// Never hand an unvalidated provider URL to the browser and never
-			// offer a candidate that has no local preview to select.
-			scored[i].ImageURL = ""
-		}
-	}
+	var previewWG sync.WaitGroup
+	previewSem := make(chan struct{}, previewCount)
 	for i := 0; i < previewCount; i++ {
 		if scored[i].ImageURL == "" {
 			continue
@@ -159,23 +178,37 @@ func (s *Service) Search(ctx context.Context, in SearchInput) ([]ScoredCandidate
 			scored[i].ImageURL = ""
 			continue
 		}
-		res, err := s.client.fetch(ctx, scored[i].Provider+"-image", scored[i].ImageURL, hosts, maxImageBytes, "image/jpeg,image/png,image/gif")
-		if err != nil {
-			scored[i].ImageURL = ""
-			continue
-		}
-		if _, err := s.cache.validateImage(res.Body, res.ContentType); err != nil {
-			scored[i].ImageURL = ""
-			continue
-		}
-		token := s.previews.Put(scored[i], res.Body, res.ContentType, s.now())
-		if token == "" {
-			scored[i].ImageURL = ""
-			continue
-		}
-		scored[i].PreviewToken = token
-		scored[i].ImageURL = "/api/v1/artwork/preview/" + token + "/image"
+		previewWG.Add(1)
+		go func(index int, hosts map[string]bool) {
+			defer previewWG.Done()
+			previewSem <- struct{}{}
+			defer func() { <-previewSem }()
+			res, err := s.client.fetch(ctx, scored[index].Provider+"-image", scored[index].ImageURL, hosts, maxImageBytes, "image/jpeg,image/png,image/gif")
+			if err != nil {
+				scored[index].ImageURL = ""
+				return
+			}
+			if _, err := s.cache.validateImage(res.Body, res.ContentType); err != nil {
+				scored[index].ImageURL = ""
+				return
+			}
+			token := s.previews.Put(scored[index], res.Body, res.ContentType, s.now())
+			if token == "" {
+				scored[index].ImageURL = ""
+				return
+			}
+			scored[index].PreviewToken = token
+			scored[index].ImageURL = "/api/v1/artwork/preview/" + token + "/image"
+		}(i, hosts)
 	}
+	previewWG.Wait()
+	selectable := scored[:0]
+	for _, candidate := range scored {
+		if candidate.PreviewToken != "" {
+			selectable = append(selectable, candidate)
+		}
+	}
+	scored = selectable
 	if len(scored) == 0 && failures == len(providers) {
 		return []ScoredCandidate{}, ErrUpstream
 	}
@@ -249,21 +282,73 @@ type MissingItem struct {
 	Candidates []ScoredCandidate        `json:"candidates"`
 }
 
-// FindMissing processes one small batch of works. It is called only by an
-// explicit user action; no page render invokes it.
-func (s *Service) FindMissing(ctx context.Context, offset, limit int) ([]MissingItem, int, error) {
-	if limit < 1 || limit > 5 || offset < 0 {
-		return nil, 0, fmt.Errorf("%w: limit must be 1..5 and offset non-negative", ErrInvalidInput)
-	}
-	works, total, err := s.db.ListWorksMissingArtwork(ctx, offset, limit)
+// MissingPage is one keyset page of the explicit Find missing covers action.
+type MissingPage struct {
+	Items      []MissingItem
+	NextCursor string
+	Total      int
+}
+
+type missingCursorPayload struct {
+	V         int    `json:"v"`
+	CreatedAt string `json:"created_at"`
+	ID        string `json:"id"`
+}
+
+func encodeMissingCursor(c store.MissingArtworkCursor) string {
+	raw, err := json.Marshal(missingCursorPayload{V: 1, CreatedAt: store.InstantKey(c.CreatedAt), ID: c.ID})
 	if err != nil {
-		return nil, 0, err
+		return ""
+	}
+	return base64.RawURLEncoding.EncodeToString(raw)
+}
+
+func decodeMissingCursor(raw string) (*store.MissingArtworkCursor, error) {
+	if raw == "" {
+		return nil, nil
+	}
+	if len(raw) > 1024 {
+		return nil, fmt.Errorf("%w: cursor is too long", ErrInvalidInput)
+	}
+	decoded, err := base64.RawURLEncoding.DecodeString(raw)
+	if err != nil {
+		return nil, fmt.Errorf("%w: cursor is malformed", ErrInvalidInput)
+	}
+	var payload missingCursorPayload
+	if err := json.Unmarshal(decoded, &payload); err != nil || payload.V != 1 || payload.ID == "" {
+		return nil, fmt.Errorf("%w: cursor is malformed", ErrInvalidInput)
+	}
+	created, err := time.Parse(time.RFC3339Nano, payload.CreatedAt)
+	if err != nil {
+		return nil, fmt.Errorf("%w: cursor is malformed", ErrInvalidInput)
+	}
+	return &store.MissingArtworkCursor{CreatedAt: created, ID: payload.ID}, nil
+}
+
+// FindMissing processes one small keyset batch of works. It is called only by
+// an explicit user action; no page render invokes it.
+func (s *Service) FindMissing(ctx context.Context, cursor string, limit int) (MissingPage, error) {
+	if limit < 1 || limit > 5 {
+		return MissingPage{}, fmt.Errorf("%w: limit must be 1..5", ErrInvalidInput)
+	}
+	after, err := decodeMissingCursor(cursor)
+	if err != nil {
+		return MissingPage{}, err
+	}
+	works, total, err := s.db.ListWorksMissingArtwork(ctx, after, limit)
+	if err != nil {
+		return MissingPage{}, err
 	}
 	items := make([]MissingItem, 0, len(works))
 	for _, w := range works {
 		item := MissingItem{Work: w, Candidates: []ScoredCandidate{}, Status: "not_found"}
-		kind, err := parseKind(w.Kind)
-		if err != nil {
+		if ctx.Err() != nil {
+			item.Status = "timeout"
+			items = append(items, item)
+			continue
+		}
+		kind, ok := ParseKind(w.Kind)
+		if !ok {
 			item.Status = "error"
 			items = append(items, item)
 			continue
@@ -271,6 +356,9 @@ func (s *Service) FindMissing(ctx context.Context, offset, limit int) ([]Missing
 		candidates, err := s.Search(ctx, SearchInput{Title: w.Title, Kind: kind})
 		if err != nil {
 			item.Status = "error"
+			if ctx.Err() != nil {
+				item.Status = "timeout"
+			}
 			items = append(items, item)
 			continue
 		}
@@ -286,25 +374,31 @@ func (s *Service) FindMissing(ctx context.Context, offset, limit int) ([]Missing
 		}
 		items = append(items, item)
 	}
-	return items, total, nil
+	next := ""
+	if len(works) == limit {
+		last := works[len(works)-1]
+		next = encodeMissingCursor(store.MissingArtworkCursor{CreatedAt: last.CreatedAt, ID: last.ID})
+	}
+	return MissingPage{Items: items, NextCursor: next, Total: total}, nil
 }
 
-func parseKind(raw string) (Kind, error) {
+// ParseKind maps the domain edition kinds onto the bounded artwork provider
+// families. It reports false for formats with no verified provider instead
+// of guessing across media types.
+func ParseKind(raw string) (Kind, bool) {
 	switch Kind(raw) {
 	case KindAnime:
-		return KindAnime, nil
+		return KindAnime, true
 	case KindManga, "manhwa", "manhua":
-		return KindManga, nil
+		return KindManga, true
 	case KindBook, "web_novel", "light_novel":
-		return KindBook, nil
+		return KindBook, true
 	case KindMovie:
-		return KindMovie, nil
+		return KindMovie, true
 	case KindTV:
-		return KindTV, nil
+		return KindTV, true
 	}
-	// Games, visual novels, unknown and other formats have no verified
-	// provider; leave them untouched instead of guessing across formats.
-	return "", fmt.Errorf("unsupported kind %q", raw)
+	return "", false
 }
 
 // ClearCache removes regenerable image bytes without touching SQLite rows.

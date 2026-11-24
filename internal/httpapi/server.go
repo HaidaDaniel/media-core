@@ -51,8 +51,8 @@ func (s *Server) WithCatalog(svc *app.Service) *Server {
 }
 
 // WithArtwork attaches the explicit cover-discovery service. Without it the
-// artwork routes are not registered; the library still works from cached
-// data and placeholders.
+// artwork routes are not registered; the runtime also omits saved artwork
+// URLs so the library renders placeholders without dead image requests.
 func (s *Server) WithArtwork(svc *artwork.Service) *Server {
 	s.artwork = svc
 	return s

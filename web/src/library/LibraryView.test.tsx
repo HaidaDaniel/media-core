@@ -76,7 +76,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   mockListWorks.mockResolvedValue(payload([card()]));
   mockEditionConsumption.mockResolvedValue("completed");
-  mockFindMissing.mockResolvedValue({ items: [], next_offset: 0, total_missing: 0 });
+  mockFindMissing.mockResolvedValue({ items: [], next_cursor: "", total_missing: 0 });
 });
 
 afterEach(() => {
@@ -150,7 +150,7 @@ describe("library grid and discovery", () => {
     expect(mockSelect).not.toHaveBeenCalled();
     const panel = screen.getByRole("region", { name: "Cover discovery" });
     fireEvent.click(within(panel).getByRole("button", { name: "Find missing covers" }));
-    await vi.waitFor(() => expect(mockFindMissing).toHaveBeenCalledWith({ limit: 5, offset: 0 }));
+    await vi.waitFor(() => expect(mockFindMissing).toHaveBeenCalledWith({ limit: 5, cursor: "" }, expect.any(AbortSignal)));
     expect(mockSelect).not.toHaveBeenCalled();
   });
 
@@ -164,18 +164,18 @@ describe("library grid and discovery", () => {
             candidates: [],
           },
         ],
-        next_offset: 5,
+        next_cursor: "cursor-1",
         total_missing: 7,
       })
-      .mockResolvedValueOnce({ items: [], next_offset: 7, total_missing: 7 });
+      .mockResolvedValueOnce({ items: [], next_cursor: "", total_missing: 7 });
     renderPage("/");
     expect(await screen.findByText("Static Bloom")).not.toBeNull();
     const panel = screen.getByRole("region", { name: "Cover discovery" });
     fireEvent.click(within(panel).getByRole("button", { name: "Find missing covers" }));
-    expect(await within(panel).findByText(/1 of 7 checked/)).not.toBeNull();
+    expect(await within(panel).findByText(/1 checked · 7 remaining/)).not.toBeNull();
     fireEvent.click(within(panel).getByRole("button", { name: "Check next 5" }));
     await vi.waitFor(() =>
-      expect(mockFindMissing).toHaveBeenLastCalledWith({ limit: 5, offset: 5 }),
+      expect(mockFindMissing).toHaveBeenLastCalledWith({ limit: 5, cursor: "cursor-1" }, expect.any(AbortSignal)),
     );
   });
 });

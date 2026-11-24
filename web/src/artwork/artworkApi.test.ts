@@ -80,12 +80,12 @@ describe("artwork API client", () => {
 
   it("requests small, explicit find-missing batches", async () => {
     const fetchMock = vi.fn().mockResolvedValue(
-      jsonResponse({ items: [], next_offset: 5, total_missing: 0 }),
+      jsonResponse({ items: [], next_cursor: "cursor-1", total_missing: 0 }),
     );
     vi.stubGlobal("fetch", fetchMock);
-    await findMissingCovers({ limit: 5, offset: 5 });
+    await findMissingCovers({ limit: 5, cursor: "cursor-1" });
     expect(fetchMock.mock.calls[0][0]).toBe("/api/v1/artwork/find-missing");
-    expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual({ limit: 5, offset: 5 });
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual({ limit: 5, cursor: "cursor-1" });
   });
 
   it("clears the cache with an authenticated DELETE", async () => {

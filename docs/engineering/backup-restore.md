@@ -6,14 +6,18 @@ contract.
 
 ## Archive layout
 
-An archive is one directory, published atomically, containing exactly two
-files:
+An archive is one directory, published atomically:
 
 ```
 <name>/
-  media-core.db    the consistent snapshot database (mode 0600)
-  manifest.json    the integrity metadata (mode 0600)
+  media-core.db        the consistent snapshot database (mode 0600)
+  manifest.json        the integrity metadata (mode 0600)
+  artwork-cache/       selected cover bytes referenced by active rows (mode 0700)
 ```
+
+The `artwork-cache/` directory is optional: it is present only when at least
+one active selection has cached bytes. Archives written before task 0080
+(`media-core-snapshot-v1`) contain only the two files and remain restorable.
 
 The directory itself uses mode 0700. The name is a single path element;
 without an explicit name the command supplies
@@ -21,7 +25,7 @@ without an explicit name the command supplies
 
 ## Manifest
 
-The manifest is JSON with the marker `format: media-core-snapshot-v1` and
+The manifest is JSON with the marker `format: media-core-snapshot-v2` and
 the fields:
 
 | Field | Meaning |
@@ -32,6 +36,8 @@ the fields:
 | `db.name` | Fixed `media-core.db`. |
 | `db.size` | Snapshot file size in bytes. |
 | `db.sha256` | SHA-256 of the snapshot file. |
+| `artwork.files` | Selected cover files with `name`, `size` and `sha256`. |
+| `artwork.missing` | Referenced cache names that were already absent at backup time; recorded, never invented. |
 
 ## Snapshot semantics
 
@@ -74,29 +80,32 @@ the fields:
   A publish that loses the race to a concurrent publisher is reported as a
   conflict.
 
-## Exclusions
+## What is included and excluded
 
-The archive packages only the snapshot database and the manifest. Nothing
-else from the state directory is ever copied, so owner secrets, session
-material and TLS keys are excluded by construction; the manifest contains
-no state directory contents beyond the measured database file metadata.
-The regenerable `artwork-cache/` directory is excluded for the same reason:
-user-selected cover provenance lives in the `work_artwork` table and is
-backed up, while cached image bytes can be rebuilt by a new explicit
-selection after a restore.
+The archive packages the snapshot database, the manifest and only the
+`artwork-cache/` files referenced by active `work_artwork` rows. Orphaned
+previews, owner secrets, session material and TLS keys never enter the
+archive. The selected cover bytes are user-visible state, not disposable
+temporary data, so they travel with the snapshot; the hard 64 MiB cache cap
+bounds the archive growth. If a referenced cache file is already missing at
+backup time, the manifest records it under `artwork.missing` and the
+database row still travels; the library shows a neutral placeholder after
+restore until the user explicitly selects a cover again.
 
 ## Restore contract
 
 Restore (task 0023) accepts an archive only when, in order: the archive
-path is a directory (not a symlink) holding exactly the two regular files
-`media-core.db` and `manifest.json`; the manifest parses, carries the
-format `media-core-snapshot-v1`, names the database file, and holds a
-positive schema; the packaged file's size and SHA-256 match the manifest;
-`PRAGMA integrity_check` on the file returns ok; the file's schema ledger
-matches the manifest's schema; and the ledger sits exactly at the
-restoring build's current schema — an older or newer backup is rejected
-with the distinct schema boundary error. All of this happens before the
-destination is touched.
+path is a directory (not a symlink) holding `media-core.db`, `manifest.json`
+and, for v2, an optional `artwork-cache/` directory of regular files; the
+manifest parses, carries `media-core-snapshot-v1` or
+`media-core-snapshot-v2`, names the database file, and holds a positive
+schema; the packaged database and every listed artwork file match the
+manifest's size and SHA-256; `PRAGMA integrity_check` on the database
+returns ok; the schema ledger matches and sits exactly at the restoring
+build's current schema — an older or newer backup is rejected with the
+distinct schema boundary error. v2 rejects extra artwork entries, symlinks
+and a manifest/list mismatch. All of this happens before the destination is
+touched.
 
 The replacement then runs under the **exclusive** lifetime maintenance
 lock, so any active shared-lock holder — a running serve, MCP or CLI
@@ -128,8 +137,9 @@ verifies, in order:
 - a consistent backup taken while a second process keeps committing
   (the snapshot provably contains post-fixture commits and the snapshot
   boundary is respected);
-- the archive holds exactly the database and the manifest — no owner
-  secret, no state file;
+- the archive holds exactly the database and the manifest for a fixture
+  without artwork — no owner secret, no state file; the separate artwork
+  backup test proves selected cover bytes travel in v2 and restore exactly;
 - each invalid archive — a symlinked (traversal) database entry, a
   corrupted hash, a size-mismatching manifest, and a newer schema — is
   rejected with the right error **before** the destination is touched,

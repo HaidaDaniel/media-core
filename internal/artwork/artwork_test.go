@@ -353,14 +353,14 @@ func TestParseKindKeepsFormatsSeparate(t *testing.T) {
 		"light_novel": KindBook, "movie": KindMovie, "tv": KindTV,
 	}
 	for raw, want := range cases {
-		got, err := parseKind(raw)
-		if err != nil || got != want {
-			t.Errorf("parseKind(%q) = %q, %v; want %q", raw, got, err, want)
+		got, ok := ParseKind(raw)
+		if !ok || got != want {
+			t.Errorf("ParseKind(%q) = %q, %v; want %q", raw, got, ok, want)
 		}
 	}
 	for _, raw := range []string{"game", "visual_novel", "other", "unknown", ""} {
-		if _, err := parseKind(raw); err == nil {
-			t.Errorf("parseKind(%q) unexpectedly succeeded", raw)
+		if _, ok := ParseKind(raw); ok {
+			t.Errorf("ParseKind(%q) unexpectedly succeeded", raw)
 		}
 	}
 }

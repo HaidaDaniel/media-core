@@ -19,14 +19,19 @@ import (
 
 	_ "modernc.org/sqlite"
 
+	"github.com/HaidaDaniel/media-core/internal/artwork"
 	"github.com/HaidaDaniel/media-core/internal/buildinfo"
 	"github.com/HaidaDaniel/media-core/internal/store"
 	"golang.org/x/sys/unix"
 )
 
-// ArchiveFormatName is the manifest format marker of the v1 snapshot
-// archive.
-const ArchiveFormatName = "media-core-snapshot-v1"
+// Archive format markers. v2 adds the selected cover bytes next to the
+// database; v1 is still accepted by restore.
+const (
+	ArchiveFormatName = "media-core-snapshot-v2"
+	archiveFormatV1   = "media-core-snapshot-v1"
+	ArtworkDirName    = artwork.CacheDirName
+)
 
 // archiveLockName is a non-archive lock file inside the destination.
 const archiveLockName = ".media-core-archive.lock"
@@ -73,16 +78,32 @@ type DBInfo struct {
 	SHA256 string `json:"sha256"`
 }
 
+// ArchivedArtwork is one selected cover file inside a v2 archive.
+type ArchivedArtwork struct {
+	Name   string `json:"name"`
+	Size   int64  `json:"size"`
+	SHA256 string `json:"sha256"`
+}
+
+// ArtworkManifest lists the selected cover bytes and any referenced files
+// that were already absent when the backup ran. Missing files are recorded,
+// never invented.
+type ArtworkManifest struct {
+	Files   []ArchivedArtwork `json:"files"`
+	Missing []string          `json:"missing"`
+}
+
 // Manifest is the archive integrity metadata. It describes the snapshot
 // boundary only: every commit made before the VACUUM INTO finished is
 // inside the archive, and the manifest never claims anything about commits
 // made after that boundary.
 type Manifest struct {
-	Format    string    `json:"format"`
-	CreatedAt time.Time `json:"created_at"`
-	App       App       `json:"app"`
-	Schema    int       `json:"schema"`
-	DB        DBInfo    `json:"db"`
+	Format    string           `json:"format"`
+	CreatedAt time.Time        `json:"created_at"`
+	App       App              `json:"app"`
+	Schema    int              `json:"schema"`
+	DB        DBInfo           `json:"db"`
+	Artwork   *ArtworkManifest `json:"artwork,omitempty"`
 }
 
 // Result is one published archive.
@@ -221,7 +242,11 @@ func Create(ctx context.Context, opts Options) (*Result, error) {
 		return nil, err
 	}
 
-	manifest, err := buildManifest(snapPath, schema)
+	artworkManifest, err := collectArtwork(ctx, snapPath, opts.StateDir, staging)
+	if err != nil {
+		return nil, err
+	}
+	manifest, err := buildManifest(snapPath, schema, artworkManifest)
 	if err != nil {
 		return nil, err
 	}
@@ -373,7 +398,7 @@ func verifySnapshot(ctx context.Context, path string, wantSchema int) error {
 
 // buildManifest measures the snapshot file and records the snapshot
 // boundary metadata.
-func buildManifest(path string, schema int) (Manifest, error) {
+func buildManifest(path string, schema int, artworkManifest ArtworkManifest) (Manifest, error) {
 	info, err := os.Stat(path)
 	if err != nil {
 		return Manifest{}, fmt.Errorf("backup: stat snapshot: %w", err)
@@ -401,13 +426,105 @@ func buildManifest(path string, schema int) (Manifest, error) {
 			BuildTime: ident.BuildTime,
 			GoVersion: ident.GoVersion,
 		},
-		Schema: schema,
+		Schema:  schema,
+		Artwork: &artworkManifest,
 		DB: DBInfo{
 			Name:   DBFileName,
 			Size:   info.Size(),
 			SHA256: hex.EncodeToString(h.Sum(nil)),
 		},
 	}, nil
+}
+
+// collectArtwork copies only the cache files referenced by active selections
+// from the snapshot database. Orphan previews and every other state file stay
+// outside the archive.
+func collectArtwork(ctx context.Context, snapPath, stateDir, staging string) (ArtworkManifest, error) {
+	manifest := ArtworkManifest{Files: []ArchivedArtwork{}, Missing: []string{}}
+	db, err := sql.Open("sqlite", roDSN(snapPath))
+	if err != nil {
+		return manifest, fmt.Errorf("backup: open snapshot for artwork: %w", err)
+	}
+	defer db.Close()
+	rows, err := db.QueryContext(ctx, `SELECT DISTINCT local_ref FROM work_artwork WHERE retired_at IS NULL ORDER BY local_ref`)
+	if err != nil {
+		return manifest, fmt.Errorf("backup: list selected artwork: %w", err)
+	}
+	refs := []string{}
+	for rows.Next() {
+		var ref string
+		if err := rows.Scan(&ref); err != nil {
+			rows.Close()
+			return manifest, fmt.Errorf("backup: scan selected artwork: %w", err)
+		}
+		refs = append(refs, ref)
+	}
+	if err := rows.Err(); err != nil {
+		rows.Close()
+		return manifest, fmt.Errorf("backup: read selected artwork: %w", err)
+	}
+	rows.Close()
+	if len(refs) == 0 {
+		return manifest, nil
+	}
+	destDir := filepath.Join(staging, ArtworkDirName)
+	if err := os.MkdirAll(destDir, 0o700); err != nil {
+		return manifest, fmt.Errorf("backup: create artwork staging: %w", err)
+	}
+	for _, ref := range refs {
+		if !artwork.ValidCacheRef(ref) {
+			return manifest, fmt.Errorf("backup: invalid artwork cache reference %q", ref)
+		}
+		srcPath := filepath.Join(stateDir, ArtworkDirName, ref)
+		info, err := os.Lstat(srcPath)
+		if err != nil {
+			if os.IsNotExist(err) {
+				manifest.Missing = append(manifest.Missing, ref)
+				continue
+			}
+			return manifest, fmt.Errorf("backup: stat artwork %s: %w", ref, err)
+		}
+		if info.Mode()&os.ModeSymlink != 0 || !info.Mode().IsRegular() {
+			return manifest, fmt.Errorf("%w: artwork %s is not a regular file", ErrInvalid, ref)
+		}
+		entry, err := copyArtworkFile(srcPath, filepath.Join(destDir, ref))
+		if err != nil {
+			return manifest, err
+		}
+		manifest.Files = append(manifest.Files, entry)
+	}
+	if len(manifest.Files) == 0 {
+		_ = os.Remove(destDir)
+	}
+	return manifest, nil
+}
+
+func copyArtworkFile(src, dest string) (ArchivedArtwork, error) {
+	in, err := os.Open(src)
+	if err != nil {
+		return ArchivedArtwork{}, fmt.Errorf("backup: open artwork: %w", err)
+	}
+	defer in.Close()
+	out, err := os.OpenFile(dest, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o600)
+	if err != nil {
+		return ArchivedArtwork{}, fmt.Errorf("backup: create artwork copy: %w", err)
+	}
+	name := filepath.Base(dest)
+	h := sha256.New()
+	size, copyErr := io.Copy(io.MultiWriter(out, h), in)
+	if copyErr == nil {
+		copyErr = out.Sync()
+	}
+	closeErr := out.Close()
+	if copyErr != nil {
+		_ = os.Remove(dest)
+		return ArchivedArtwork{}, fmt.Errorf("backup: copy artwork %s: %w", name, copyErr)
+	}
+	if closeErr != nil {
+		_ = os.Remove(dest)
+		return ArchivedArtwork{}, fmt.Errorf("backup: close artwork %s: %w", name, closeErr)
+	}
+	return ArchivedArtwork{Name: name, Size: size, SHA256: hex.EncodeToString(h.Sum(nil))}, nil
 }
 
 // roDSN opens one read-only connection with a bounded busy timeout; reads

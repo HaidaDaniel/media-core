@@ -12,8 +12,10 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"sort"
 	"time"
 
+	"github.com/HaidaDaniel/media-core/internal/artwork"
 	"github.com/HaidaDaniel/media-core/internal/store"
 )
 
@@ -43,20 +45,21 @@ type RestoreOptions struct {
 
 // RestoreResult is one completed restore.
 type RestoreResult struct {
-	StateDir string
-	Schema   int
-	DB       DBInfo
+	StateDir     string
+	Schema       int
+	DB           DBInfo
+	ArtworkFiles int
 }
 
-// Restore validates the archive completely — layout, manifest, size, hash,
-// schema and integrity — before touching the destination, then replaces
-// the destination database under the exclusive lifetime maintenance lock
-// with one atomic same-filesystem rename. Normal writers (shared lock
-// holders) block the replacement, so an active serve, MCP or CLI handle
-// makes the restore fail with the locked error instead of racing. The
-// destination state directory itself is never cleared: only the database
-// file and its WAL sidecars are replaced, so an owner secret or any other
-// state file is retained. A failure before publication leaves the previous
+// Restore validates the archive completely — layout, manifest, every file
+// hash, schema and integrity — before touching the destination, then installs
+// the validated artwork bytes and replaces the destination database under the
+// exclusive lifetime maintenance lock with one atomic same-filesystem rename.
+// Normal writers (shared lock holders) block the replacement, so an active
+// serve, MCP or CLI handle makes the restore fail with the locked error
+// instead of racing. The destination state directory itself is never cleared:
+// only the database file, its WAL sidecars and referenced artwork files are
+// written, so an owner secret or any other state file is retained. A failure before publication leaves the previous
 // database usable with a distinguishable error; a directory-sync failure is
 // reported after the new snapshot is already in place.
 func Restore(ctx context.Context, opts RestoreOptions) (*RestoreResult, error) {
@@ -67,10 +70,11 @@ func Restore(ctx context.Context, opts RestoreOptions) (*RestoreResult, error) {
 		return nil, fmt.Errorf("%w: state dir %q must be an absolute path", ErrArchiveInvalid, opts.StateDir)
 	}
 
-	manifest, dbPath, err := validateArchive(opts.Archive)
+	validated, err := validateArchive(opts.Archive)
 	if err != nil {
 		return nil, err
 	}
+	manifest, dbPath := validated.manifest, validated.dbPath
 	schema, err := validateSnapshot(ctx, dbPath, manifest.Schema)
 	if err != nil {
 		return nil, err
@@ -170,6 +174,10 @@ func Restore(ctx context.Context, opts RestoreOptions) (*RestoreResult, error) {
 		}
 	}
 
+	artworkFiles, err := installArtwork(opts.StateDir, validated.artwork)
+	if err != nil {
+		return nil, err
+	}
 	if prePublishHook != nil {
 		prePublishHook(stagedName)
 	}
@@ -180,94 +188,291 @@ func Restore(ctx context.Context, opts RestoreOptions) (*RestoreResult, error) {
 		return nil, err
 	}
 	return &RestoreResult{
-		StateDir: opts.StateDir,
-		Schema:   schema,
-		DB:       manifest.DB,
+		StateDir:     opts.StateDir,
+		Schema:       schema,
+		DB:           manifest.DB,
+		ArtworkFiles: artworkFiles,
 	}, nil
 }
 
-// validateArchive proves the entry is a well-formed v1 archive: exactly
-// the two regular files, a parseable manifest with the format marker, and
-// a database file whose size and hash match the manifest.
-func validateArchive(archive string) (Manifest, string, error) {
+// archiveArtworkFile is one validated cover file inside an archive.
+type archiveArtworkFile struct {
+	path  string
+	entry ArchivedArtwork
+}
+
+type validatedArchive struct {
+	manifest Manifest
+	dbPath   string
+	artwork  map[string]archiveArtworkFile
+}
+
+// validateArchive proves the entry is a well-formed v1 or v2 archive. v1
+// holds exactly the database and the manifest. v2 also accepts an
+// artwork-cache directory whose files must match the manifest exactly.
+func validateArchive(archive string) (validatedArchive, error) {
 	info, err := os.Lstat(archive)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return Manifest{}, "", fmt.Errorf("%w: %s not found", ErrArchiveInvalid, archive)
+			return validatedArchive{}, fmt.Errorf("%w: %s not found", ErrArchiveInvalid, archive)
 		}
-		return Manifest{}, "", fmt.Errorf("%w: stat archive: %v", ErrArchiveInvalid, err)
+		return validatedArchive{}, fmt.Errorf("%w: stat archive: %v", ErrArchiveInvalid, err)
 	}
 	if info.Mode()&os.ModeSymlink != 0 {
-		return Manifest{}, "", fmt.Errorf("%w: archive %s is a symlink", ErrArchiveInvalid, archive)
+		return validatedArchive{}, fmt.Errorf("%w: archive %s is a symlink", ErrArchiveInvalid, archive)
 	}
 	if !info.IsDir() {
-		return Manifest{}, "", fmt.Errorf("%w: archive %s is not a directory", ErrArchiveInvalid, archive)
+		return validatedArchive{}, fmt.Errorf("%w: archive %s is not a directory", ErrArchiveInvalid, archive)
 	}
 	entries, err := os.ReadDir(archive)
 	if err != nil {
-		return Manifest{}, "", fmt.Errorf("%w: read archive: %v", ErrArchiveInvalid, err)
+		return validatedArchive{}, fmt.Errorf("%w: read archive: %v", ErrArchiveInvalid, err)
 	}
-	if len(entries) != 2 {
-		return Manifest{}, "", fmt.Errorf("%w: archive %s holds %d entries, want exactly %s and %s",
-			ErrArchiveInvalid, archive, len(entries), DBFileName, ManifestFileName)
-	}
-	var dbPath, manifestPath string
+	var dbPath, manifestPath, artworkDir string
 	for _, e := range entries {
 		full := filepath.Join(archive, e.Name())
 		finfo, err := os.Lstat(full)
-		if err != nil || finfo.Mode()&os.ModeSymlink != 0 || !finfo.Mode().IsRegular() {
-			return Manifest{}, "", fmt.Errorf("%w: archive entry %s is not a regular file", ErrArchiveInvalid, e.Name())
+		if err != nil {
+			return validatedArchive{}, fmt.Errorf("%w: stat archive entry %s: %v", ErrArchiveInvalid, e.Name(), err)
+		}
+		if finfo.Mode()&os.ModeSymlink != 0 {
+			return validatedArchive{}, fmt.Errorf("%w: archive entry %s is a symlink", ErrArchiveInvalid, e.Name())
 		}
 		switch e.Name() {
 		case DBFileName:
+			if !finfo.Mode().IsRegular() {
+				return validatedArchive{}, fmt.Errorf("%w: archive entry %s is not a regular file", ErrArchiveInvalid, e.Name())
+			}
 			dbPath = full
 		case ManifestFileName:
+			if !finfo.Mode().IsRegular() {
+				return validatedArchive{}, fmt.Errorf("%w: archive entry %s is not a regular file", ErrArchiveInvalid, e.Name())
+			}
 			manifestPath = full
+		case ArtworkDirName:
+			if !finfo.IsDir() {
+				return validatedArchive{}, fmt.Errorf("%w: archive entry %s is not a directory", ErrArchiveInvalid, e.Name())
+			}
+			artworkDir = full
 		default:
-			return Manifest{}, "", fmt.Errorf("%w: unexpected archive entry %s", ErrArchiveInvalid, e.Name())
+			return validatedArchive{}, fmt.Errorf("%w: unexpected archive entry %s", ErrArchiveInvalid, e.Name())
 		}
+	}
+	if dbPath == "" || manifestPath == "" {
+		return validatedArchive{}, fmt.Errorf("%w: archive %s is missing %s or %s", ErrArchiveInvalid, archive, DBFileName, ManifestFileName)
 	}
 	raw, err := os.ReadFile(manifestPath)
 	if err != nil {
-		return Manifest{}, "", fmt.Errorf("%w: read manifest: %v", ErrArchiveInvalid, err)
+		return validatedArchive{}, fmt.Errorf("%w: read manifest: %v", ErrArchiveInvalid, err)
 	}
 	var manifest Manifest
 	if err := json.Unmarshal(raw, &manifest); err != nil {
-		return Manifest{}, "", fmt.Errorf("%w: manifest is not valid JSON", ErrArchiveInvalid)
+		return validatedArchive{}, fmt.Errorf("%w: manifest is not valid JSON", ErrArchiveInvalid)
 	}
-	if manifest.Format != ArchiveFormatName {
-		return Manifest{}, "", fmt.Errorf("%w: manifest format %q, want %q", ErrArchiveInvalid, manifest.Format, ArchiveFormatName)
+	switch manifest.Format {
+	case archiveFormatV1:
+		if artworkDir != "" || manifest.Artwork != nil {
+			return validatedArchive{}, fmt.Errorf("%w: v1 archive must not contain artwork", ErrArchiveInvalid)
+		}
+	case ArchiveFormatName:
+		if manifest.Artwork == nil {
+			return validatedArchive{}, fmt.Errorf("%w: v2 archive is missing the artwork manifest", ErrArchiveInvalid)
+		}
+	default:
+		return validatedArchive{}, fmt.Errorf("%w: manifest format %q, want %q or %q", ErrArchiveInvalid, manifest.Format, archiveFormatV1, ArchiveFormatName)
 	}
 	if manifest.DB.Name != DBFileName {
-		return Manifest{}, "", fmt.Errorf("%w: manifest db name %q, want %q", ErrArchiveInvalid, manifest.DB.Name, DBFileName)
+		return validatedArchive{}, fmt.Errorf("%w: manifest db name %q, want %q", ErrArchiveInvalid, manifest.DB.Name, DBFileName)
 	}
 	if manifest.Schema <= 0 {
-		return Manifest{}, "", fmt.Errorf("%w: manifest schema %d, want positive", ErrArchiveInvalid, manifest.Schema)
+		return validatedArchive{}, fmt.Errorf("%w: manifest schema %d, want positive", ErrArchiveInvalid, manifest.Schema)
 	}
 	dbInfo, err := os.Stat(dbPath)
 	if err != nil {
-		return Manifest{}, "", fmt.Errorf("%w: stat database: %v", ErrArchiveInvalid, err)
+		return validatedArchive{}, fmt.Errorf("%w: stat database: %v", ErrArchiveInvalid, err)
 	}
 	if dbInfo.Size() != manifest.DB.Size {
-		return Manifest{}, "", fmt.Errorf("%w: database size %d, manifest says %d", ErrArchiveInvalid, dbInfo.Size(), manifest.DB.Size)
+		return validatedArchive{}, fmt.Errorf("%w: database size %d, manifest says %d", ErrArchiveInvalid, dbInfo.Size(), manifest.DB.Size)
 	}
 	f, err := os.Open(dbPath)
 	if err != nil {
-		return Manifest{}, "", fmt.Errorf("%w: open database: %v", ErrArchiveInvalid, err)
+		return validatedArchive{}, fmt.Errorf("%w: open database: %v", ErrArchiveInvalid, err)
 	}
 	hash := sha256.New()
 	_, copyErr := io.Copy(hash, f)
 	closeErr := f.Close()
 	if copyErr != nil {
-		return Manifest{}, "", fmt.Errorf("%w: hash database: %v", ErrArchiveInvalid, copyErr)
+		return validatedArchive{}, fmt.Errorf("%w: hash database: %v", ErrArchiveInvalid, copyErr)
 	}
 	if closeErr != nil {
-		return Manifest{}, "", fmt.Errorf("%w: close database: %v", ErrArchiveInvalid, closeErr)
+		return validatedArchive{}, fmt.Errorf("%w: close database: %v", ErrArchiveInvalid, closeErr)
 	}
 	if hex.EncodeToString(hash.Sum(nil)) != manifest.DB.SHA256 {
-		return Manifest{}, "", fmt.Errorf("%w: database hash does not match the manifest", ErrArchiveInvalid)
+		return validatedArchive{}, fmt.Errorf("%w: database hash does not match the manifest", ErrArchiveInvalid)
 	}
-	return manifest, dbPath, nil
+	files := map[string]archiveArtworkFile{}
+	if manifest.Format == ArchiveFormatName {
+		files, err = validateArtwork(artworkDir, manifest.Artwork)
+		if err != nil {
+			return validatedArchive{}, err
+		}
+	}
+	return validatedArchive{manifest: manifest, dbPath: dbPath, artwork: files}, nil
+}
+
+// validateArtwork checks the v2 artwork directory against the manifest,
+// including every file hash, and rejects extras and symlinks.
+func validateArtwork(dir string, manifest *ArtworkManifest) (map[string]archiveArtworkFile, error) {
+	expected := map[string]ArchivedArtwork{}
+	for _, entry := range manifest.Files {
+		if !artwork.ValidCacheRef(entry.Name) {
+			return nil, fmt.Errorf("%w: invalid artwork name %q", ErrArchiveInvalid, entry.Name)
+		}
+		if _, exists := expected[entry.Name]; exists {
+			return nil, fmt.Errorf("%w: duplicate artwork entry %q", ErrArchiveInvalid, entry.Name)
+		}
+		expected[entry.Name] = entry
+	}
+	for _, name := range manifest.Missing {
+		if !artwork.ValidCacheRef(name) {
+			return nil, fmt.Errorf("%w: invalid missing artwork name %q", ErrArchiveInvalid, name)
+		}
+		if _, exists := expected[name]; exists {
+			return nil, fmt.Errorf("%w: artwork %q is both present and missing", ErrArchiveInvalid, name)
+		}
+	}
+	if len(expected) == 0 {
+		if dir != "" {
+			return nil, fmt.Errorf("%w: artwork directory is present but the manifest lists no files", ErrArchiveInvalid)
+		}
+		return map[string]archiveArtworkFile{}, nil
+	}
+	if dir == "" {
+		return nil, fmt.Errorf("%w: artwork files are missing from the archive", ErrArchiveInvalid)
+	}
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return nil, fmt.Errorf("%w: read artwork directory: %v", ErrArchiveInvalid, err)
+	}
+	if len(entries) != len(expected) {
+		return nil, fmt.Errorf("%w: artwork directory holds %d files, manifest lists %d", ErrArchiveInvalid, len(entries), len(expected))
+	}
+	files := make(map[string]archiveArtworkFile, len(expected))
+	for _, e := range entries {
+		entry, ok := expected[e.Name()]
+		if !ok {
+			return nil, fmt.Errorf("%w: unexpected artwork entry %q", ErrArchiveInvalid, e.Name())
+		}
+		full := filepath.Join(dir, e.Name())
+		finfo, err := os.Lstat(full)
+		if err != nil {
+			return nil, fmt.Errorf("%w: stat artwork %s: %v", ErrArchiveInvalid, e.Name(), err)
+		}
+		if finfo.Mode()&os.ModeSymlink != 0 || !finfo.Mode().IsRegular() {
+			return nil, fmt.Errorf("%w: artwork %s is not a regular file", ErrArchiveInvalid, e.Name())
+		}
+		if finfo.Size() != entry.Size {
+			return nil, fmt.Errorf("%w: artwork %s size %d, manifest says %d", ErrArchiveInvalid, e.Name(), finfo.Size(), entry.Size)
+		}
+		sum, err := hashFile(full)
+		if err != nil {
+			return nil, fmt.Errorf("%w: hash artwork %s: %v", ErrArchiveInvalid, e.Name(), err)
+		}
+		if sum != entry.SHA256 {
+			return nil, fmt.Errorf("%w: artwork %s hash does not match the manifest", ErrArchiveInvalid, e.Name())
+		}
+		files[e.Name()] = archiveArtworkFile{path: full, entry: entry}
+	}
+	return files, nil
+}
+
+func hashFile(path string) (string, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return "", err
+	}
+	defer f.Close()
+	h := sha256.New()
+	if _, err := io.Copy(h, f); err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(h.Sum(nil)), nil
+}
+
+// installArtwork writes the validated cover files into the destination cache
+// before the database publish. Extra cache files are harmless if publication
+// later fails; a missing or altered archive file aborts before any database
+// change.
+func installArtwork(stateDir string, files map[string]archiveArtworkFile) (int, error) {
+	if len(files) == 0 {
+		return 0, nil
+	}
+	dir := filepath.Join(stateDir, ArtworkDirName)
+	if info, err := os.Lstat(dir); err == nil {
+		if info.Mode()&os.ModeSymlink != 0 || !info.IsDir() {
+			return 0, fmt.Errorf("%w: artwork cache path is not a directory", ErrArchiveInvalid)
+		}
+	} else if os.IsNotExist(err) {
+		if err := os.MkdirAll(dir, 0o700); err != nil {
+			return 0, fmt.Errorf("backup: create artwork cache: %w", err)
+		}
+	} else {
+		return 0, fmt.Errorf("backup: stat artwork cache: %w", err)
+	}
+	names := make([]string, 0, len(files))
+	for name := range files {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	installed := 0
+	for _, name := range names {
+		entry := files[name]
+		tmp, err := os.CreateTemp(dir, ".restore-artwork-*")
+		if err != nil {
+			return installed, fmt.Errorf("backup: stage artwork: %w", err)
+		}
+		tmpName := tmp.Name()
+		removeTemp := true
+		defer func() {
+			if removeTemp {
+				_ = os.Remove(tmpName)
+			}
+		}()
+		if err := tmp.Chmod(0o600); err != nil {
+			tmp.Close()
+			return installed, err
+		}
+		src, openErr := os.Open(entry.path)
+		if openErr != nil {
+			tmp.Close()
+			return installed, fmt.Errorf("backup: open artwork %s: %w", name, openErr)
+		}
+		h := sha256.New()
+		size, copyErr := io.Copy(io.MultiWriter(tmp, h), src)
+		srcCloseErr := src.Close()
+		if copyErr == nil {
+			copyErr = srcCloseErr
+		}
+		if copyErr == nil {
+			copyErr = tmp.Sync()
+		}
+		closeErr := tmp.Close()
+		if copyErr != nil {
+			return installed, fmt.Errorf("backup: copy artwork %s: %w", name, copyErr)
+		}
+		if closeErr != nil {
+			return installed, fmt.Errorf("backup: close artwork %s: %w", name, closeErr)
+		}
+		if size != entry.entry.Size || hex.EncodeToString(h.Sum(nil)) != entry.entry.SHA256 {
+			return installed, fmt.Errorf("%w: artwork %s changed after validation", ErrArchiveInvalid, name)
+		}
+		if err := os.Rename(tmpName, filepath.Join(dir, name)); err != nil {
+			return installed, fmt.Errorf("backup: publish artwork %s: %w", name, err)
+		}
+		removeTemp = false
+		installed++
+	}
+	return installed, nil
 }
 
 // validateSnapshot opens the archived database read-only and proves it is
@@ -329,7 +534,7 @@ func SyntheticArchive(dir string, schema int, createdAt time.Time) (string, erro
 	}
 	sum := sha256.Sum256(data)
 	manifest := Manifest{
-		Format:    ArchiveFormatName,
+		Format:    archiveFormatV1,
 		CreatedAt: createdAt,
 		App:       App{Version: "synthetic", Commit: "synthetic", BuildTime: "synthetic", GoVersion: "synthetic"},
 		Schema:    schema,

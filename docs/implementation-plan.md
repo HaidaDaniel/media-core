@@ -90,6 +90,8 @@ Each row lists direct dependencies; numbering is not execution order (0049 is an
 
 | [0079](../.tasks/0079-dark-first-media-library-ui-and-provider-based-cover-discovery.md) | Dark-first media library UI and provider-based cover discovery | none | high | M5 | todo |
 
+| [0080](../.tasks/0080-remediate-artwork-cache-pagination-backup-matching-and-request-boundary-defects.md) | Remediate artwork cache pagination backup matching and request-boundary defects | 0079 | high | M5 | todo |
+
 ## Execution path and observable increments
 
 First five recommended implementation tasks: **0005 → 0006 → 0007 → 0008 → 0009**. After 0005, 0006 and 0007 may run in separate worktrees. Task 0004 must pass review/gate and be done before 0005 is claimable. Do not start 0003 implicitly or mark it done as part of this plan.
@@ -126,11 +128,11 @@ Every requirement has implementation ownership. Scenarios A–G live in docs/pro
 | R07 | [Domain](domain-model.md), [integration](integration-contract.md) | 0019, 0028, 0035, 0041 | A, C |
 | R08 | [Domain](domain-model.md), [contracts](application-contract.md) | 0020, 0029, 0033, 0041, 0045 | A, C |
 | R09 | [Domain](domain-model.md), [contracts](application-contract.md) | 0012, 0019, 0026, 0032, 0039, 0044, 0045, 0053 | C |
-| R10 | [Web](web-ui.md), [contracts](application-contract.md) | 0024, 0025, 0026, 0027, 0028, 0029, 0030, 0031, 0032, 0033, 0034, 0035, 0036, 0045, 0046, 0050, 0060, 0065, 0069, 0075, 0079 | A, B, C, D, G |
+| R10 | [Web](web-ui.md), [contracts](application-contract.md) | 0024, 0025, 0026, 0027, 0028, 0029, 0030, 0031, 0032, 0033, 0034, 0035, 0036, 0045, 0046, 0050, 0060, 0065, 0069, 0075, 0079, 0080 | A, B, C, D, G |
 | R11 | [Hermes](hermes.md) | 0037, 0038, 0039, 0040, 0041, 0048, 0056 | A, B, C, D, G |
 | R12 | [Contracts](application-contract.md), [architecture](architecture.md) | 0007, 0012, 0025, 0026, 0027, 0028, 0029, 0038, 0039, 0040, 0041, 0045, 0046, 0057 | A, B, C, D |
 | R13 | [Architecture](architecture.md) | 0006, 0024, 0030, 0047, 0061, 0076, 0077 | G |
-| R14 | [Architecture](architecture.md), [requirements](product/requirements.md) | 0022, 0023, 0049, 0047, 0064, 0070, 0071, 0073, 0074 | F |
+| R14 | [Architecture](architecture.md), [requirements](product/requirements.md) | 0022, 0023, 0049, 0047, 0064, 0070, 0071, 0073, 0074, 0080 | F |
 | R15 | [Architecture](architecture.md), [risks](engineering/risk-register.md) | 0008, 0009, 0022, 0023, 0044, 0055, 0059 | B, C, F |
 | R16 | [Integration](integration-contract.md) | 0042, 0043 | E |
 | R17 | [Architecture](architecture.md), [technology](engineering/tech-options.md) | 0030, 0047, 0048, 0058, 0066, 0067, 0072, 0078 | F, G |

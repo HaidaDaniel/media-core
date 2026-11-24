@@ -173,6 +173,36 @@ func TestRestoreExistingDestination(t *testing.T) {
 
 // TestRestoreValidation exercises each invalid archive shape and checks the
 // destination is untouched in every case.
+func TestRestoreAcceptsV1Archive(t *testing.T) {
+	stateDir, db := initState(t)
+	_ = db
+	archive, err := Create(context.Background(), Options{StateDir: stateDir, DestDir: t.TempDir(), Name: "v1-compat"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	manifestPath := filepath.Join(archive.Path, ManifestFileName)
+	raw, err := os.ReadFile(manifestPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var doc map[string]any
+	if err := json.Unmarshal(raw, &doc); err != nil {
+		t.Fatal(err)
+	}
+	doc["format"] = archiveFormatV1
+	delete(doc, "artwork")
+	converted, err := json.Marshal(doc)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(manifestPath, converted, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Restore(context.Background(), RestoreOptions{Archive: archive.Path, StateDir: t.TempDir()}); err != nil {
+		t.Fatalf("v1 restore: %v", err)
+	}
+}
+
 func TestRestoreValidation(t *testing.T) {
 	src, _ := seedProbeState(t, 2)
 	archive := makeArchive(t, src, "invalid-shapes")

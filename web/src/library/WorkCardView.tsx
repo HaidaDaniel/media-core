@@ -89,9 +89,6 @@ export function WorkCardView({ card, states, view, activeFilter }: WorkCardViewP
             ))}
           </p>
         )}
-        {card.progress != null && card.progress !== "" && (
-          <p className="work-card-progress">{card.progress}</p>
-        )}
         <ul className="work-editions">
           {card.editions.map((e) => (
             <li

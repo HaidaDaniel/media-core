@@ -155,7 +155,7 @@ The backup unit sets `Environment=MEDIA_CORE_BIN=/opt/media-core/media-core`; th
 
 ## Backup and restore smoke
 
-`scripts/backup-smoke.sh <state-dir> <backup-dir> [prefix]` creates a consistent snapshot archive, restores it into a fresh temporary state directory and runs a read there. The timer passes the prefix `media-core-auto-`; a manual invocation defaults to `media-core-smoke-`. It never stops the service, changes the live database or publishes anything. The destination directory must be outside the state directory. Run it manually after setup and schedule it with `deploy/media-core-backup.timer` (daily by default). A real restore of a live state remains an explicit operator action: stop all handles first, validate the archive, then use `media-core restore <archive> --state-dir <dir> [--force]`.
+`scripts/backup-smoke.sh <state-dir> <backup-dir> [prefix]` creates a consistent snapshot archive, restores it into a fresh temporary state directory and runs a read there. v2 archives include the selected cover bytes referenced by active rows, so a restore brings the covers back without network access; the artwork cache is capped at 64 MiB, which bounds the extra archive size. The timer passes the prefix `media-core-auto-`; a manual invocation defaults to `media-core-smoke-`. It never stops the service, changes the live database or publishes anything. The destination directory must be outside the state directory. Run it manually after setup and schedule it with `deploy/media-core-backup.timer` (daily by default). A real restore of a live state remains an explicit operator action: stop all handles first, validate the archive, then use `media-core restore <archive> --state-dir <dir> [--force]`.
 
 ## Trusted LAN deployment
 

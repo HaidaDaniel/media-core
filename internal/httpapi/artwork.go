@@ -1,9 +1,11 @@
 package httpapi
 
 import (
+	"context"
 	"errors"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/HaidaDaniel/media-core/internal/app"
 	"github.com/HaidaDaniel/media-core/internal/artwork"
@@ -29,9 +31,13 @@ type artworkSelectBody struct {
 }
 
 type artworkFindBody struct {
-	Limit  int `json:"limit"`
-	Offset int `json:"offset"`
+	Limit  int    `json:"limit"`
+	Cursor string `json:"cursor"`
 }
+
+// artworkRequestBudget keeps an explicit discovery request below the server
+// WriteTimeout, even when every provider is slow or unreachable.
+const artworkRequestBudget = 25 * time.Second
 
 func artworkError(err error) *app.AppError {
 	switch {
@@ -43,6 +49,8 @@ func artworkError(err error) *app.AppError {
 		return app.NewAppError(app.ErrNotFound, "artwork candidate or selection not found")
 	case errors.Is(err, store.ErrArtworkExists):
 		return app.NewAppError(app.ErrConflict, "a user-selected cover already exists; pass replace to change it")
+	case errors.Is(err, artwork.ErrCacheFull):
+		return app.NewAppError(app.ErrConflict, "the cover cache is full; remove a selection or clear the cache before adding another cover")
 	case errors.Is(err, artwork.ErrUpstream):
 		return app.NewAppError(app.ErrInternalError, "cover providers are unavailable")
 	default:
@@ -86,7 +94,9 @@ func (s *Server) handleArtworkSearch(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, app.NewAppError(app.ErrInvalidArgument, err.Error()))
 		return
 	}
-	result, err := s.artwork.Search(r.Context(), artwork.SearchInput{
+	ctx, cancel := context.WithTimeout(r.Context(), artworkRequestBudget)
+	defer cancel()
+	result, err := s.artwork.Search(ctx, artwork.SearchInput{
 		Title: body.Title, Kind: artwork.Kind(body.Kind),
 		Alternatives: body.Alternatives, References: body.References,
 	})
@@ -118,7 +128,7 @@ func (s *Server) handleArtworkSelect(w http.ResponseWriter, r *http.Request) {
 	record, err := s.artwork.Select(r.Context(), body.WorkID, body.EditionID, body.PreviewToken, body.Replace)
 	if err != nil {
 		status := http.StatusBadRequest
-		if errors.Is(err, store.ErrArtworkExists) {
+		if errors.Is(err, store.ErrArtworkExists) || errors.Is(err, artwork.ErrCacheFull) {
 			status = http.StatusConflict
 		} else if errors.Is(err, artwork.ErrUnknownPreview) || errors.Is(err, store.ErrArtworkNotFound) {
 			status = http.StatusNotFound
@@ -146,16 +156,18 @@ func (s *Server) handleArtworkFindMissing(w http.ResponseWriter, r *http.Request
 	if body.Limit == 0 {
 		body.Limit = 5
 	}
-	items, total, err := s.artwork.FindMissing(r.Context(), body.Offset, body.Limit)
+	ctx, cancel := context.WithTimeout(r.Context(), artworkRequestBudget)
+	defer cancel()
+	page, err := s.artwork.FindMissing(ctx, body.Cursor, body.Limit)
 	if err != nil {
-		writeError(w, http.StatusBadRequest, artworkError(err))
+		status := http.StatusBadRequest
+		if errors.Is(err, artwork.ErrUpstream) {
+			status = http.StatusInternalServerError
+		}
+		writeError(w, status, artworkError(err))
 		return
 	}
-	next := body.Offset + len(items)
-	if next > total {
-		next = total
-	}
-	writeSuccess(w, map[string]any{"items": items, "next_offset": next, "total_missing": total})
+	writeSuccess(w, map[string]any{"items": page.Items, "next_cursor": page.NextCursor, "total_missing": page.Total})
 }
 
 func (s *Server) handleArtworkPreviewImage(w http.ResponseWriter, r *http.Request) {

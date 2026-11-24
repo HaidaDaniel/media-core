@@ -177,20 +177,64 @@ func (c *safeClient) validateURL(u *url.URL, original *url.URL) error {
 	return nil
 }
 
-func isPublicIP(ip net.IP) bool {
-	if ip == nil || ip.IsLoopback() || ip.IsUnspecified() || ip.IsLinkLocalUnicast() ||
-		ip.IsLinkLocalMulticast() || ip.IsMulticast() || ip.IsPrivate() || ip.To4() == nil && !isPublicIPv6(ip) {
-		return false
+var nonPublicIPv4 = mustCIDRs(
+	"0.0.0.0/8", "10.0.0.0/8", "100.64.0.0/10", "127.0.0.0/8", "169.254.0.0/16",
+	"172.16.0.0/12", "192.0.0.0/24", "192.0.2.0/24", "192.168.0.0/16",
+	"198.18.0.0/15", "198.51.100.0/24", "203.0.113.0/24", "224.0.0.0/4",
+	"240.0.0.0/4",
+)
+
+var nat64Network = mustCIDRs("64:ff9b::/96")
+
+var nonPublicIPv6 = mustCIDRs(
+	"::/96", "100::/64", "2001:0::/32", "2001:2::/48", "2001:10::/28",
+	"2001:20::/28", "2001:db8::/32", "2002::/16", "fec0::/10", "fe80::/10",
+	"fc00::/7", "ff00::/8",
+)
+
+func mustCIDRs(raw ...string) []*net.IPNet {
+	out := make([]*net.IPNet, 0, len(raw))
+	for _, value := range raw {
+		_, network, err := net.ParseCIDR(value)
+		if err != nil {
+			panic(err)
+		}
+		out = append(out, network)
 	}
-	return true
+	return out
 }
 
-func isPublicIPv6(ip net.IP) bool {
+func inNetworks(ip net.IP, networks []*net.IPNet) bool {
+	for _, network := range networks {
+		if network.Contains(ip) {
+			return true
+		}
+	}
+	return false
+}
+
+// isPublicIP rejects every non-global address class, including deprecated
+// site-local, IPv4-compatible, 6to4, Teredo and CGNAT ranges. The provider
+// host allowlist already limits targets; this is the second, independent
+// layer that also covers redirects and DNS answers.
+func isPublicIP(ip net.IP) bool {
+	if ip == nil {
+		return false
+	}
+	if v4 := ip.To4(); v4 != nil {
+		return !inNetworks(v4, nonPublicIPv4)
+	}
 	if ip.To16() == nil {
 		return false
 	}
-	// Unique-local and IPv4-mapped addresses are not public.
-	return ip.To4() == nil && !strings.HasPrefix(ip.String(), "fc") && !strings.HasPrefix(ip.String(), "fd")
+	if inNetworks(ip, nonPublicIPv6) {
+		return false
+	}
+	// NAT64 64:ff9b::/96 embeds an IPv4 address in the last four bytes.
+	if inNetworks(ip, nat64Network) {
+		return !inNetworks(ip[12:16], nonPublicIPv4)
+	}
+	return true
 }
 
 // fetch performs one bounded GET. allowedHosts is the exact provider host

@@ -42,9 +42,6 @@ export interface WorkCardWire {
   editions: EditionSummaryWire[];
   matched_edition_ids: string[];
   artwork?: WorkCardArtworkWire | null;
-  // Optional human-readable progress summary. Absent means the API does not
-  // supply progress for this card; nothing is inferred from a status.
-  progress?: string | null;
 }
 
 // The canonical paginated list payload: opaque seek cursor, stable ordering

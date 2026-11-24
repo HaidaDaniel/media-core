@@ -1,7 +1,6 @@
-// Artwork backup regression: a user-selected cover's provenance and cache
-// reference live in SQLite and therefore travel in backups, while regenerable
-// image bytes stay outside the two-file archive. A restore keeps the
-// selection and leaves the cache to be rebuilt by an explicit new selection.
+// Artwork backup regression: a user-selected cover's provenance lives in
+// SQLite and its bytes live in the cache. Archive v2 carries both, so a
+// restore brings the exact cover back without network access.
 package acceptance
 
 import (
@@ -12,7 +11,6 @@ import (
 	"image/jpeg"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 	"time"
 
@@ -53,7 +51,7 @@ func artworkJPEG(t *testing.T) []byte {
 	return b.Bytes()
 }
 
-func TestArtworkSelectionSurvivesBackupAndCacheDoesNot(t *testing.T) {
+func TestArtworkSelectionSurvivesBackupWithBytes(t *testing.T) {
 	ctx := context.Background()
 	stateDir := artworkState(t)
 	db, err := store.Open(stateDir)
@@ -97,13 +95,14 @@ func TestArtworkSelectionSurvivesBackupAndCacheDoesNot(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(entries) != 2 {
-		t.Fatalf("archive has %d files, want exactly database and manifest", len(entries))
+	if len(entries) != 3 {
+		t.Fatalf("archive has %d entries, want database, manifest and artwork-cache", len(entries))
 	}
-	for _, entry := range entries {
-		if strings.Contains(entry.Name(), "artwork-cache") {
-			t.Fatalf("regenerable cache file %q must not be archived", entry.Name())
-		}
+	if result.Manifest.Artwork == nil || len(result.Manifest.Artwork.Files) != 1 {
+		t.Fatalf("manifest artwork = %+v, want one selected file", result.Manifest.Artwork)
+	}
+	if result.Manifest.Artwork.Files[0].Name != ref {
+		t.Fatalf("manifest artwork name = %q, want %q", result.Manifest.Artwork.Files[0].Name, ref)
 	}
 
 	restored := t.TempDir()
@@ -122,7 +121,11 @@ func TestArtworkSelectionSurvivesBackupAndCacheDoesNot(t *testing.T) {
 	if got.Provider != "kitsu" || got.ExternalID != "1" || !got.SelectedByUser || got.LocalRef != ref {
 		t.Fatalf("restored artwork = %+v", got)
 	}
-	if _, err := os.Stat(filepath.Join(restored, "artwork-cache", ref)); !os.IsNotExist(err) {
-		t.Fatalf("cache bytes must not travel with the archive; stat err = %v", err)
+	restoredBytes, err := os.ReadFile(filepath.Join(restored, "artwork-cache", ref))
+	if err != nil {
+		t.Fatalf("restored cover bytes: %v", err)
+	}
+	if !bytes.Equal(restoredBytes, data) {
+		t.Fatalf("restored cover bytes differ from the selected image")
 	}
 }

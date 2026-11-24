@@ -93,6 +93,29 @@ func TestArtworkRoutesRequireSessionAndRespectOptOut(t *testing.T) {
 	expectFailure(t, resp, raw, http.StatusConflict, "config_error")
 }
 
+func TestArtworkSearchCanonicalizesDomainKinds(t *testing.T) {
+	srv, cookie, csrf := artworkTestServer(t, true)
+	headers := map[string]string{"Cookie": cookie.String(), "X-CSRF-Token": csrf}
+	for _, kind := range []string{"manhwa", "manhua", "web_novel", "light_novel", "game"} {
+		resp, raw := doJSON(t, srv, http.MethodPost, "/api/v1/artwork/search", headers, map[string]any{
+			"title": "Kind Fixture", "kind": kind, "alternatives": []string{}, "references": []string{},
+		})
+		data := expectSuccess(t, resp, raw)
+		if _, ok := data["candidates"]; !ok {
+			t.Fatalf("kind %q response = %v", kind, data)
+		}
+	}
+}
+
+func TestArtworkFindMissingRejectsBadCursor(t *testing.T) {
+	srv, cookie, csrf := artworkTestServer(t, true)
+	headers := map[string]string{"Cookie": cookie.String(), "X-CSRF-Token": csrf}
+	resp, raw := doJSON(t, srv, http.MethodPost, "/api/v1/artwork/find-missing", headers, map[string]any{
+		"limit": 5, "cursor": "not-a-cursor",
+	})
+	expectFailure(t, resp, raw, http.StatusBadRequest, "invalid_argument")
+}
+
 func TestLibraryRenderHasNoExternalImageURL(t *testing.T) {
 	srv, cookie, _ := artworkTestServer(t, true)
 	resp, raw := doJSON(t, srv, http.MethodGet, "/api/v1/works",

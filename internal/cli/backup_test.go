@@ -51,7 +51,7 @@ func TestBackupCLI(t *testing.T) {
 		t.Fatalf("create: exit = %d, stderr = %q", code, errw)
 	}
 	data := backupDataFrom(t, out)
-	if data.Format != "media-core-snapshot-v1" {
+	if data.Format != "media-core-snapshot-v2" {
 		t.Fatalf("format = %q", data.Format)
 	}
 	if data.Schema <= 0 || data.DB.Name != "media-core.db" || data.DB.Size <= 0 {

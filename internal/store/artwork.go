@@ -186,10 +186,10 @@ const artworkColumns = `id, work_id, edition_id, provider, external_id, title,
 
 func scanArtwork(scan func(...any) error) (ArtworkRecord, error) {
 	var (
-		r       ArtworkRecord
-		edition sql.NullString
-		created string
-		updated string
+		r        ArtworkRecord
+		edition  sql.NullString
+		created  string
+		updated  string
 		selected int
 	)
 	if err := scan(&r.ID, &r.WorkID, &edition, &r.Provider, &r.ExternalID, &r.Title,
@@ -273,16 +273,24 @@ func (d *Database) ArtworkForEdition(ctx context.Context, editionID string) (Art
 
 // MissingArtworkWork is one work without an active cover, in stable order.
 type MissingArtworkWork struct {
-	ID    string
-	Title string
-	Kind  string
+	ID        string
+	Title     string
+	Kind      string
+	CreatedAt time.Time
 }
 
-// ListWorksMissingArtwork lists works with no active artwork. It is one
-// bounded query used by the explicit Find missing covers action; it never
-// fetches provider data.
-func (d *Database) ListWorksMissingArtwork(ctx context.Context, offset, limit int) ([]MissingArtworkWork, int, error) {
-	if offset < 0 || limit < 1 || limit > 20 {
+// MissingArtworkCursor is the keyset position after one returned page. It is
+// stable even when selecting a cover removes an earlier work from the set.
+type MissingArtworkCursor struct {
+	CreatedAt time.Time
+	ID        string
+}
+
+// ListWorksMissingArtwork lists works with no active artwork after the given
+// keyset cursor. It is one bounded query used by the explicit Find missing
+// covers action; it never fetches provider data.
+func (d *Database) ListWorksMissingArtwork(ctx context.Context, after *MissingArtworkCursor, limit int) ([]MissingArtworkWork, int, error) {
+	if limit < 1 || limit > 20 {
 		return nil, 0, fmt.Errorf("store: invalid artwork batch bounds")
 	}
 	var total int
@@ -291,13 +299,22 @@ func (d *Database) ListWorksMissingArtwork(ctx context.Context, offset, limit in
 		  (SELECT 1 FROM work_artwork a WHERE a.work_id = w.id AND a.retired_at IS NULL)`).Scan(&total); err != nil {
 		return nil, 0, fmt.Errorf("store: count works missing artwork: %w", err)
 	}
+	args := []any{}
+	afterClause := ""
+	if after != nil {
+		key := InstantKey(after.CreatedAt)
+		afterClause = ` AND (w.created_at > ? OR (w.created_at = ? AND w.id > ?))`
+		args = append(args, key, key, after.ID)
+	}
+	args = append(args, limit)
 	rows, err := d.db.QueryContext(ctx, `SELECT w.id, COALESCE(t.text, w.id),
-		COALESCE((SELECT e.kind FROM editions e WHERE e.work_id = w.id ORDER BY e.created_at, e.id LIMIT 1), 'other')
+		COALESCE((SELECT e.kind FROM editions e WHERE e.work_id = w.id ORDER BY e.created_at, e.id LIMIT 1), 'other'),
+		w.created_at
 		FROM works w
 		LEFT JOIN work_titles t ON t.work_id = w.id AND t.retired_at IS NULL AND t.preferred = 1
 		WHERE w.archived_at IS NULL AND NOT EXISTS
-		  (SELECT 1 FROM work_artwork a WHERE a.work_id = w.id AND a.retired_at IS NULL)
-		ORDER BY w.created_at, w.id LIMIT ? OFFSET ?`, limit, offset)
+		  (SELECT 1 FROM work_artwork a WHERE a.work_id = w.id AND a.retired_at IS NULL)`+afterClause+`
+		ORDER BY w.created_at, w.id LIMIT ?`, args...)
 	if err != nil {
 		return nil, 0, fmt.Errorf("store: list works missing artwork: %w", err)
 	}
@@ -305,9 +322,15 @@ func (d *Database) ListWorksMissingArtwork(ctx context.Context, offset, limit in
 	out := []MissingArtworkWork{}
 	for rows.Next() {
 		var w MissingArtworkWork
-		if err := rows.Scan(&w.ID, &w.Title, &w.Kind); err != nil {
+		var created string
+		if err := rows.Scan(&w.ID, &w.Title, &w.Kind, &created); err != nil {
 			return nil, 0, fmt.Errorf("store: scan missing artwork work: %w", err)
 		}
+		parsed, err := parseInstant(created)
+		if err != nil {
+			return nil, 0, fmt.Errorf("store: parse missing artwork created_at: %w", err)
+		}
+		w.CreatedAt = parsed
 		out = append(out, w)
 	}
 	return out, total, rows.Err()
