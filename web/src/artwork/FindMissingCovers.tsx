@@ -51,6 +51,8 @@ function isAbort(err: unknown): boolean {
 export function FindMissingCovers({ onCoverSelected }: FindMissingCoversProps): JSX.Element {
   const [items, setItems] = useState<MissingCoverItem[]>([]);
   const [nextCursor, setNextCursor] = useState("");
+  const [timeoutStart, setTimeoutStart] = useState<number | null>(null);
+  const [lastCursor, setLastCursor] = useState("");
   const [total, setTotal] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
   const [started, setStarted] = useState(false);
@@ -65,16 +67,23 @@ export function FindMissingCovers({ onCoverSelected }: FindMissingCoversProps): 
     };
   }, []);
 
-  async function run(cursor: string): Promise<void> {
+  async function run(cursor: string, replaceFrom: number | null = null): Promise<void> {
     if (busy) return;
     const controller = new AbortController();
     abortRef.current = controller;
+    const start = items.length;
+    setLastCursor(cursor);
     setBusy(true);
     setError(null);
     try {
       const page = await findMissingCovers({ limit: PAGE_SIZE, cursor }, controller.signal);
-      setItems((prev) => (cursor === "" ? page.items : [...prev, ...page.items]));
-      setNextCursor(page.next_cursor);
+      const timedOut = page.items.some((item) => item.status === "timeout");
+      setItems((prev) => {
+        if (replaceFrom !== null) return [...prev.slice(0, replaceFrom), ...page.items];
+        return cursor === "" ? page.items : [...prev, ...page.items];
+      });
+      setTimeoutStart(timedOut ? (replaceFrom ?? (cursor === "" ? 0 : start)) : null);
+      setNextCursor(timedOut ? "" : page.next_cursor);
       setTotal(page.total_missing);
       setStarted(true);
     } catch (err) {
@@ -97,9 +106,10 @@ export function FindMissingCovers({ onCoverSelected }: FindMissingCoversProps): 
   function startOver(): void {
     setItems([]);
     setNextCursor("");
+    setTimeoutStart(null);
     setTotal(null);
     setStarted(false);
-    void run("");
+    void run("", 0);
   }
 
   function toggleReplace(workId: string): void {
@@ -172,6 +182,12 @@ export function FindMissingCovers({ onCoverSelected }: FindMissingCoversProps): 
       {!busy && started && hasMore && (
         <div className="quick-add-actions">
           <Button onClick={() => void run(nextCursor)}>Check next {PAGE_SIZE}</Button>
+        </div>
+      )}
+
+      {!busy && timeoutStart !== null && (
+        <div className="quick-add-actions">
+          <Button onClick={() => void run(lastCursor, timeoutStart)}>Retry this batch</Button>
         </div>
       )}
 

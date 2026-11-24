@@ -113,9 +113,10 @@ remote HTTPS rules above. See [Trusted LAN deployment](#trusted-lan-deployment).
 The owner secret is created only by `media-core owner generate --state-dir
 <dir>` and stored in the state directory with mode 0600; neither `init` nor
 `serve` creates it, and login fails with a distinct "not configured" 401
-until it exists. It never leaves the state directory: backups and exports
-package only the database, and restore retains the destination's own
-secret file. Regeneration is idempotent and never overwrites an existing
+until it exists. It never leaves the state directory: backups and exports never
+include it, and restore retains the destination's own secret file. v2
+backups do include selected cover bytes, but no owner secret, session
+material or TLS key. Regeneration is idempotent and never overwrites an existing
 secret, so a forgotten secret is an operator recovery decision, not a
 `generate` retry. Sessions are in-memory and do not survive a restart.
 

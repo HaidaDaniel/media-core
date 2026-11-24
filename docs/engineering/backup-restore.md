@@ -120,9 +120,9 @@ atomic rename. Before the old database's WAL sidecars are removed, restore
 checkpoints the destination under the exclusive maintenance lock so an
 acknowledged transaction that a crashed writer left only in the WAL becomes
 part of the main file; the staged file is synced before the rename, and the rename is followed by a directory sync. The
- destination state directory is never cleared: only the database file and
- its sidecars are replaced, so an owner secret or any other state file is
- retained. A failure before publication — validation, staging, locking,
+ destination state directory is never cleared: the database file, its
+ sidecars and the validated referenced artwork files are written, so an
+ owner secret or any other state file is retained. A failure before publication — validation, staging, locking,
  checkpoint or rename — leaves the previous database usable with a
  distinguishable error and no staging debris. A directory-sync failure is
  reported after publication, when the restored snapshot is already in place.

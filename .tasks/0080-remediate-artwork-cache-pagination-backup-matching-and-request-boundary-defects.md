@@ -1,6 +1,6 @@
 # Task 0080 - Remediate artwork cache pagination backup matching and request-boundary defects
 
-State: doing
+State: review
 Owner: opencode-primary
 Mode: mvp
 Lane: implementation
@@ -56,6 +56,7 @@ Fix the verified P1/P2 artwork reliability defects from task 0079: enforce a har
 - web/src/**
 - web/e2e/**
 - tests/**
+- scripts/backup_retention.py
 - scripts/test_backup_retention.py
 - docs/**
 - docs/progress.md

@@ -148,6 +148,49 @@ func TestConcurrentSelectionsRejectInsteadOfEvicting(t *testing.T) {
 	}
 }
 
+func TestFindMissingMarksUnsupportedKinds(t *testing.T) {
+	ctx := context.Background()
+	stateDir := t.TempDir()
+	maint, err := store.OpenForMaintenance(stateDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.RunMigrations(maint.DB()); err != nil {
+		t.Fatal(err)
+	}
+	if err := maint.Close(); err != nil {
+		t.Fatal(err)
+	}
+	db, err := store.Open(stateDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	now := time.Now().UTC()
+	work, err := db.CreateWork(ctx, now, []store.TitleInput{{
+		Text: "Game", Kind: domain.TitleOriginal, Preferred: true, Provenance: "test",
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.AddEdition(ctx, now, work.ID, work.Revision, store.EditionInput{
+		Kind: domain.KindGame,
+		Titles: []store.TitleInput{{
+			Text: "Game", Kind: domain.TitleOriginal, Preferred: true, Provenance: "test",
+		}},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	svc := NewService(db, NewRegistry(), nil, nil)
+	page, err := svc.FindMissing(ctx, "", 5)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(page.Items) != 1 || page.Items[0].Status != "unsupported" {
+		t.Fatalf("unsupported kind status = %#v", page.Items)
+	}
+}
+
 func TestMatchUsesPairwiseUserAndCandidateTitles(t *testing.T) {
 	unrelated := Match(SearchInput{Title: "Completely Unrelated", Kind: KindManga}, []Candidate{{
 		Provider: "kitsu", ExternalID: "1", Title: "Different Work",
