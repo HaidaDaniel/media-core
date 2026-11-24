@@ -87,7 +87,7 @@ func (s *Service) AddReference(ctx context.Context, req AddReferenceRequest) (Ed
 	if err != nil {
 		return s.settleEditionView(ctx, req.MutationBase, hash, err)
 	}
-	return editionViewFrom(e), nil
+	return s.editionViewWithArtwork(ctx, e)
 }
 
 // RetireReference retires one reference of an edition and returns the
@@ -126,5 +126,5 @@ func (s *Service) RetireReference(ctx context.Context, req RetireReferenceReques
 	if err != nil {
 		return s.settleEditionView(ctx, req.MutationBase, hash, err)
 	}
-	return editionViewFrom(e), nil
+	return s.editionViewWithArtwork(ctx, e)
 }

@@ -210,17 +210,17 @@ type Title struct {
 // always a same-origin cached URL; the browser never fetches a provider host
 // while rendering a saved library.
 type ArtworkView struct {
-	ID             string `json:"id"`
-	WorkID         string `json:"work_id"`
+	ID             string  `json:"id"`
+	WorkID         string  `json:"work_id"`
 	EditionID      *string `json:"edition_id"`
-	Provider       string `json:"provider"`
-	ExternalID     string `json:"external_id"`
-	Title          string `json:"title"`
-	SourceURL      string `json:"source_url"`
-	AttributionURL string `json:"attribution_url"`
-	Kind           string `json:"kind"`
-	ImageURL       string `json:"image_url"`
-	SelectedByUser bool   `json:"selected_by_user"`
+	Provider       string  `json:"provider"`
+	ExternalID     string  `json:"external_id"`
+	Title          string  `json:"title"`
+	SourceURL      string  `json:"source_url"`
+	AttributionURL string  `json:"attribution_url"`
+	Kind           string  `json:"kind"`
+	ImageURL       string  `json:"image_url"`
+	SelectedByUser bool    `json:"selected_by_user"`
 }
 
 // ArtworkViewFromStore maps a stored selection to its wire view. The token is
@@ -230,7 +230,7 @@ func ArtworkViewFromStore(r store.ArtworkRecord) ArtworkView {
 		ID: r.ID, WorkID: r.WorkID, EditionID: r.EditionID, Provider: r.Provider,
 		ExternalID: r.ExternalID, Title: r.Title, SourceURL: r.SourceURL,
 		AttributionURL: r.AttributionURL, Kind: r.Kind,
-		ImageURL: "/api/v1/artwork/" + r.ID + "/image",
+		ImageURL:       "/api/v1/artwork/" + r.ID + "/image",
 		SelectedByUser: r.SelectedByUser,
 	}
 }

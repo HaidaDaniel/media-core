@@ -68,5 +68,5 @@ func (s *Service) SetConsumption(ctx context.Context, req SetConsumptionRequest)
 	if err != nil {
 		return s.settleEditionView(ctx, req.MutationBase, hash, err)
 	}
-	return editionViewFrom(e), nil
+	return s.editionViewWithArtwork(ctx, e)
 }

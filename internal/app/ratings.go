@@ -65,5 +65,5 @@ func (s *Service) SetRating(ctx context.Context, req SetRatingRequest) (EditionV
 	if err != nil {
 		return s.settleEditionView(ctx, req.MutationBase, hash, err)
 	}
-	return editionViewFrom(e), nil
+	return s.editionViewWithArtwork(ctx, e)
 }

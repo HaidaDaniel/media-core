@@ -368,10 +368,16 @@ func (s *Service) GetEdition(ctx context.Context, editionID string) (EditionView
 	if err != nil {
 		return EditionView{}, mapStoreError(err, base)
 	}
+	return s.editionViewWithArtwork(ctx, e)
+}
+
+// editionViewWithArtwork keeps a saved cover in every edition response,
+// including mutation responses, so the UI never drops it after an update.
+func (s *Service) editionViewWithArtwork(ctx context.Context, e store.Edition) (EditionView, error) {
 	view := editionViewFrom(e)
-	cover, err := s.db.ArtworkForEdition(ctx, editionID)
+	cover, err := s.db.ArtworkForEdition(ctx, e.ID)
 	if err != nil && !errors.Is(err, store.ErrArtworkNotFound) {
-		return EditionView{}, mapStoreError(err, base)
+		return EditionView{}, mapStoreError(err, MutationBase{})
 	}
 	if err == nil {
 		artwork := ArtworkViewFromStore(cover)
@@ -593,7 +599,7 @@ func (s *Service) CorrectEditionTitles(ctx context.Context, req TitleMutationReq
 	if err != nil {
 		return s.settleEditionView(ctx, req.MutationBase, hash, err)
 	}
-	return editionViewFrom(e), nil
+	return s.editionViewWithArtwork(ctx, e)
 }
 
 // UpdateEditionRequest is one edition metadata correction: kind, language
@@ -640,7 +646,7 @@ func (s *Service) UpdateEdition(ctx context.Context, req UpdateEditionRequest) (
 	if err != nil {
 		return s.settleEditionView(ctx, req.MutationBase, hash, err)
 	}
-	return editionViewFrom(e), nil
+	return s.editionViewWithArtwork(ctx, e)
 }
 
 // ArchiveWork archives or unarchives a work; titles, editions and history
@@ -714,7 +720,7 @@ func (s *Service) ArchiveEdition(ctx context.Context, base MutationBase, edition
 	if err != nil {
 		return s.settleEditionView(ctx, req.MutationBase, hash, err)
 	}
-	return editionViewFrom(e), nil
+	return s.editionViewWithArtwork(ctx, e)
 }
 
 func editionViewFrom(e store.Edition) EditionView {
