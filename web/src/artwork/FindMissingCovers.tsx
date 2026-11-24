@@ -31,7 +31,7 @@ function statusTone(status: MissingCoverItem["status"]): "success" | "warning" |
   if (status === "suggested") return "success";
   if (status === "ambiguous") return "warning";
   if (status === "error") return "danger";
-  if (status === "timeout") return "warning";
+  if (status === "timeout" || status === "unsupported") return "warning";
   return "info";
 }
 
@@ -40,6 +40,7 @@ function statusText(status: MissingCoverItem["status"]): string {
   if (status === "ambiguous") return "several candidates";
   if (status === "error") return "lookup error";
   if (status === "timeout") return "timed out; retry this batch";
+  if (status === "unsupported") return "no provider for this kind";
   return "not found";
 }
 
@@ -192,13 +193,18 @@ export function FindMissingCovers({ onCoverSelected }: FindMissingCoversProps): 
                 </p>
                 {saved[item.work.id] !== undefined ? (
                   <p className="cover-pick-note">Cover saved: {saved[item.work.id]}</p>
-                ) : item.status === "not_found" || item.status === "error" || item.status === "timeout" ? (
+                ) : item.status === "not_found" ||
+                  item.status === "error" ||
+                  item.status === "timeout" ||
+                  item.status === "unsupported" ? (
                   <p className="artwork-notice">
                     {item.status === "error"
                       ? "This lookup failed; no cover was changed."
                       : item.status === "timeout"
                         ? "This lookup timed out; nothing was changed. Retry the batch."
-                        : "No candidate met the match rules; nothing was changed."}
+                        : item.status === "unsupported"
+                          ? "No verified provider covers this format; nothing was changed."
+                          : "No candidate met the match rules; nothing was changed."}
                   </p>
                 ) : (
                   <>

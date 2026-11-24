@@ -143,9 +143,10 @@ func acquirePublishLock(destDir string) (*os.File, error) {
 // into DestDir. It holds the shared maintenance lock, so normal writers may
 // keep running; the snapshot contains every commit made before the VACUUM
 // INTO finished, including WAL commits, and no claim is made about later
-// commits. The archive holds only the snapshot database and the manifest;
-// nothing else from the state directory is ever copied, so owner secrets,
-// sessions and TLS keys are excluded by construction. Publishing is atomic:
+// commits. The archive holds the snapshot database, the manifest and only
+// the cover files referenced by active artwork rows; nothing else from the
+// state directory is ever copied, so owner secrets, sessions and TLS keys
+// are excluded by construction. Publishing is atomic:
 // the archive appears as a complete directory or not at all, and on failure
 // the source is left untouched and no staging remains.
 func Create(ctx context.Context, opts Options) (*Result, error) {

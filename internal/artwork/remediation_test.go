@@ -71,7 +71,7 @@ func TestCacheConcurrentPutAndClear(t *testing.T) {
 	}
 }
 
-func TestConcurrentSelectionsKeepBothCovers(t *testing.T) {
+func TestConcurrentSelectionsRejectInsteadOfEvicting(t *testing.T) {
 	ctx := context.Background()
 	stateDir := t.TempDir()
 	maint, err := store.OpenForMaintenance(stateDir)
@@ -101,7 +101,7 @@ func TestConcurrentSelectionsKeepBothCovers(t *testing.T) {
 		works = append(works, w.ID)
 	}
 	data := tinyJPEG(t)
-	cache, err := NewCache(stateDir, int64(len(data))*2, int64(len(data)))
+	cache, err := NewCache(stateDir, int64(len(data))+int64(len(data))/2, int64(len(data)))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -126,13 +126,25 @@ func TestConcurrentSelectionsKeepBothCovers(t *testing.T) {
 		}(i)
 	}
 	wg.Wait()
+	accepted := 0
+	rejected := 0
+	var survivor store.ArtworkRecord
 	for i := range errs {
-		if errs[i] != nil {
+		switch {
+		case errs[i] == nil:
+			accepted++
+			survivor = records[i]
+		case errors.Is(errs[i], ErrCacheFull):
+			rejected++
+		default:
 			t.Fatalf("select %d: %v", i, errs[i])
 		}
-		if _, _, err := cache.Open(records[i].LocalRef); err != nil {
-			t.Fatalf("selection %d lost its accepted cover: %v", i, err)
-		}
+	}
+	if accepted != 1 || rejected != 1 {
+		t.Fatalf("accepted=%d rejected=%d, want exactly one accepted and one cache_full", accepted, rejected)
+	}
+	if _, _, err := cache.Open(survivor.LocalRef); err != nil {
+		t.Fatalf("accepted selection lost its cover: %v", err)
 	}
 }
 

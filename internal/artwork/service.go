@@ -354,7 +354,7 @@ func (s *Service) FindMissing(ctx context.Context, cursor string, limit int) (Mi
 		}
 		kind, ok := ParseKind(w.Kind)
 		if !ok {
-			item.Status = "error"
+			item.Status = "unsupported"
 			items = append(items, item)
 			continue
 		}

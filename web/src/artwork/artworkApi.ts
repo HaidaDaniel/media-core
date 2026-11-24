@@ -76,7 +76,7 @@ export interface MissingWorkWire {
 
 export interface MissingCoverItem {
   work: MissingWorkWire;
-  status: "suggested" | "ambiguous" | "not_found" | "error" | "timeout";
+  status: "suggested" | "ambiguous" | "not_found" | "error" | "timeout" | "unsupported";
   candidates: ArtworkCandidate[];
 }
 
