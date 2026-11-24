@@ -6,6 +6,7 @@
 // and retraction lifecycle, and the revision guards are enforced by the
 // shared service.
 import { get, newRequestID, patch, post } from "../api/client";
+import type { ArtworkView } from "../artwork/artworkApi";
 
 // The five bounded progress units; a position is an exact decimal and the
 // total is optional (an unknown total is never carried forward).
@@ -106,6 +107,8 @@ export interface EditionViewWire {
   publication: PublicationStateWire | null;
   consumption: ConsumptionStateWire | null;
   progress: ProgressByUnitWire;
+  // Optional saved artwork; absent or null means the record has no cover.
+  artwork?: ArtworkView | null;
 }
 
 // One observation in the bounded entity history. The label carries the row

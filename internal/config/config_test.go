@@ -360,3 +360,24 @@ func TestPublicHTTPSBehaviorUnchanged(t *testing.T) {
 		t.Fatal("trusted LAN with http public origin: want error")
 	}
 }
+
+func TestArtworkDiscoveryDefaultAndOptOut(t *testing.T) {
+	dir := t.TempDir()
+	cfg := mustResolve(t, Options{StateDir: dir, Env: isolatedEnv(t, nil)})
+	if !cfg.Artwork {
+		t.Fatal("artwork discovery must be enabled by default without background work")
+	}
+	env := isolatedEnv(t, map[string]string{"MEDIA_CORE_ARTWORK": "false"})
+	cfg = mustResolve(t, Options{StateDir: dir, Env: env})
+	if cfg.Artwork {
+		t.Fatal("MEDIA_CORE_ARTWORK=false must disable artwork routes")
+	}
+	cfg = mustResolve(t, Options{StateDir: dir, NoArtwork: true, Env: isolatedEnv(t, nil)})
+	if cfg.Artwork {
+		t.Fatal("--no-artwork must disable artwork routes")
+	}
+	env = isolatedEnv(t, map[string]string{"MEDIA_CORE_ARTWORK": "sometimes"})
+	if _, err := Resolve(Options{StateDir: dir, Env: env}); err == nil {
+		t.Fatal("invalid MEDIA_CORE_ARTWORK value must fail")
+	}
+}

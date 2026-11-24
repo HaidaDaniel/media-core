@@ -2,6 +2,7 @@
 // ownership row reads). They mirror the frozen contract shapes and carry only
 // the fields the work screen renders; no domain rule is re-implemented here.
 import { get } from "../api/client";
+import type { ArtworkView } from "../artwork/artworkApi";
 
 export interface TitleWire {
   id: string;
@@ -30,6 +31,8 @@ export interface WorkViewWire {
   archived_at: string | null;
   titles: TitleWire[];
   editions: EditionSummaryWire[];
+  // Optional saved artwork; absent or null means the record has no cover.
+  artwork?: ArtworkView | null;
 }
 
 export interface NoteWire {

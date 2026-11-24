@@ -20,6 +20,16 @@ export interface EditionSummaryWire {
   revision: number;
 }
 
+// The optional cover reference carried by a work card. The image URL is a
+// same-origin local preview; a null artwork means "no cover", never a made-up
+// image or a third-party URL fetched by the browser.
+export interface WorkCardArtworkWire {
+  id: string;
+  image_url: string;
+  provider: string;
+  attribution_url: string;
+}
+
 // One search result: the work with its active titles, its edition summaries
 // and the editions that satisfied the whole query plus filter predicate set.
 export interface WorkCardWire {
@@ -31,6 +41,10 @@ export interface WorkCardWire {
   titles: TitleWire[];
   editions: EditionSummaryWire[];
   matched_edition_ids: string[];
+  artwork?: WorkCardArtworkWire | null;
+  // Optional human-readable progress summary. Absent means the API does not
+  // supply progress for this card; nothing is inferred from a status.
+  progress?: string | null;
 }
 
 // The canonical paginated list payload: opaque seek cursor, stable ordering

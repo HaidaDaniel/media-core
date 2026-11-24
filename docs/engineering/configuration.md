@@ -17,6 +17,7 @@ values.
 | TLS key file | explicit flag | — | unset |
 | Trusted LAN | explicit flag | — | `false` |
 | LAN host | explicit flag | — | unset |
+| Cover discovery | `serve --no-artwork` | `MEDIA_CORE_ARTWORK` | `true` (explicit actions only, no background work) |
 
 ## State directory
 

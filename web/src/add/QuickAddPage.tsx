@@ -10,6 +10,13 @@ import { useEffect, useRef, useState } from "react";
 import type { JSX } from "react";
 import { useNavigate } from "react-router-dom";
 import { ApiError, newRequestID } from "../api/client";
+import { CoverPicker } from "../artwork/CoverPicker";
+import {
+  previewTokenFromImageUrl,
+  selectArtwork,
+  type ArtworkCandidate,
+} from "../artwork/artworkApi";
+import { Button, Input, Select } from "../ui";
 import {
   addEdition,
   createWork,
@@ -73,6 +80,10 @@ export function QuickAddPage(): JSX.Element {
   const [phase, setPhase] = useState<Phase>({ name: "form" });
   const [fieldError, setFieldError] = useState<string | null>(null);
   const [serverError, setServerError] = useState<string | null>(null);
+  // Cover discovery is an explicit, optional action. A search failure only
+  // appears inside the picker; it never delays or blocks record creation.
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [pickedCover, setPickedCover] = useState<ArtworkCandidate | null>(null);
 
   const busy = phase.name === "resolving" || phase.name === "creating";
 
@@ -118,25 +129,49 @@ export function QuickAddPage(): JSX.Element {
 
   function runCreate(action: CreateAction): void {
     setPhase({ name: "creating", action });
-    const attempt = (): Promise<{ path: string }> => {
+    const attempt = (): Promise<{ path: string; workId: string; editionId: string | null }> => {
       const { options, payload } = action;
       switch (action.kind) {
         case "create":
-          return createWork(payload, options).then((r) => ({ path: targetPathFor(r) }));
+          return createWork(payload, options).then((r) => ({
+            path: targetPathFor(r),
+            workId: r.work_id,
+            editionId: r.edition_id,
+          }));
         case "use_existing":
           return createWork(payload, options).then((r) => ({
             path: existingWorkPath(r.work_id),
+            workId: r.work_id,
+            editionId: r.edition_id,
           }));
         case "add_edition":
           return addEdition(action.workId, payload, options).then((r) => ({
             path: targetPathFor(r),
+            workId: r.work_id,
+            editionId: r.edition_id,
           }));
         case "create_distinct":
-          return createWork(payload, options).then((r) => ({ path: targetPathFor(r) }));
+          return createWork(payload, options).then((r) => ({
+            path: targetPathFor(r),
+            workId: r.work_id,
+            editionId: r.edition_id,
+          }));
       }
     };
     attempt()
-      .then(({ path }) => {
+      .then(({ path, workId, editionId }) => {
+        // A picked cover is attached after the record exists. This is a
+        // best-effort follow-up: a failed artwork write never undoes a
+        // successful creation or delays navigation.
+        const cover = pickedCover;
+        const token = cover === null ? "" : previewTokenFromImageUrl(cover.image_url);
+        if (cover !== null && token !== "") {
+          void selectArtwork({
+            work_id: workId,
+            edition_id: editionId,
+            preview_token: token,
+          }).catch(() => undefined);
+        }
         navigate(path);
       })
       .catch((err: unknown) => {
@@ -251,19 +286,19 @@ export function QuickAddPage(): JSX.Element {
       <>
         <label className="library-field">
           <span>{hint}</span>
-          <select value={kind} onChange={(e) => setKind(e.target.value)}>
+          <Select value={kind} onChange={(e) => setKind(e.target.value)}>
             <option value="">Not set</option>
             {KINDS.map((k) => (
               <option key={k} value={k}>
                 {k.replace("_", " ")}
               </option>
             ))}
-          </select>
+          </Select>
         </label>
         {kind === "other" && (
           <label className="library-field">
             <span>Other label (required for "other")</span>
-            <input type="text" value={otherLabel} onChange={(e) => setOtherLabel(e.target.value)} />
+            <Input type="text" value={otherLabel} onChange={(e) => setOtherLabel(e.target.value)} />
           </label>
         )}
       </>
@@ -282,21 +317,19 @@ export function QuickAddPage(): JSX.Element {
           </p>
         ))}
         <div className="quick-add-actions">
-          <button
-            type="button"
+          <Button
             disabled={busy || reResolvePending}
             onClick={() => choose("use_existing", c.work_id, token)}
           >
             Use existing
-          </button>
-          <button
-            type="button"
+          </Button>
+          <Button
             disabled={busy || reResolvePending || kind === ""}
             title={kind === "" ? "Choose a medium to add an edition" : undefined}
             onClick={() => choose("add_edition", c.work_id, token)}
           >
             Add edition under this work
-          </button>
+          </Button>
         </div>
       </li>
     );
@@ -313,12 +346,10 @@ export function QuickAddPage(): JSX.Element {
             <span className="login-hint">{phase.workId}</span>. Nothing was created.
           </p>
           <div className="quick-add-actions">
-            <button type="button" onClick={() => navigate(existingWorkPath(phase.workId))}>
+            <Button onClick={() => navigate(existingWorkPath(phase.workId))}>
               Open existing record
-            </button>
-            <button type="button" onClick={backToForm}>
-              Back to form
-            </button>
+            </Button>
+            <Button onClick={backToForm}>Back to form</Button>
           </div>
         </div>
       )}
@@ -338,8 +369,7 @@ export function QuickAddPage(): JSX.Element {
             )}
           </ul>
           <div className="quick-add-actions">
-            <button
-              type="button"
+            <Button
               disabled={busy || reResolvePending || phase.result.candidate_token === null}
               onClick={() =>
                 phase.result.candidate_token !== null &&
@@ -347,10 +377,8 @@ export function QuickAddPage(): JSX.Element {
               }
             >
               Create as a distinct work
-            </button>
-            <button type="button" onClick={backToForm}>
-              Start over
-            </button>
+            </Button>
+            <Button onClick={backToForm}>Start over</Button>
           </div>
         </div>
       )}
@@ -361,17 +389,9 @@ export function QuickAddPage(): JSX.Element {
             {phase.message}
           </p>
           <div className="quick-add-actions">
-            {phase.stale && (
-              <button type="button" onClick={runResolve}>
-                Resolve again
-              </button>
-            )}
-            <button type="button" onClick={() => runCreate(phase.action)}>
-              Retry
-            </button>
-            <button type="button" onClick={backToForm}>
-              Back to form
-            </button>
+            {phase.stale && <Button onClick={runResolve}>Resolve again</Button>}
+            <Button onClick={() => runCreate(phase.action)}>Retry</Button>
+            <Button onClick={backToForm}>Back to form</Button>
           </div>
         </div>
       )}
@@ -383,7 +403,7 @@ export function QuickAddPage(): JSX.Element {
         <form onSubmit={(e) => e.preventDefault()}>
           <label className="library-field">
             <span>Title</span>
-            <input
+            <Input
               type="text"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
@@ -393,7 +413,7 @@ export function QuickAddPage(): JSX.Element {
           {kindControls("Medium (optional)")}
           <label className="library-field">
             <span>Language (optional)</span>
-            <input
+            <Input
               type="text"
               value={language}
               onChange={(e) => setLanguage(e.target.value)}
@@ -404,7 +424,7 @@ export function QuickAddPage(): JSX.Element {
             <legend>Reference (optional)</legend>
             <label className="library-field">
               <span>URL</span>
-              <input
+              <Input
                 type="url"
                 value={url}
                 onChange={(e) => setUrl(e.target.value)}
@@ -413,7 +433,7 @@ export function QuickAddPage(): JSX.Element {
             </label>
             <label className="library-field">
               <span>Provider (optional, with external ID)</span>
-              <input
+              <Input
                 type="text"
                 value={provider}
                 onChange={(e) => setProvider(e.target.value)}
@@ -421,7 +441,7 @@ export function QuickAddPage(): JSX.Element {
             </label>
             <label className="library-field">
               <span>External ID (optional, with provider)</span>
-              <input
+              <Input
                 type="text"
                 value={externalId}
                 onChange={(e) => setExternalId(e.target.value)}
@@ -435,12 +455,37 @@ export function QuickAddPage(): JSX.Element {
             <p className="shell-loading">Checking for existing matches…</p>
           )}
           {phase.name === "creating" && <p className="shell-loading">Saving…</p>}
+          {pickedCover !== null && (
+            <p className="cover-pick-note">
+              Cover picked: {pickedCover.title} from {pickedCover.provider}. It is saved
+              only after the work is created, and only if you chose it.
+            </p>
+          )}
 
-          <button type="button" disabled={busy} onClick={submit}>
-            {phase.name === "resolving" ? "Checking…" : phase.name === "creating" ? "Saving…" : "Add"}
-          </button>
+          <div className="quick-add-actions">
+            <Button disabled={busy} onClick={submit}>
+              {phase.name === "resolving"
+                ? "Checking…"
+                : phase.name === "creating"
+                  ? "Saving…"
+                  : "Add"}
+            </Button>
+            <Button disabled={title.trim() === ""} onClick={() => setPickerOpen(true)}>
+              Find a cover
+            </Button>
+          </div>
         </form>
       )}
+
+      <CoverPicker
+        open={pickerOpen}
+        onClose={() => setPickerOpen(false)}
+        title={title}
+        kind={kind}
+        alternatives={[]}
+        references={[url.trim(), externalId.trim()].filter((value) => value !== "")}
+        onPick={(candidate) => setPickedCover(candidate)}
+      />
     </section>
   );
 }

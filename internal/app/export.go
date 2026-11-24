@@ -76,6 +76,7 @@ var exportTableRegistry = []struct {
 	{"origin_claims", "id"},
 	{"import_events", "id"},
 	{"import_bindings", "id"},
+	{"work_artwork", "id"},
 	{"schema_migrations", "version"},
 }
 

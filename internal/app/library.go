@@ -79,6 +79,7 @@ type WorkCard struct {
 	Titles            []Title          `json:"titles"`
 	Editions          []EditionSummary `json:"editions"`
 	MatchedEditionIDs []string         `json:"matched_edition_ids"`
+	Artwork           *ArtworkView     `json:"artwork,omitempty"`
 }
 
 // libraryCursorPayload binds a seek point to the listing it belongs to.
@@ -251,9 +252,22 @@ func (s *Service) SearchLibrary(ctx context.Context, f LibraryFilter) (ListPaylo
 		next = strPtr(issueLibraryCursor(srt, limit, qHash, last.SortKey, last.Work.ID))
 		cards = cards[:limit]
 	}
+	ids := make([]string, 0, len(cards))
+	for _, c := range cards {
+		ids = append(ids, c.ID)
+	}
+	artwork, err := s.db.ArtworkForWorks(ctx, ids)
+	if err != nil {
+		return ListPayload{}, mapStoreError(err, base)
+	}
 	items := make([]any, 0, len(cards))
 	for _, c := range cards {
-		items = append(items, toAppCard(c))
+		card := toAppCard(c)
+		if r, ok := artwork[c.ID]; ok {
+			view := ArtworkViewFromStore(r)
+			card.Artwork = &view
+		}
+		items = append(items, card)
 	}
 	return ListPayload{Items: items, NextCursor: next, Total: total}, nil
 }
@@ -311,7 +325,16 @@ func (s *Service) GetWork(ctx context.Context, workID string) (WorkView, error) 
 	if err != nil {
 		return WorkView{}, mapStoreError(err, base)
 	}
-	return workViewFrom(w, editions), nil
+	view := workViewFrom(w, editions)
+	artwork, err := s.db.ArtworkForWorks(ctx, []string{workID})
+	if err != nil {
+		return WorkView{}, mapStoreError(err, base)
+	}
+	if r, ok := artwork[workID]; ok {
+		cover := ArtworkViewFromStore(r)
+		view.Artwork = &cover
+	}
+	return view, nil
 }
 
 func workViewFrom(w store.Work, editions []store.Edition) WorkView {

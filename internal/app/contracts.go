@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/HaidaDaniel/media-core/internal/domain"
+	"github.com/HaidaDaniel/media-core/internal/store"
 )
 
 // SchemaVersion is the wire schema version of all v1 payloads.
@@ -205,6 +206,35 @@ type Title struct {
 	Provenance string           `json:"provenance"`
 }
 
+// ArtworkView is one user-confirmed cover with its provenance. The image is
+// always a same-origin cached URL; the browser never fetches a provider host
+// while rendering a saved library.
+type ArtworkView struct {
+	ID             string `json:"id"`
+	WorkID         string `json:"work_id"`
+	EditionID      *string `json:"edition_id"`
+	Provider       string `json:"provider"`
+	ExternalID     string `json:"external_id"`
+	Title          string `json:"title"`
+	SourceURL      string `json:"source_url"`
+	AttributionURL string `json:"attribution_url"`
+	Kind           string `json:"kind"`
+	ImageURL       string `json:"image_url"`
+	SelectedByUser bool   `json:"selected_by_user"`
+}
+
+// ArtworkViewFromStore maps a stored selection to its wire view. The token is
+// an opaque cache key, never a user-supplied URL.
+func ArtworkViewFromStore(r store.ArtworkRecord) ArtworkView {
+	return ArtworkView{
+		ID: r.ID, WorkID: r.WorkID, EditionID: r.EditionID, Provider: r.Provider,
+		ExternalID: r.ExternalID, Title: r.Title, SourceURL: r.SourceURL,
+		AttributionURL: r.AttributionURL, Kind: r.Kind,
+		ImageURL: "/api/v1/artwork/" + r.ID + "/image",
+		SelectedByUser: r.SelectedByUser,
+	}
+}
+
 // EditionSummary is one edition line inside a work view.
 type EditionSummary struct {
 	ID       string             `json:"id"`
@@ -223,6 +253,7 @@ type WorkView struct {
 	ArchivedAt *time.Time       `json:"archived_at"`
 	Titles     []Title          `json:"titles"`
 	Editions   []EditionSummary `json:"editions"`
+	Artwork    *ArtworkView     `json:"artwork,omitempty"`
 }
 
 // ProgressRecord is one effective progress observation. Position and total

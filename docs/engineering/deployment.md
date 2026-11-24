@@ -429,6 +429,16 @@ reviewed and enabled by the operator from the checkout, not by CI. Upgrades
 replace only `/opt/media-core/media-core`; the state directory, owner secret
 and backup history are never touched by a release download.
 
+### Upgrading an installed Media Core from a GitHub Release
+
+1. Take a backup first: `media-core backup create --state-dir /var/lib/media-core --dest /var/backups/media-core` (see [backup and restore](#backup-and-restore-smoke)). Record the archive path.
+2. Download the new tag's `SHA256SUMS` and the artifact for your architecture, then run `sha256sum --check SHA256SUMS` as described above.
+3. Stop the service: `sudo systemctl stop media-core`. A running process holds the maintenance lock, so restoring while it runs is refused.
+4. Replace only the binary: `sudo install -o media-core -g media-core -m 0755 media-core-linux-amd64 /opt/media-core/media-core`.
+5. Start it and let migration 0014 run on the existing state directory: `sudo systemctl start media-core && systemctl --no-pager status media-core`. The new `work_artwork` table is created in place; all existing rows are preserved.
+6. Verify: `/opt/media-core/media-core version` must show the new tag, and `/opt/media-core/media-core doctor --state-dir /var/lib/media-core` must report the current schema. Open the UI and confirm the library still shows all works.
+7. Rollback: stop the service, reinstall the previous release binary from its own verified archive, and restore the database backup taken in step 1 if the schema changed. Never run an older binary against a newer schema without restoring; `CheckSchema` refuses it by design. Re-select covers after a rollback across the 0014 boundary if the cache was cleared.
+
 ## Retention
 
 Automatic archives (`media-core-auto-<UTC timestamp>`) receive a `.verified` marker only after a new archive passes restore smoke. `scripts/backup_retention.py <backup-dir>` keeps the newest 7 UTC daily, 4 ISO-weekly and 3 monthly buckets, always keeps the newest verified archive, and deletes only automatic, marked archives. Manual archives, unknown names and symlinks are never touched; deletions run under a bounded lock and only after the successful smoke that invoked the script. Use `--dry-run` to print the exact deletion plan without changing files. Retention is not a substitute for a separate copy on another physical medium.

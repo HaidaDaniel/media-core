@@ -1,5 +1,5 @@
 // Migration integrity: every committed append-only migration through
-// 0013_release_bindings must bring a database stopped at any prior schema
+// 0014_artwork must bring a database stopped at any prior schema
 // version forward to the current version without losing a single row, the
 // upgrade must be ordered and idempotent, and a backup snapshot of the
 // migrated schema must be internally consistent (integrity check, schema

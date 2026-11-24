@@ -9,6 +9,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { JSX } from "react";
 import { useSearchParams } from "react-router-dom";
 import { ApiError } from "../api/client";
+import { FindMissingCovers } from "../artwork/FindMissingCovers";
+import { Button, EmptyState, Input, Select, Skeleton } from "../ui";
 import { editionConsumption, listWorks, type WorkCardWire } from "./libraryApi";
 import { WorkCardView } from "./WorkCardView";
 
@@ -41,6 +43,9 @@ const CONSUMPTIONS = [
 const INTENTIONS = ["none", "interested", "saved", "planned", "not_interested"];
 const MIN_RATINGS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
 const SORTS = ["title", "created_at", "updated_at", "rating"];
+// A short, scrollable strip of the most common media types. The Medium select
+// below keeps every valid kind available.
+const QUICK_KINDS = ["manga", "anime", "book", "manhwa", "web_novel", "manhua", "movie", "tv"];
 
 function errorMessage(err: unknown): string {
   return err instanceof ApiError ? err.message : "the library could not be loaded";
@@ -58,7 +63,9 @@ export function LibraryPage(): JSX.Element {
     : undefined;
   const sort = SORTS.includes(params.get("sort") ?? "") ? (params.get("sort") as string) : "title";
   const limit = LIMITS.includes(Number(params.get("limit"))) ? Number(params.get("limit")) : DEFAULT_LIMIT;
-  const view = params.get("view") === "cards" ? "cards" : "list";
+  // The poster grid is the default. Both "grid" and the legacy "cards"
+  // spelling select it; only "list" opts into the compact list alternative.
+  const view = params.get("view") === "list" ? "list" : "grid";
   const activeFilter =
     query !== "" || kind !== "" || consumption !== "" || intention !== "" || tag !== "" ||
     minRating !== undefined;
@@ -246,8 +253,8 @@ export function LibraryPage(): JSX.Element {
 
   function resetFilters(): void {
     const next = new URLSearchParams();
-    if (view === "cards") {
-      next.set("view", "cards");
+    if (view === "list") {
+      next.set("view", "list");
     }
     setText("");
     setTagText("");
@@ -267,10 +274,44 @@ export function LibraryPage(): JSX.Element {
 
   return (
     <section className="library">
+      <div className="library-heading">
+        <h2>Library</h2>
+        <div className="library-actions">
+          <Button
+            aria-pressed={view === "grid"}
+            onClick={() => setParam("view", view === "grid" ? "list" : "")}
+          >
+            {view === "grid" ? "List view" : "Grid view"}
+          </Button>
+        </div>
+      </div>
+
+      <div className="library-tabs" role="group" aria-label="Media type">
+        <Button
+          size="sm"
+          variant={kind === "" ? "primary" : "ghost"}
+          aria-pressed={kind === ""}
+          onClick={() => setParam("kind", "")}
+        >
+          All
+        </Button>
+        {QUICK_KINDS.map((k) => (
+          <Button
+            key={k}
+            size="sm"
+            variant={kind === k ? "primary" : "ghost"}
+            aria-pressed={kind === k}
+            onClick={() => setParam("kind", kind === k ? "" : k)}
+          >
+            {k.replace("_", " ")}
+          </Button>
+        ))}
+      </div>
+
       <form className="library-toolbar" role="search" onSubmit={(e) => e.preventDefault()}>
         <label className="library-field library-field-search">
           <span>Search</span>
-          <input
+          <Input
             type="search"
             value={text}
             placeholder="Title or alias"
@@ -279,43 +320,46 @@ export function LibraryPage(): JSX.Element {
         </label>
         <label className="library-field">
           <span>Medium</span>
-          <select value={kind} onChange={(e) => setParam("kind", e.target.value)}>
+          <Select value={kind} onChange={(e) => setParam("kind", e.target.value)}>
             <option value="">All</option>
             {KINDS.map((k) => (
               <option key={k} value={k}>
                 {k.replace("_", " ")}
               </option>
             ))}
-          </select>
+          </Select>
         </label>
         <label className="library-field">
           <span>Status</span>
-          <select
-            value={consumption}
-            onChange={(e) => setParam("consumption", e.target.value)}
-          >
+          <Select value={consumption} onChange={(e) => setParam("consumption", e.target.value)}>
             <option value="">All</option>
             {CONSUMPTIONS.map((c) => (
               <option key={c} value={c}>
                 {c === "unknown" ? "Unknown" : c.replace("_", " ")}
               </option>
             ))}
-          </select>
+          </Select>
         </label>
+        <div className="library-actions">
+          <Button onClick={resetFilters}>Reset</Button>
+        </div>
+      </form>
+
+      <div className="library-filter-panel">
         <label className="library-field">
           <span>Intention</span>
-          <select value={intention} onChange={(e) => setParam("intention", e.target.value)}>
+          <Select value={intention} onChange={(e) => setParam("intention", e.target.value)}>
             <option value="">All</option>
             {INTENTIONS.map((i) => (
               <option key={i} value={i}>
                 {i === "none" ? "No intention" : i.replace("_", " ")}
               </option>
             ))}
-          </select>
+          </Select>
         </label>
         <label className="library-field">
           <span>Tag</span>
-          <input
+          <Input
             type="search"
             value={tagText}
             placeholder="manga-translation-candidate"
@@ -324,7 +368,7 @@ export function LibraryPage(): JSX.Element {
         </label>
         <label className="library-field">
           <span>Minimum rating</span>
-          <select
+          <Select
             value={minRating === undefined ? "" : String(minRating)}
             onChange={(e) => setParam("min-rating", e.target.value)}
           >
@@ -334,11 +378,11 @@ export function LibraryPage(): JSX.Element {
                 {n}/10 or more
               </option>
             ))}
-          </select>
+          </Select>
         </label>
         <label className="library-field">
           <span>Sort</span>
-          <select value={sort} onChange={(e) => setParam("sort", e.target.value)}>
+          <Select value={sort} onChange={(e) => setParam("sort", e.target.value)}>
             {SORTS.map((s) => (
               <option key={s} value={s}>
                 {s === "title"
@@ -350,31 +394,19 @@ export function LibraryPage(): JSX.Element {
                       : "Rating"}
               </option>
             ))}
-          </select>
+          </Select>
         </label>
         <label className="library-field">
           <span>Page size</span>
-          <select value={String(limit)} onChange={(e) => setParam("limit", e.target.value)}>
+          <Select value={String(limit)} onChange={(e) => setParam("limit", e.target.value)}>
             {LIMITS.map((n) => (
               <option key={n} value={n}>
                 {n}
               </option>
             ))}
-          </select>
+          </Select>
         </label>
-        <div className="library-actions">
-          <button type="button" onClick={resetFilters}>
-            Reset
-          </button>
-          <button
-            type="button"
-            aria-pressed={view === "cards"}
-            onClick={() => setParam("view", view === "cards" ? "" : "cards")}
-          >
-            {view === "cards" ? "List view" : "Card view"}
-          </button>
-        </div>
-      </form>
+      </div>
 
       {total !== null && (
         <p className="library-count" role="status">
@@ -385,21 +417,26 @@ export function LibraryPage(): JSX.Element {
       {error !== null && (
         <div className="library-error" role="alert">
           <p>{error}</p>
-          <button type="button" onClick={retry}>
-            Retry
-          </button>
+          <Button onClick={retry}>Retry</Button>
         </div>
       )}
 
       {loading ? (
-        <p className="library-loading">Loading the library…</p>
+        <>
+          <p className="library-loading">Loading the library…</p>
+          <div className="library-skeletons" aria-hidden="true">
+            {Array.from({ length: 6 }, (_, index) => (
+              <Skeleton className="library-skeleton-card" key={index} />
+            ))}
+          </div>
+        </>
       ) : error !== null && items.length === 0 ? null : items.length === 0 ? (
-        <div className="library-empty">
-          <p>No works match the current filters.</p>
-          <button type="button" onClick={resetFilters}>
-            Reset filters
-          </button>
-        </div>
+        <EmptyState
+          className="library-empty"
+          title="No works match the current filters."
+          actionLabel="Reset filters"
+          onAction={resetFilters}
+        />
       ) : (
         <>
           {refreshing && (
@@ -407,7 +444,7 @@ export function LibraryPage(): JSX.Element {
               Updating…
             </p>
           )}
-          <ul className={view === "cards" ? "library-list library-cards" : "library-list"}>
+          <ul className={view === "grid" ? "library-list library-cards" : "library-list"}>
             {items.map((card) => (
               <li key={card.work_id}>
                 <WorkCardView
@@ -423,15 +460,16 @@ export function LibraryPage(): JSX.Element {
       )}
 
       {nextCursor !== null && (
-        <button
-          type="button"
+        <Button
           className="library-more"
           disabled={pageLoading || loading || refreshing}
           onClick={() => void loadMore()}
         >
           {pageLoading ? "Loading more…" : "Load more"}
-        </button>
+        </Button>
       )}
+
+      <FindMissingCovers />
     </section>
   );
 }

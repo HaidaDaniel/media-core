@@ -62,6 +62,15 @@ func (s *Server) registerCatalogRoutes(mux *http.ServeMux) {
 	mux.Handle("DELETE /api/v1/releases/bindings", write(s.handleRevokeRelease))
 	mux.Handle("GET /api/v1/releases/bindings", read(s.handleGetReleaseBinding))
 	mux.Handle("GET /api/v1/editions/{id}/releases", read(s.handleListReleases))
+	if s.artwork != nil {
+		mux.Handle("GET /api/v1/artwork/providers", read(s.handleArtworkProviders))
+		mux.Handle("POST /api/v1/artwork/search", write(s.handleArtworkSearch))
+		mux.Handle("POST /api/v1/artwork/select", write(s.handleArtworkSelect))
+		mux.Handle("POST /api/v1/artwork/find-missing", write(s.handleArtworkFindMissing))
+		mux.Handle("GET /api/v1/artwork/preview/{token}/image", read(s.handleArtworkPreviewImage))
+		mux.Handle("GET /api/v1/artwork/{id}/image", read(s.handleArtworkImage))
+		mux.Handle("DELETE /api/v1/artwork/cache/clear", write(s.handleArtworkClearCache))
+	}
 }
 
 // requireSession rejects a request without a live session before the

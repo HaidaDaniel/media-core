@@ -80,6 +80,10 @@ The archive packages only the snapshot database and the manifest. Nothing
 else from the state directory is ever copied, so owner secrets, session
 material and TLS keys are excluded by construction; the manifest contains
 no state directory contents beyond the measured database file metadata.
+The regenerable `artwork-cache/` directory is excluded for the same reason:
+user-selected cover provenance lives in the `work_artwork` table and is
+backed up, while cached image bytes can be rebuilt by a new explicit
+selection after a restore.
 
 ## Restore contract
 

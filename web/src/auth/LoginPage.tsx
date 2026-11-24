@@ -4,6 +4,7 @@
 import { useState } from "react";
 import type { FormEvent, JSX } from "react";
 import { ApiError } from "../api/client";
+import { Button, Input } from "../ui";
 import { useAuth } from "./AuthContext";
 
 export function LoginPage(): JSX.Element {
@@ -40,7 +41,7 @@ export function LoginPage(): JSX.Element {
       <p className="login-hint">Enter the owner secret to sign in.</p>
       <form onSubmit={(event) => void submit(event)}>
         <label htmlFor="owner-secret">Owner secret</label>
-        <input
+        <Input
           id="owner-secret"
           type="password"
           autoComplete="current-password"
@@ -48,9 +49,9 @@ export function LoginPage(): JSX.Element {
           onChange={(event) => setSecret(event.target.value)}
           disabled={pending}
         />
-        <button type="submit" disabled={pending || secret === ""}>
+        <Button type="submit" variant="primary" disabled={pending || secret === ""}>
           {pending ? "Signing in…" : "Sign in"}
-        </button>
+        </Button>
       </form>
       {error !== null && (
         <p className="form-error" role="alert">
