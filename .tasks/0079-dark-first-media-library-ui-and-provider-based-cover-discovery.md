@@ -1,6 +1,6 @@
 # Task 0079 - Dark-first media library UI and provider-based cover discovery
 
-State: doing
+State: done
 Owner: opencode-ui-20261124
 Mode: mvp
 Lane: implementation
