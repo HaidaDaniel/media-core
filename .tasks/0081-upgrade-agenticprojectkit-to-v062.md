@@ -2,7 +2,7 @@
 
 State: done
 Owner: opencode-apk-upgrade-20261128
-Mode: maintenance
+Mode: mvp
 Lane: maintenance
 Scope: tooling,dependencies,docs,workflow
 Risk: medium
@@ -73,6 +73,29 @@ Upgrade the repository development tooling dependency AgenticProjectKit from 0.6
 - Independent review by a different registered identity passes and the task gate passes.
 - The upgrade commit is integrated into main and origin/main matches it; CI status is checked.
 
+## Invariants
+
+- Media Core runtime, Go modules, API, Web UI, database schema, storage, Docker, systemd, deployment scripts and release artifacts stay unchanged.
+- APK remains development-only tooling pinned to the v0.6.2 tag commit, never floating main and never part of a build artifact.
+- Generated instructions stay in sync and project-specific guidance is preserved.
+- Historical tasks 0079 and 0080 keep their recorded state and evidence; they are not reopened or rewritten.
+
+## Review questions
+
+- Does the lockfile resolve the exact v0.6.2 tag commit rather than a floating ref?
+- Could an unrelated dependency, runtime file or generated instruction have changed?
+- Do the 0079/0080 verdicts and evidence remain identical before and after the upgrade?
+- Does the isolated fixture prove lifecycle and linked-worktree safety without mutating claims?
+- Is a reported 0.6.2 behavior an APK defect, a historical limitation or a task-contract error?
+
+## Counterexample searches
+
+- Resolve the tag independently and compare its peel to the lockfile tarball commit.
+- Diff `main` against the candidate for `cmd/**`, `internal/**`, `web/**`, `deploy/**`, `scripts/**`, `go.mod` and `go.sum`; require no change.
+- Re-run 0079/0080 gate and provenance with the 0.6.2 binary against the untouched feature worktree; require identical subjects and verdicts.
+- Attempt release and done from a linked fixture worktree; require fail-closed behavior.
+- Remove a canonical ignore entry and require doctor to warn rather than silently pass.
+
 ## Verification
 
 - `{"id":"apk-lint","type":"automated","required":true,"environment":"local","profile":"report","apkOperation":"lint"}`
@@ -95,3 +118,4 @@ Upgrade the repository development tooling dependency AgenticProjectKit from 0.6
 - Keep backups outside the repository.
 - The v0.6.2 upstream release index still marks v0.6.1 as last validated; record this observation and do not block on it.
 - Use task id 0081 to avoid collision with 0079/0080 on the feature branch.
+- Milestone: M5. Development tooling upgrade; no runtime, release or deployment claim.

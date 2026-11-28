@@ -88,6 +88,10 @@ Each row lists direct dependencies; numbering is not execution order (0049 is an
 
 | [0078](../.tasks/0078-publish-verified-linux-release-assets-from-version-tags.md) | Publish verified Linux release assets from version tags | none | high | M5 | todo |
 
+| [0081](../.tasks/0081-upgrade-agenticprojectkit-to-v062.md) | Upgrade AgenticProjectKit to v0.6.2 | none | medium | M5 | todo |
+
+| [0082](../.tasks/0082-fix-planning-contract-for-the-apk-upgrade-task.md) | Fix planning contract for the APK upgrade task | 0081 | low | M5 | todo |
+
 ## Execution path and observable increments
 
 First five recommended implementation tasks: **0005 → 0006 → 0007 → 0008 → 0009**. After 0005, 0006 and 0007 may run in separate worktrees. Task 0004 must pass review/gate and be done before 0005 is claimable. Do not start 0003 implicitly or mark it done as part of this plan.
@@ -115,7 +119,7 @@ Every requirement has implementation ownership. Scenarios A–G live in docs/pro
 
 | Requirement | Design document | Implementation task(s) | Acceptance scenario |
 | --- | --- | --- | --- |
-| R01 | [Architecture](architecture.md), [contracts](application-contract.md) | 0005, 0006, 0007, 0009, 0049, 0051, 0052, 0062, 0063, 0068 | G |
+| R01 | [Architecture](architecture.md), [contracts](application-contract.md) | 0005, 0006, 0007, 0009, 0049, 0051, 0052, 0062, 0063, 0068, 0081, 0082 | G |
 | R02 | [Domain](domain-model.md), [Web](web-ui.md) | 0010, 0011, 0012, 0013, 0026, 0032, 0039 | A, C |
 | R03 | [Domain](domain-model.md), [contracts](application-contract.md) | 0010, 0013, 0016, 0018, 0031, 0035, 0038 | A, C |
 | R04 | [Domain](domain-model.md) | 0011, 0014, 0016, 0027, 0034, 0040 | A, D, E |
