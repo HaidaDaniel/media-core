@@ -1,6 +1,6 @@
 # Task 0081 - Upgrade AgenticProjectKit to v0.6.2
 
-State: doing
+State: done
 Owner: opencode-apk-upgrade-20261128
 Mode: maintenance
 Lane: maintenance
