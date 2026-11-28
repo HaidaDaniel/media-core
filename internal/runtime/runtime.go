@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/HaidaDaniel/media-core/internal/app"
+	"github.com/HaidaDaniel/media-core/internal/artwork"
 	"github.com/HaidaDaniel/media-core/internal/buildinfo"
 	"github.com/HaidaDaniel/media-core/internal/config"
 	"github.com/HaidaDaniel/media-core/internal/httpapi"
@@ -146,7 +147,15 @@ func runServe(args []string, out io.Writer) error {
 		return &ExitCodeError{Exit: 1, Err: err}
 	}
 	defer db.Close()
-	srv.WithCatalog(app.NewService(db))
+	srv.WithCatalog(app.NewService(db, app.WithArtworkServing(cfg.Artwork)))
+	if cfg.Artwork {
+		cache, err := artwork.NewCache(cfg.StateDir, artwork.DefaultMaxCacheBytes, artwork.DefaultMaxImageBytes)
+		if err != nil {
+			return &ExitCodeError{Exit: 1, Err: err}
+		}
+		registry, client := artwork.NewDefault()
+		srv.WithArtwork(artwork.NewService(db, registry, client, cache))
+	}
 	// Finalize the route table after the catalog is attached: the catch-all
 	// then serves the embedded UI same-origin, so one listener carries both
 	// the API and the SPA. WithAssets must follow WithCatalog because the
@@ -164,7 +173,7 @@ func runServe(args []string, out io.Writer) error {
 // parseServeArgs maps serve flags onto explicit configuration options; the
 // loopback default and the remote trio come from config resolution.
 func parseServeArgs(args []string) (config.Options, error) {
-	const serveUsage = "usage: media-core serve [--state-dir <dir>] [--listen <addr>] [--trusted-lan [--lan-host <name>]] [--allow-remote --public-origin <url> --tls-cert <file> --tls-key <file>]"
+	const serveUsage = "usage: media-core serve [--state-dir <dir>] [--listen <addr>] [--trusted-lan [--lan-host <name>]] [--allow-remote --public-origin <url> --tls-cert <file> --tls-key <file>] [--artwork|--no-artwork]"
 	var opts config.Options
 	for i := 0; i < len(args); i++ {
 		switch args[i] {
@@ -191,6 +200,12 @@ func parseServeArgs(args []string) (config.Options, error) {
 			opts.AllowRemote = true
 		case "--trusted-lan":
 			opts.TrustedLAN = true
+		case "--no-artwork":
+			opts.Artwork = false
+			opts.ArtworkSet = true
+		case "--artwork":
+			opts.Artwork = true
+			opts.ArtworkSet = true
 		default:
 			return opts, fmt.Errorf("media-core serve: unknown argument %q (%s)", args[i], serveUsage)
 		}

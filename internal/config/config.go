@@ -40,6 +40,8 @@ type Options struct {
 	TLSKeyFile   string
 	TrustedLAN   bool
 	LANHost      string
+	Artwork      bool
+	ArtworkSet   bool
 	Env          map[string]string
 }
 
@@ -62,6 +64,7 @@ type Config struct {
 	TLSKeyFile   string
 	TrustedLAN   bool
 	LANHost      string
+	Artwork      bool
 	OwnerSecret  Secret
 }
 
@@ -74,6 +77,25 @@ func Resolve(opts Options) (*Config, error) {
 		TLSKeyFile:  opts.TLSKeyFile,
 		TrustedLAN:  opts.TrustedLAN,
 		LANHost:     strings.TrimSpace(opts.LANHost),
+		Artwork:     true,
+	}
+	if opts.ArtworkSet {
+		cfg.Artwork = opts.Artwork
+	} else {
+		artworkEnv, artworkSet := os.LookupEnv("MEDIA_CORE_ARTWORK")
+		if opts.Env != nil {
+			artworkEnv, artworkSet = opts.Env["MEDIA_CORE_ARTWORK"]
+		}
+		if artworkSet {
+			switch v := strings.ToLower(strings.TrimSpace(artworkEnv)); v {
+			case "", "1", "true", "on":
+				cfg.Artwork = true
+			case "0", "false", "off":
+				cfg.Artwork = false
+			default:
+				return nil, fmt.Errorf("MEDIA_CORE_ARTWORK must be true or false, got %q", artworkEnv)
+			}
+		}
 	}
 	if err := cfg.resolveStateDir(opts.StateDir, opts.lookup); err != nil {
 		return nil, err

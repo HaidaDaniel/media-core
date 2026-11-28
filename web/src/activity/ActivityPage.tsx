@@ -14,6 +14,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { JSX } from "react";
 import { Link } from "react-router-dom";
 import { ApiError } from "../api/client";
+import { Button, EmptyState, Skeleton } from "../ui";
 import { PendingImportsPanel } from "./imports/PendingImportsPanel";
 import { listActivity, type ActivityItemWire } from "./activityApi";
 
@@ -216,15 +217,20 @@ export function ActivityPage(): JSX.Element {
       {error !== null && (
         <div className="library-error" role="alert">
           <p>{error}</p>
-          <button type="button" onClick={retry}>
-            Retry
-          </button>
+          <Button onClick={retry}>Retry</Button>
         </div>
       )}
       {loading ? (
-        <p className="library-loading">Loading activity…</p>
+        <>
+          <p className="library-loading">Loading activity…</p>
+          <div className="library-skeletons" aria-hidden="true">
+            {Array.from({ length: 3 }, (_, index) => (
+              <Skeleton className="library-skeleton-card" key={index} />
+            ))}
+          </div>
+        </>
       ) : error !== null && items.length === 0 ? null : items.length === 0 ? (
-        <p className="library-loading">No recent activity.</p>
+        <EmptyState title="No recent activity." />
       ) : (
         <>
           {refreshing && (
@@ -240,14 +246,13 @@ export function ActivityPage(): JSX.Element {
         </>
       )}
       {nextCursor !== null && (
-        <button
-          type="button"
+        <Button
           className="library-more"
           disabled={pageLoading || loading || refreshing}
           onClick={() => void loadMore()}
         >
           {pageLoading ? "Loading more…" : "Load more"}
-        </button>
+        </Button>
       )}
       <PendingImportsPanel />
     </section>

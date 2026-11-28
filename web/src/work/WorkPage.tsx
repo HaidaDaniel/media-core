@@ -9,6 +9,10 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { JSX } from "react";
 import { Link, useParams } from "react-router-dom";
 import { ApiError } from "../api/client";
+import { CoverImage } from "../artwork/CoverImage";
+import { CoverPicker } from "../artwork/CoverPicker";
+import type { ArtworkView } from "../artwork/artworkApi";
+import { Button } from "../ui";
 import {
   ORIGIN_KINDS,
   RelationRow,
@@ -78,6 +82,7 @@ export function WorkPage(): JSX.Element {
   const [origins, setOrigins] = useState<Record<string, OriginViewWire>>({});
   const [busy, setBusy] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [pickerOpen, setPickerOpen] = useState(false);
 
   // Propose form (work scope): the current work is always the from endpoint.
   const [proposeType, setProposeType] = useState<string>(WORK_RELATION_TYPES[0]);
@@ -332,21 +337,33 @@ export function WorkPage(): JSX.Element {
 
   return (
     <section className="placeholder">
-      <h2>
-        {preferred ? preferred.text : "Unknown"}
-        {preferred?.language ? <span className="work-card-lang"> {preferred.language}</span> : null}
-      </h2>
-      {aliases.length > 0 && (
-        <p className="work-card-aliases">
-          {aliases.map((t) => (
-            <span key={t.id} className="work-card-alias">
-              {t.text}
-              {t.language ? ` (${t.language})` : ""}
-            </span>
-          ))}
-        </p>
-      )}
-      {work.archived_at !== null && <p className="login-hint">Archived</p>}
+      <div className="detail-header">
+        <div>
+          <h2>
+            {preferred ? preferred.text : "Unknown"}
+            {preferred?.language ? <span className="work-card-lang"> {preferred.language}</span> : null}
+          </h2>
+          {aliases.length > 0 && (
+            <p className="work-card-aliases">
+              {aliases.map((t) => (
+                <span key={t.id} className="work-card-alias">
+                  {t.text}
+                  {t.language ? ` (${t.language})` : ""}
+                </span>
+              ))}
+            </p>
+          )}
+          {work.archived_at !== null && <p className="login-hint">Archived</p>}
+        </div>
+        <div className="detail-actions">
+          <CoverImage
+            src={work.artwork?.image_url ?? null}
+            label={preferred?.text}
+            className="detail-cover"
+          />
+          <Button onClick={() => setPickerOpen(true)}>Find a cover</Button>
+        </div>
+      </div>
 
       {workError !== null && (
         <div className="library-error">
@@ -580,6 +597,19 @@ export function WorkPage(): JSX.Element {
           }
         />
       )}
+
+      <CoverPicker
+        open={pickerOpen}
+        onClose={() => setPickerOpen(false)}
+        title={preferred?.text ?? ""}
+        kind={work.editions[0]?.kind ?? ""}
+        alternatives={aliases.map((t) => t.text)}
+        references={[]}
+        workId={work.id}
+        onSelected={(artwork: ArtworkView) =>
+          setWork((prev) => (prev === null ? prev : { ...prev, artwork }))
+        }
+      />
     </section>
   );
 }

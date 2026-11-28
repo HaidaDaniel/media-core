@@ -113,9 +113,10 @@ remote HTTPS rules above. See [Trusted LAN deployment](#trusted-lan-deployment).
 The owner secret is created only by `media-core owner generate --state-dir
 <dir>` and stored in the state directory with mode 0600; neither `init` nor
 `serve` creates it, and login fails with a distinct "not configured" 401
-until it exists. It never leaves the state directory: backups and exports
-package only the database, and restore retains the destination's own
-secret file. Regeneration is idempotent and never overwrites an existing
+until it exists. It never leaves the state directory: backups and exports never
+include it, and restore retains the destination's own secret file. v2
+backups do include selected cover bytes, but no owner secret, session
+material or TLS key. Regeneration is idempotent and never overwrites an existing
 secret, so a forgotten secret is an operator recovery decision, not a
 `generate` retry. Sessions are in-memory and do not survive a restart.
 
@@ -155,7 +156,7 @@ The backup unit sets `Environment=MEDIA_CORE_BIN=/opt/media-core/media-core`; th
 
 ## Backup and restore smoke
 
-`scripts/backup-smoke.sh <state-dir> <backup-dir> [prefix]` creates a consistent snapshot archive, restores it into a fresh temporary state directory and runs a read there. The timer passes the prefix `media-core-auto-`; a manual invocation defaults to `media-core-smoke-`. It never stops the service, changes the live database or publishes anything. The destination directory must be outside the state directory. Run it manually after setup and schedule it with `deploy/media-core-backup.timer` (daily by default). A real restore of a live state remains an explicit operator action: stop all handles first, validate the archive, then use `media-core restore <archive> --state-dir <dir> [--force]`.
+`scripts/backup-smoke.sh <state-dir> <backup-dir> [prefix]` creates a consistent snapshot archive, restores it into a fresh temporary state directory and runs a read there. v2 archives include the selected cover bytes referenced by active rows, so a restore brings the covers back without network access; current cache writes are capped at 64 MiB, which normally bounds the extra archive size. The timer passes the prefix `media-core-auto-`; a manual invocation defaults to `media-core-smoke-`. It never stops the service, changes the live database or publishes anything. The destination directory must be outside the state directory. Run it manually after setup and schedule it with `deploy/media-core-backup.timer` (daily by default). A real restore of a live state remains an explicit operator action: stop all handles first, validate the archive, then use `media-core restore <archive> --state-dir <dir> [--force]`.
 
 ## Trusted LAN deployment
 
@@ -428,6 +429,16 @@ hardware. The unit files and the optional Trusted LAN drop-in are still
 reviewed and enabled by the operator from the checkout, not by CI. Upgrades
 replace only `/opt/media-core/media-core`; the state directory, owner secret
 and backup history are never touched by a release download.
+
+### Upgrading an installed Media Core from a GitHub Release
+
+1. Take a backup first: `media-core backup create --state-dir /var/lib/media-core --dest /var/backups/media-core` (see [backup and restore](#backup-and-restore-smoke)). Record the archive path.
+2. Download the new tag's `SHA256SUMS` and the artifact for your architecture, then run `sha256sum --check SHA256SUMS` as described above.
+3. Stop the service: `sudo systemctl stop media-core`. A running process holds the maintenance lock, so restoring while it runs is refused.
+4. Replace only the binary: `sudo install -o media-core -g media-core -m 0755 media-core-linux-amd64 /opt/media-core/media-core`.
+5. Start it and let migration 0014 run on the existing state directory: `sudo systemctl start media-core && systemctl --no-pager status media-core`. The new `work_artwork` table is created in place; all existing rows are preserved.
+6. Verify: `/opt/media-core/media-core version` must show the new tag, and `/opt/media-core/media-core doctor --state-dir /var/lib/media-core` must report the current schema. Open the UI and confirm the library still shows all works.
+7. Rollback: stop the service, reinstall the previous release binary from its own verified archive, and restore the database backup taken in step 1 if the schema changed. Never run an older binary against a newer schema without restoring; `CheckSchema` refuses it by design. Re-select covers after a rollback across the 0014 boundary if the cache was cleared.
 
 ## Retention
 

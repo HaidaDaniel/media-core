@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/HaidaDaniel/media-core/internal/app"
+	"github.com/HaidaDaniel/media-core/internal/artwork"
 	"github.com/HaidaDaniel/media-core/internal/config"
 )
 
@@ -30,6 +31,7 @@ type Server struct {
 	cfg          *config.Config
 	sessions     *SessionStore
 	catalog      *app.Service
+	artwork      *artwork.Service
 	mux          *http.ServeMux
 	tlsConfig    *tls.Config
 	secureCookie bool
@@ -45,6 +47,14 @@ type Server struct {
 // built once, at the first Serve, from the catalog state known then.
 func (s *Server) WithCatalog(svc *app.Service) *Server {
 	s.catalog = svc
+	return s
+}
+
+// WithArtwork attaches the explicit cover-discovery service. Without it the
+// artwork routes are not registered; the runtime also omits saved artwork
+// URLs so the library renders placeholders without dead image requests.
+func (s *Server) WithArtwork(svc *artwork.Service) *Server {
+	s.artwork = svc
 	return s
 }
 

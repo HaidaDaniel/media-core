@@ -20,7 +20,7 @@ func TestBackupService(t *testing.T) {
 		if err != nil {
 			t.Fatalf("CreateBackup: %v", err)
 		}
-		if res.Format != "media-core-snapshot-v1" {
+		if res.Format != "media-core-snapshot-v2" {
 			t.Fatalf("Format = %q", res.Format)
 		}
 		if !filepath.IsAbs(res.Archive) || filepath.Dir(res.Archive) != dest {

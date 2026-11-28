@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"sort"
 	"strings"
@@ -79,6 +80,7 @@ type WorkCard struct {
 	Titles            []Title          `json:"titles"`
 	Editions          []EditionSummary `json:"editions"`
 	MatchedEditionIDs []string         `json:"matched_edition_ids"`
+	Artwork           *ArtworkView     `json:"artwork,omitempty"`
 }
 
 // libraryCursorPayload binds a seek point to the listing it belongs to.
@@ -251,9 +253,26 @@ func (s *Service) SearchLibrary(ctx context.Context, f LibraryFilter) (ListPaylo
 		next = strPtr(issueLibraryCursor(srt, limit, qHash, last.SortKey, last.Work.ID))
 		cards = cards[:limit]
 	}
-	items := make([]any, 0, len(cards))
+	ids := make([]string, 0, len(cards))
 	for _, c := range cards {
-		items = append(items, toAppCard(c))
+		ids = append(ids, c.ID)
+	}
+	items := make([]any, 0, len(cards))
+	var artwork map[string]store.ArtworkRecord
+	if s.artworkServing {
+		var err error
+		artwork, err = s.db.ArtworkForWorks(ctx, ids)
+		if err != nil {
+			return ListPayload{}, mapStoreError(err, base)
+		}
+	}
+	for _, c := range cards {
+		card := toAppCard(c)
+		if r, ok := artwork[c.ID]; ok {
+			view := ArtworkViewFromStore(r)
+			card.Artwork = &view
+		}
+		items = append(items, card)
 	}
 	return ListPayload{Items: items, NextCursor: next, Total: total}, nil
 }
@@ -311,7 +330,18 @@ func (s *Service) GetWork(ctx context.Context, workID string) (WorkView, error) 
 	if err != nil {
 		return WorkView{}, mapStoreError(err, base)
 	}
-	return workViewFrom(w, editions), nil
+	view := workViewFrom(w, editions)
+	if s.artworkServing {
+		artwork, err := s.db.ArtworkForWorks(ctx, []string{workID})
+		if err != nil {
+			return WorkView{}, mapStoreError(err, base)
+		}
+		if r, ok := artwork[workID]; ok {
+			cover := ArtworkViewFromStore(r)
+			view.Artwork = &cover
+		}
+	}
+	return view, nil
 }
 
 func workViewFrom(w store.Work, editions []store.Edition) WorkView {
@@ -344,7 +374,25 @@ func (s *Service) GetEdition(ctx context.Context, editionID string) (EditionView
 	if err != nil {
 		return EditionView{}, mapStoreError(err, base)
 	}
-	return editionViewFrom(e), nil
+	return s.editionViewWithArtwork(ctx, e)
+}
+
+// editionViewWithArtwork keeps a saved cover in every edition response,
+// including mutation responses, so the UI never drops it after an update.
+func (s *Service) editionViewWithArtwork(ctx context.Context, e store.Edition) (EditionView, error) {
+	view := editionViewFrom(e)
+	if !s.artworkServing {
+		return view, nil
+	}
+	cover, err := s.db.ArtworkForEdition(ctx, e.ID)
+	if err != nil && !errors.Is(err, store.ErrArtworkNotFound) {
+		return EditionView{}, mapStoreError(err, MutationBase{})
+	}
+	if err == nil {
+		artwork := ArtworkViewFromStore(cover)
+		view.Artwork = &artwork
+	}
+	return view, nil
 }
 
 // consumptionViewFrom presents the current consumption observation; an
@@ -560,7 +608,7 @@ func (s *Service) CorrectEditionTitles(ctx context.Context, req TitleMutationReq
 	if err != nil {
 		return s.settleEditionView(ctx, req.MutationBase, hash, err)
 	}
-	return editionViewFrom(e), nil
+	return s.editionViewWithArtwork(ctx, e)
 }
 
 // UpdateEditionRequest is one edition metadata correction: kind, language
@@ -607,7 +655,7 @@ func (s *Service) UpdateEdition(ctx context.Context, req UpdateEditionRequest) (
 	if err != nil {
 		return s.settleEditionView(ctx, req.MutationBase, hash, err)
 	}
-	return editionViewFrom(e), nil
+	return s.editionViewWithArtwork(ctx, e)
 }
 
 // ArchiveWork archives or unarchives a work; titles, editions and history
@@ -681,7 +729,7 @@ func (s *Service) ArchiveEdition(ctx context.Context, base MutationBase, edition
 	if err != nil {
 		return s.settleEditionView(ctx, req.MutationBase, hash, err)
 	}
-	return editionViewFrom(e), nil
+	return s.editionViewWithArtwork(ctx, e)
 }
 
 func editionViewFrom(e store.Edition) EditionView {

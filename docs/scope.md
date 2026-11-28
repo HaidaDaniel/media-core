@@ -15,11 +15,11 @@
 
 ## Deferred
 
-Metadata/cover fetching, provider-specific title normalization, vector search, full graph visualization, content acquisition/rendering/delivery, translation execution, OCR/inpainting, hosted sync, social features and recommendation engines. Native remote Streamable HTTP MCP is implemented as an opt-in, authenticated transport for clients that cannot launch SSH/stdio; SSH remains the recommended NAS connection.
+Provider-specific title normalization, vector search, full graph visualization, content acquisition/rendering/delivery, translation execution, OCR/inpainting, hosted sync, social features and recommendation engines. Native remote Streamable HTTP MCP is implemented as an opt-in, authenticated transport for clients that cannot launch SSH/stdio; SSH remains the recommended NAS connection.
 
 `ContentReference`, `ContentAsset`, `ContentProvider` and `DeliveryTarget` remain documented extension concepts. No tables or plugin framework are required for unused future concepts. A source or translation-project reference can already be an ExternalReference.
 
-No microservices, event sourcing, CQRS, graph database, Redis, PostgreSQL, broker, Kubernetes or mandatory Docker. No shared SQLite file with Release Watcher or Translator Agent. No deletion of history as an incidental effect of pausing, dropping or removing an external watch. Destructive purge and automatic merge are outside the MVP.
+Explicit cover discovery is limited to the four verified providers in [artwork providers](engineering/artwork-providers.md), only on user action, with provenance, a hard bounded cache and selected bytes in v2 backups; metadata enrichment beyond covers remains deferred. No microservices, event sourcing, CQRS, graph database, Redis, PostgreSQL, broker, Kubernetes or mandatory Docker. No shared SQLite file with Release Watcher or Translator Agent. No deletion of history as an incidental effect of pausing, dropping or removing an external watch. Destructive purge and automatic merge are outside the MVP.
 
 ## Scope changes from the previous plan
 

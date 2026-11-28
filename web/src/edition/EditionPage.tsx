@@ -10,6 +10,10 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { JSX } from "react";
 import { Link, useParams } from "react-router-dom";
 import { ApiError } from "../api/client";
+import { CoverImage } from "../artwork/CoverImage";
+import { CoverPicker } from "../artwork/CoverPicker";
+import type { ArtworkView } from "../artwork/artworkApi";
+import { Button } from "../ui";
 import { getWork } from "../work/workApi";
 import { getAnnotatedEdition, type AnnotatedEditionView } from "../annotations/annotationsApi";
 import { IntentionPanel } from "../annotations/IntentionPanel";
@@ -98,6 +102,7 @@ export function EditionPage(): JSX.Element {
   const [busy, setBusy] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
   const [fieldError, setFieldError] = useState<string | null>(null);
+  const [pickerOpen, setPickerOpen] = useState(false);
 
   // Progress form: the mode makes a new update and a mistake correction two
   // separate actions; a correction names the current record it supersedes.
@@ -395,26 +400,38 @@ export function EditionPage(): JSX.Element {
 
   return (
     <section className="placeholder">
-      <h2>
-        {preferred ? preferred.text : "Unknown"}
-        {edition.language !== null && (
-          <span className="work-card-lang"> {edition.language}</span>
-        )}
-      </h2>
-      <p>
-        <span className="work-badge">{edition.kind}</span>
-        {edition.other_label !== null && <span> · {edition.other_label}</span>}
-      </p>
-      <p className="login-hint">
-        Publication: {edition.publication?.value ?? "unknown"}
-        {publicationSource !== "" ? ` (source: ${publicationSource})` : ""}
-      </p>
-      <p>
-        Work:{" "}
-        <Link to={`/works/${encodeURIComponent(edition.work_id)}`}>
-          {workTitle ?? edition.work_id}
-        </Link>
-      </p>
+      <div className="detail-header">
+        <div>
+          <h2>
+            {preferred ? preferred.text : "Unknown"}
+            {edition.language !== null && (
+              <span className="work-card-lang"> {edition.language}</span>
+            )}
+          </h2>
+          <p>
+            <span className="work-badge">{edition.kind}</span>
+            {edition.other_label !== null && <span> · {edition.other_label}</span>}
+          </p>
+          <p className="login-hint">
+            Publication: {edition.publication?.value ?? "unknown"}
+            {publicationSource !== "" ? ` (source: ${publicationSource})` : ""}
+          </p>
+          <p>
+            Work:{" "}
+            <Link to={`/works/${encodeURIComponent(edition.work_id)}`}>
+              {workTitle ?? edition.work_id}
+            </Link>
+          </p>
+        </div>
+        <div className="detail-actions">
+          <CoverImage
+            src={edition.artwork?.image_url ?? null}
+            label={preferred?.text}
+            className="detail-cover"
+          />
+          <Button onClick={() => setPickerOpen(true)}>Find a cover</Button>
+        </div>
+      </div>
 
       {actionError !== null && (
         <div className="library-error">
@@ -697,6 +714,20 @@ export function EditionPage(): JSX.Element {
           Save metadata
         </button>
       </form>
+
+      <CoverPicker
+        open={pickerOpen}
+        onClose={() => setPickerOpen(false)}
+        title={preferred?.text ?? ""}
+        kind={edition.kind}
+        alternatives={edition.titles.filter((t) => t.id !== preferred?.id).map((t) => t.text)}
+        references={[]}
+        workId={edition.work_id}
+        editionId={edition.id}
+        onSelected={(artwork: ArtworkView) =>
+          setEdition((prev) => (prev === null ? prev : { ...prev, artwork }))
+        }
+      />
     </section>
   );
 }

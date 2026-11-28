@@ -17,6 +17,7 @@ import time
 
 DEFAULT_PREFIX = "media-core-auto-"
 MARKER_SUFFIX = ".verified"
+ARTWORK_DIR = "artwork-cache"
 LOCK_NAME = "media-core-retention.lock"
 
 
@@ -82,20 +83,45 @@ def plan_deletions(directory, prefix=DEFAULT_PREFIX, keep_daily=7, keep_weekly=4
     return [name for _, name in archives if name not in keep]
 
 
+def _archive_files(path):
+    """Return validated regular files and the v2 artwork-cache directory."""
+    with os.scandir(path) as entries:
+        children = list(entries)
+    top_files = []
+    artwork = None
+    for child in children:
+        child_info = child.stat(follow_symlinks=False)
+        if stat.S_ISREG(child_info.st_mode):
+            top_files.append(child)
+            continue
+        if child.name == ARTWORK_DIR and stat.S_ISDIR(child_info.st_mode) and artwork is None:
+            artwork = child
+            continue
+        raise RuntimeError(f"unsafe archive entry: {child.name}")
+    nested_files = []
+    if artwork is not None:
+        with os.scandir(artwork.path) as entries:
+            for child in entries:
+                child_info = child.stat(follow_symlinks=False)
+                if not stat.S_ISREG(child_info.st_mode):
+                    raise RuntimeError(f"unsafe archive entry: {ARTWORK_DIR}/{child.name}")
+                nested_files.append(child)
+    return top_files, artwork, nested_files
+
+
 def safe_remove_archive(directory, name):
     """Remove one archive and its marker without following symlinks."""
     path = os.path.join(directory, name)
     info = os.lstat(path)
     if not stat.S_ISDIR(info.st_mode):
         raise RuntimeError(f"not a real directory: {name}")
-    with os.scandir(path) as entries:
-        children = list(entries)
-    for child in children:
-        child_info = child.stat(follow_symlinks=False)
-        if not stat.S_ISREG(child_info.st_mode):
-            raise RuntimeError(f"unsafe archive entry: {child.name}")
-    for child in children:
+    top_files, artwork, nested_files = _archive_files(path)
+    for child in top_files:
         os.remove(child.path)
+    if artwork is not None:
+        for child in nested_files:
+            os.remove(child.path)
+        os.rmdir(artwork.path)
     os.rmdir(path)
     marker = os.path.join(directory, name + MARKER_SUFFIX)
     marker_info = os.lstat(marker)

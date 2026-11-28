@@ -177,7 +177,7 @@ describe("quick add outcomes", () => {
     addEditionButton = screen.getByRole("button", {
       name: "Add edition under this work",
     }) as HTMLButtonElement;
-    expect(addEditionButton.disabled).toBe(false);
+    await vi.waitFor(() => expect(addEditionButton.disabled).toBe(false));
 
     fireEvent.click(addEditionButton);
     expect((await screen.findByTestId("probe")).textContent).toBe("edition-e-7");

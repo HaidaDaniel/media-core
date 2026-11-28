@@ -360,3 +360,28 @@ func TestPublicHTTPSBehaviorUnchanged(t *testing.T) {
 		t.Fatal("trusted LAN with http public origin: want error")
 	}
 }
+
+func TestArtworkDiscoveryDefaultAndOptOut(t *testing.T) {
+	dir := t.TempDir()
+	cfg := mustResolve(t, Options{StateDir: dir, Env: isolatedEnv(t, nil)})
+	if !cfg.Artwork {
+		t.Fatal("artwork discovery must be enabled by default without background work")
+	}
+	env := isolatedEnv(t, map[string]string{"MEDIA_CORE_ARTWORK": "false"})
+	cfg = mustResolve(t, Options{StateDir: dir, Env: env})
+	if cfg.Artwork {
+		t.Fatal("MEDIA_CORE_ARTWORK=false must disable artwork routes")
+	}
+	cfg = mustResolve(t, Options{StateDir: dir, Artwork: false, ArtworkSet: true, Env: isolatedEnv(t, nil)})
+	if cfg.Artwork {
+		t.Fatal("--no-artwork must disable artwork routes")
+	}
+	cfg = mustResolve(t, Options{StateDir: dir, Artwork: true, ArtworkSet: true, Env: isolatedEnv(t, map[string]string{"MEDIA_CORE_ARTWORK": "false"})})
+	if !cfg.Artwork {
+		t.Fatal("an explicit flag must override MEDIA_CORE_ARTWORK")
+	}
+	env = isolatedEnv(t, map[string]string{"MEDIA_CORE_ARTWORK": "sometimes"})
+	if _, err := Resolve(Options{StateDir: dir, Env: env}); err == nil {
+		t.Fatal("invalid MEDIA_CORE_ARTWORK value must fail")
+	}
+}

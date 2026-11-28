@@ -105,5 +105,5 @@ func (s *Service) SetEditionTag(ctx context.Context, req TagRequest) (EditionVie
 	if err != nil {
 		return s.settleEditionView(ctx, req.MutationBase, hash, err)
 	}
-	return editionViewFrom(e), nil
+	return s.editionViewWithArtwork(ctx, e)
 }

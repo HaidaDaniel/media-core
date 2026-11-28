@@ -108,7 +108,7 @@ func (s *Service) AddEditionNote(ctx context.Context, req AddNoteRequest) (Editi
 	if err != nil {
 		return s.settleEditionView(ctx, req.MutationBase, hash, err)
 	}
-	return editionViewFrom(e), nil
+	return s.editionViewWithArtwork(ctx, e)
 }
 
 // ReviseNote appends one revision to a note and returns the updated view of
@@ -182,7 +182,7 @@ func (s *Service) noteTargetView(ctx context.Context, t store.NoteTarget) (any, 
 		}
 		return workViewFrom(t.Work, editions), nil
 	}
-	return editionViewFrom(t.Edition), nil
+	return s.editionViewWithArtwork(ctx, t.Edition)
 }
 
 // replayNoteView settles a same-key note mutation against the journal: a

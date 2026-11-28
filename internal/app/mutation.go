@@ -17,13 +17,29 @@ import (
 
 // Service runs the library use cases over one store handle.
 type Service struct {
-	db  *store.Database
-	now func() time.Time
+	db             *store.Database
+	now            func() time.Time
+	artworkServing bool
+}
+
+// Option configures one application service.
+type Option func(*Service)
+
+// WithArtworkServing controls whether saved artwork views carry an image URL.
+// Discovery can be disabled while the catalog still works; in that mode the
+// API omits artwork so the web client renders neutral placeholders instead of
+// requesting an unregistered image route.
+func WithArtworkServing(enabled bool) Option {
+	return func(s *Service) { s.artworkServing = enabled }
 }
 
 // NewService wires a service over the given store handle.
-func NewService(db *store.Database) *Service {
-	return &Service{db: db, now: time.Now}
+func NewService(db *store.Database, options ...Option) *Service {
+	service := &Service{db: db, now: time.Now, artworkServing: true}
+	for _, option := range options {
+		option(service)
+	}
+	return service
 }
 
 // fingerprintPayload is the canonical addition payload a candidate decision

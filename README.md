@@ -6,6 +6,8 @@ A personal, local-first library of encountered, consumed and saved media: what y
 - One binary: `media-core <command>`, `media-core mcp` (stdio or opt-in authenticated Streamable HTTP) and `media-core serve`.
 - React + TypeScript + Vite UI embedded as static assets; Node.js is build tooling only.
 - CLI and MCP work without HTTP. Only an enabled `serve`/`mcp --http` process stays resident.
+- Dark-first cover grid and compact list library with URL-persisted filters, sidebar navigation and shared accessible UI components.
+- Explicit, provider-based cover discovery (Kitsu, Shikimori, MangaDex, Open Library) with user confirmation, provenance and a bounded local cache; no background fetching and no third-party request while rendering saved data. See [artwork providers](docs/engineering/artwork-providers.md).
 - Optional explicit Trusted LAN serves `http://media.home.arpa:8787` directly from the Go binary on a private interface, with no reverse proxy or embedded DNS; see [deployment](docs/engineering/deployment.md#trusted-lan-deployment).
 - Durable edition-specific history, explicit source/adaptation/translation links, safe duplicate handling and consistent backup/restore.
 - Release Watcher supplies optional versioned JSON events through a separate database boundary.

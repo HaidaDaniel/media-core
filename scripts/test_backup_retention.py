@@ -79,6 +79,28 @@ class RetentionTests(unittest.TestCase):
         with self.assertRaises(RuntimeError):
             retention.safe_remove_archive(self.dir, os.path.basename(link))
 
+    def test_v2_archive_with_artwork_cache_can_be_removed(self):
+        target = make_archive(self.dir, retention.DEFAULT_PREFIX + stamp("2020-01-01"))
+        artwork = os.path.join(target, retention.ARTWORK_DIR)
+        os.mkdir(artwork)
+        with open(os.path.join(artwork, "a" * 64 + ".img"), "wb") as handle:
+            handle.write(b"cover")
+        retention.safe_remove_archive(self.dir, os.path.basename(target))
+        self.assertFalse(os.path.exists(target))
+        self.assertFalse(os.path.exists(target + retention.MARKER_SUFFIX))
+
+    def test_unsafe_nested_artwork_entries_are_rejected(self):
+        target = make_archive(self.dir, retention.DEFAULT_PREFIX + stamp("2020-01-01"))
+        artwork = os.path.join(target, retention.ARTWORK_DIR)
+        os.mkdir(artwork)
+        os.symlink("/etc/passwd", os.path.join(artwork, "evil.img"))
+        with self.assertRaises(RuntimeError):
+            retention.safe_remove_archive(self.dir, os.path.basename(target))
+        os.unlink(os.path.join(artwork, "evil.img"))
+        os.mkdir(os.path.join(artwork, "nested"))
+        with self.assertRaises(RuntimeError):
+            retention.safe_remove_archive(self.dir, os.path.basename(target))
+
     def test_last_verified_archive_is_always_kept(self):
         for day in ("2026-01-01", "2026-01-02"):
             make_archive(self.dir, retention.DEFAULT_PREFIX + stamp(day))

@@ -15,7 +15,7 @@ First-class MVP interface: React + TypeScript + Vite, same-origin Go API, no pro
 
 Routes: `/`, `/add`, `/works/:id`, `/editions/:id`, `/activity`, `/login`. Related media is a readable list in work/edition details, not a separate graph application. Before advanced work-detail task 0033 lands, library cards navigate directly to edition details and quick add shows a compact work/edition result.
 
-Library filter state lives in URL parameters for refresh/back; debounce search without changing semantics, cancel obsolete requests. Counts reflect current filters before pagination. Show missing metadata as “Unknown”/“No rating”, not fabricated covers or source facts. There is no cover fetch in MVP; a neutral placeholder can be omitted entirely. Search matches aliases and labels the match.
+Library filter state lives in URL parameters for refresh/back; debounce search without changing semantics, cancel obsolete requests. Counts reflect current filters before pagination. Show missing metadata as “Unknown”/“No rating”, not fabricated covers or source facts. Covers come only from an explicit, user-confirmed provider selection; a missing, cleared or unreadable cover uses a neutral placeholder (an image load failure swaps to it). Only candidates with a locally previewed, selectable image are returned. The “one confident match” label requires a score of at least 0.9; a weaker single result is shown as a possible match. Cancel aborts the in-flight discovery request. Search matches aliases and labels the match.
 
 ## Interactions
 

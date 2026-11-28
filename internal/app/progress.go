@@ -74,7 +74,7 @@ func (s *Service) RecordProgress(ctx context.Context, req RecordProgressRequest)
 	if err != nil {
 		return s.settleEditionView(ctx, req.MutationBase, hash, err)
 	}
-	return editionViewFrom(e), nil
+	return s.editionViewWithArtwork(ctx, e)
 }
 
 // RetractProgress explicitly retracts one progress observation and returns
@@ -118,7 +118,7 @@ func (s *Service) RetractProgress(ctx context.Context, req RetractProgressReques
 	if err != nil {
 		return s.settleEditionView(ctx, req.MutationBase, hash, err)
 	}
-	return editionViewFrom(e), nil
+	return s.editionViewWithArtwork(ctx, e)
 }
 
 // progressViewFrom maps the live current progress observations of an
