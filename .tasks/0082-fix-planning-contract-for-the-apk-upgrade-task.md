@@ -1,6 +1,6 @@
 # Task 0082 - Fix planning contract for the APK upgrade task
 
-State: doing
+State: done
 Owner: opencode-apk-upgrade-20261128
 Mode: mvp
 Lane: maintenance
