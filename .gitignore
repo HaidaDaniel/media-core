@@ -34,3 +34,5 @@ node_modules/
 docs/audit-report.md
 docs/project-map.md
 /tmp/apk/
+.agentic/task-reconciliations.jsonl
+.agentic/task-recoveries.jsonl
