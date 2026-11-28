@@ -55,8 +55,11 @@ timings are single observations on this host, not a benchmark.
 
 Doctor keeps the same four advisory warnings before and after (`application-discovery`,
 `quality 4/7`, `license`, `env`) and adds a passing `ignore-entries` check after adoption.
-`apk lint` reports zero findings and `apk doctor`/`apk sync`/`apk status` exit 0 in both
-versions. With two worktrees present, 0.6.2 emits a bounded diagnostic that lifecycle metadata
+`apk lint`, `apk doctor`, `apk sync` and `apk status` exit 0 in both versions. 0.6.2 lint
+reports zero findings; the 0.6.0 lint capture additionally emitted one info-level
+`context-reference-missing` note for the generated `docs/project-map.md` that was not present
+at capture time, which is a capture-order artifact rather than an upgrade regression. With two
+worktrees present, 0.6.2 emits a bounded diagnostic that lifecycle metadata
 was read from two linked worktrees while task identity stayed bound to its canonical worktree,
 baseline and candidate. That warning is expected while the isolated upgrade worktree exists.
 
